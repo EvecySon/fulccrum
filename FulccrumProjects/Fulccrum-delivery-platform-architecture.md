@@ -1,4 +1,4 @@
-# Multi-App Delivery Platform Architecture
+# FULCCRUM Architecture - Multi-App Delivery Platform
 
 ## System Overview
 

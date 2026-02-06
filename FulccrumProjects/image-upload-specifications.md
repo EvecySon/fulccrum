@@ -1,4 +1,4 @@
-# Image Upload Specifications - Menu Items & Platform Assets
+# FULCCRUM Image Upload Specifications - Menu Items & Platform Assets
 
 ## 📸 **OPTIMAL IMAGE SPECIFICATIONS**
 

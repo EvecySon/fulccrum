@@ -1,4 +1,4 @@
-# Git & Jira Workflow Guide - Team Collaboration Setup
+# FULCCRUM Git & Jira Workflow Guide - Team Collaboration Setup
 
 ## 🚀 **OVERVIEW**
 **Purpose**: Efficient team collaboration for parallel development

@@ -1,4 +1,4 @@
-# Backend API & Database Schema Design
+# FULCCRUM Backend API & Database Schema Design
 
 ## Database Architecture
 
