@@ -1,0 +1,188 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  customer
+  business_owner
+  driver
+  admin
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+  deleted
+}
+
+enum OrderStatus {
+  pending
+  accepted
+  rejected
+  preparing
+  ready
+  picked_up
+  in_transit
+  delivered
+  cancelled
+  refunded
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(255)
+  phone         String?    @unique @db.VarChar(20)
+  passwordHash  String     @map("password_hash") @db.VarChar(255)
+  firstName     String     @map("first_name") @db.VarChar(100)
+  lastName      String     @map("last_name") @db.VarChar(100)
+  avatarUrl     String?    @map("avatar_url")
+  dateOfBirth   DateTime?  @map("date_of_birth") @db.Date
+  role          UserRole   @default(customer)
+  status        UserStatus @default(active)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  lastLogin     DateTime?  @map("last_login")
+
+  customerProfile CustomerProfile?
+  driverProfile   DriverProfile?
+  businessProfile BusinessProfile?
+  addresses       Address[]
+
+  ordersAsCustomer Order[] @relation("customer_orders")
+  ordersAsDriver   Order[] @relation("driver_orders")
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  userId         String   @id @map("user_id") @db.Uuid
+  defaultAddressId String? @map("default_address_id") @db.Uuid
+  preferences    Json     @default("{}")
+  loyaltyPoints  Int      @default(0) @map("loyalty_points")
+  loyaltyTier    String   @default("bronze") @map("loyalty_tier") @db.VarChar(20)
+  totalOrders    Int      @default(0) @map("total_orders")
+  totalSpent     Decimal  @default(0.0) @map("total_spent") @db.Decimal(10, 2)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customer_profiles")
+}
+
+model DriverProfile {
+  userId               String   @id @map("user_id") @db.Uuid
+  vehicleType          String   @map("vehicle_type") @db.VarChar(50)
+  vehicleMake          String?  @map("vehicle_make") @db.VarChar(50)
+  vehicleModel         String?  @map("vehicle_model") @db.VarChar(50)
+  vehicleYear          Int?     @map("vehicle_year")
+  vehicleColor         String?  @map("vehicle_color") @db.VarChar(30)
+  licensePlate         String?  @map("license_plate") @db.VarChar(20)
+  driverLicenseNumber  String?  @map("driver_license_number") @db.VarChar(50)
+  backgroundCheckStatus String  @default("pending") @map("background_check_status") @db.VarChar(20)
+  backgroundCheckDate  DateTime? @map("background_check_date")
+  insuranceExpiration  DateTime? @map("insurance_expiration") @db.Date
+  rating               Decimal  @default(5.0) @db.Decimal(3, 2)
+  totalDeliveries      Int      @default(0) @map("total_deliveries")
+  onlineStatus         Boolean  @default(false) @map("online_status")
+  lastLocationUpdate   DateTime? @map("last_location_update")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("driver_profiles")
+}
+
+model BusinessProfile {
+  userId                String   @id @map("user_id") @db.Uuid
+  businessName          String   @map("business_name") @db.VarChar(255)
+  businessType          String   @map("business_type") @db.VarChar(50)
+  description           String?
+  logoUrl               String?  @map("logo_url")
+  coverImageUrl         String?  @map("cover_image_url")
+  website               String?  @db.VarChar(255)
+  phone                 String?  @db.VarChar(20)
+  email                 String?  @db.VarChar(255)
+  taxId                 String?  @map("tax_id") @db.VarChar(50)
+  businessLicense       String?  @map("business_license") @db.VarChar(100)
+  verificationStatus    String   @default("pending") @map("verification_status") @db.VarChar(20)
+  verificationDate      DateTime? @map("verification_date")
+  rating                Decimal  @default(5.0) @db.Decimal(3, 2)
+  averagePreparationTime Int     @default(15) @map("average_preparation_time")
+  deliveryFee           Decimal  @default(0.0) @map("delivery_fee") @db.Decimal(5, 2)
+  minimumOrderAmount    Decimal  @default(0.0) @map("minimum_order_amount") @db.Decimal(8, 2)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("business_profiles")
+}
+
+model Address {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  businessId   String?  @map("business_id") @db.Uuid
+  label        String?  @db.VarChar(50)
+  streetAddress String  @map("street_address") @db.VarChar(255)
+  apartment    String?  @db.VarChar(50)
+  city         String   @db.VarChar(100)
+  state        String   @db.VarChar(100)
+  postalCode   String   @map("postal_code") @db.VarChar(20)
+  country      String   @db.VarChar(100)
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model Order {
+  id            String      @id @default(uuid()) @db.Uuid
+  orderNumber   String      @unique @map("order_number") @db.VarChar(20)
+  customerId    String      @map("customer_id") @db.Uuid
+  businessId    String      @map("business_id") @db.Uuid
+  driverId      String?     @map("driver_id") @db.Uuid
+  status        OrderStatus @default(pending)
+
+  subtotal      Decimal     @db.Decimal(10, 2)
+  deliveryFee   Decimal     @map("delivery_fee") @db.Decimal(5, 2)
+  serviceFee    Decimal     @map("service_fee") @db.Decimal(5, 2)
+  taxAmount     Decimal     @map("tax_amount") @db.Decimal(5, 2)
+  tipAmount     Decimal     @default(0.0) @map("tip_amount") @db.Decimal(5, 2)
+  discountAmount Decimal    @default(0.0) @map("discount_amount") @db.Decimal(5, 2)
+  totalAmount   Decimal     @map("total_amount") @db.Decimal(10, 2)
+
+  placedAt      DateTime    @default(now()) @map("placed_at")
+  acceptedAt    DateTime?   @map("accepted_at")
+  preparationStartedAt DateTime? @map("preparation_started_at")
+  readyAt       DateTime?   @map("ready_at")
+  pickedUpAt    DateTime?   @map("picked_up_at")
+  deliveredAt   DateTime?   @map("delivered_at")
+
+  specialInstructions String? @map("special_instructions")
+
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  customer User @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
+  driver   User? @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([businessId])
+  @@index([driverId])
+  @@index([status])
+  @@map("orders")
+}
