@@ -30,9 +30,9 @@ export declare class PaymentController {
         data: {
             id: string;
             createdAt: Date;
+            orderNumber: string;
             totalAmount: import("@prisma/client-runtime-utils").Decimal;
             paymentMethod: string | null;
-            orderNumber: string;
             paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         }[];
         meta: {

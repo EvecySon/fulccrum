@@ -143,9 +143,9 @@ model BusinessProfile {
   userId                String   @id @map("user_id") @db.Uuid
   businessName          String   @map("business_name") @db.VarChar(255)
   businessType          String   @map("business_type") @db.VarChar(50)
-  description           String?
-  logoUrl               String?  @map("logo_url")
-  coverImageUrl         String?  @map("cover_image_url")
+  description           String?  @db.Text
+  logoUrl               String?  @map("logo_url") @db.Text
+  coverImageUrl         String?  @map("cover_image_url") @db.Text
   website               String?  @db.VarChar(255)
   phone                 String?  @db.VarChar(20)
   email                 String?  @db.VarChar(255)
@@ -153,12 +153,18 @@ model BusinessProfile {
   businessLicense       String?  @map("business_license") @db.VarChar(100)
   verificationStatus    String   @default("pending") @map("verification_status") @db.VarChar(20)
   verificationDate      DateTime? @map("verification_date")
-  rating                Decimal  @default(5.0) @db.Decimal(3, 2)
+  rating                Decimal  @default(5.00) @db.Decimal(3, 2)
   averagePreparationTime Int     @default(15) @map("average_preparation_time")
-  deliveryFee           Decimal  @default(0.0) @map("delivery_fee") @db.Decimal(5, 2)
-  minimumOrderAmount    Decimal  @default(0.0) @map("minimum_order_amount") @db.Decimal(8, 2)
+  deliveryFee           Decimal  @default(0.00) @map("delivery_fee") @db.Decimal(5, 2)
+  minimumOrderAmount    Decimal  @default(0.00) @map("minimum_order_amount") @db.Decimal(8, 2)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses      Address[]
+  orders         Order[]
+  menuCategories MenuCategory[]
+  businessHours  BusinessHours[]
 
   @@map("business_profiles")
 }
@@ -180,7 +186,8 @@ model Address {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business BusinessProfile? @relation(fields: [businessId], references: [userId], onDelete: Cascade)
 
   @@map("addresses")
 }
@@ -217,8 +224,9 @@ model Order {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  customer User @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
-  driver   User? @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
+  customer User            @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
 
   @@index([customerId])
   @@index([businessId])
@@ -358,4 +366,144 @@ model DriverLocation {
   @@index([driverId, timestamp])
   @@index([timestamp])
   @@map("driver_locations")
+}
+
+// Menu Management Models
+
+// Menu Categories
+model MenuCategory {
+  id           String   @id @default(uuid()) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  description  String?  @db.Text
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  items    MenuItem[]
+  
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@map("menu_categories")
+}
+
+// Menu Items
+model MenuItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  categoryId      String   @map("category_id") @db.Uuid
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  price           Decimal  @db.Decimal(10, 2)
+  costPrice       Decimal? @map("cost_price") @db.Decimal(10, 2)
+  images          Json     @default("[]")
+  ingredients     String[] @default([])
+  allergens       String[] @default([])
+  nutritionalInfo Json?    @map("nutritional_info")
+  preparationTime Int      @default(15) @map("preparation_time")
+  isAvailable     Boolean  @default(true) @map("is_available")
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  displayOrder    Int      @default(0) @map("display_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  category  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  inventory Inventory?
+  modifiers ItemModifierLink[]
+  
+  @@index([businessId])
+  @@index([categoryId])
+  @@index([businessId, isAvailable])
+  @@index([businessId, isFeatured])
+  @@map("menu_items")
+}
+
+// Item Modifiers (e.g., Size, Toppings)
+model ItemModifier {
+  id           String   @id @default(uuid()) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  type         String   @db.VarChar(20) // 'single' or 'multiple'
+  isRequired   Boolean  @default(false) @map("is_required")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  options ModifierOption[]
+  items   ItemModifierLink[]
+  
+  @@index([businessId])
+  @@map("item_modifiers")
+}
+
+// Modifier Options (e.g., Small, Medium, Large)
+model ModifierOption {
+  id              String   @id @default(uuid()) @db.Uuid
+  modifierId      String   @map("modifier_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  priceAdjustment Decimal  @default(0) @map("price_adjustment") @db.Decimal(5, 2)
+  displayOrder    Int      @default(0) @map("display_order")
+  isAvailable     Boolean  @default(true) @map("is_available")
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  modifier ItemModifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  
+  @@index([modifierId])
+  @@map("modifier_options")
+}
+
+// Link table for items and modifiers (many-to-many)
+model ItemModifierLink {
+  id         String   @id @default(uuid()) @db.Uuid
+  itemId     String   @map("item_id") @db.Uuid
+  modifierId String   @map("modifier_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  item     MenuItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  modifier ItemModifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  
+  @@unique([itemId, modifierId])
+  @@index([itemId])
+  @@index([modifierId])
+  @@map("item_modifier_links")
+}
+
+// Business Hours
+model BusinessHours {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessId  String   @map("business_id") @db.Uuid
+  dayOfWeek   Int      @db.SmallInt // 0 = Sunday, 6 = Saturday
+  openingTime String   @map("opening_time") @db.VarChar(5) // "09:00"
+  closingTime String   @map("closing_time") @db.VarChar(5) // "22:00"
+  isClosed    Boolean  @default(false) @map("is_closed")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  
+  @@unique([businessId, dayOfWeek])
+  @@index([businessId])
+  @@map("business_hours")
+}
+
+// Inventory Management
+model Inventory {
+  id            String    @id @default(uuid()) @db.Uuid
+  businessId    String    @map("business_id") @db.Uuid
+  itemId        String    @unique @map("item_id") @db.Uuid
+  currentStock  Int       @default(0) @map("current_stock")
+  minimumStock  Int       @default(0) @map("minimum_stock")
+  unit          String    @default("pieces") @db.VarChar(50)
+  costPerUnit   Decimal?  @map("cost_per_unit") @db.Decimal(8, 2)
+  supplier      String?   @db.VarChar(255)
+  lastRestocked DateTime? @map("last_restocked")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  item MenuItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([businessId, currentStock])
+  @@map("inventory")
 }

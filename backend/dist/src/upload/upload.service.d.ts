@@ -32,12 +32,12 @@ export declare class UploadService {
     }>;
     getUserFiles(userId: string, page?: number, limit?: number): Promise<{
         data: {
-            url: string;
             id: string;
             filename: string;
             originalName: string;
             mimeType: string;
             size: number;
+            url: string;
             thumbnailUrl: string | null;
             mediumUrl: string | null;
             uploadedAt: Date;
@@ -50,13 +50,13 @@ export declare class UploadService {
         };
     }>;
     getFile(fileId: string, userId: string): Promise<{
-        url: string;
         id: string;
         userId: string;
         filename: string;
         originalName: string;
         mimeType: string;
         size: number;
+        url: string;
         thumbnailUrl: string | null;
         mediumUrl: string | null;
         uploadedAt: Date;

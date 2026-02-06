@@ -63,9 +63,11 @@ export declare class AnalyticsService {
             lastName: string;
         };
     } & {
+        createdAt: Date;
         userId: string;
         email: string | null;
         phone: string | null;
+        updatedAt: Date;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         businessName: string;
         businessType: string;

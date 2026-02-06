@@ -26,9 +26,9 @@ export declare class AdminController {
         createdAt: Date;
         email: string;
         phone: string | null;
+        passwordHash: string;
         firstName: string;
         lastName: string;
-        passwordHash: string;
         avatarUrl: string | null;
         dateOfBirth: Date | null;
         role: import("@prisma/client").$Enums.UserRole;
@@ -43,9 +43,9 @@ export declare class AdminController {
         createdAt: Date;
         email: string;
         phone: string | null;
+        passwordHash: string;
         firstName: string;
         lastName: string;
-        passwordHash: string;
         avatarUrl: string | null;
         dateOfBirth: Date | null;
         role: import("@prisma/client").$Enums.UserRole;
@@ -71,18 +71,14 @@ export declare class AdminController {
             createdAt: Date;
             status: import("@prisma/client").$Enums.OrderStatus;
             updatedAt: Date;
-            businessId: string;
+            orderNumber: string;
             subtotal: import("@prisma/client-runtime-utils").Decimal;
             deliveryFee: import("@prisma/client-runtime-utils").Decimal;
             serviceFee: import("@prisma/client-runtime-utils").Decimal;
             taxAmount: import("@prisma/client-runtime-utils").Decimal;
-            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             tipAmount: import("@prisma/client-runtime-utils").Decimal;
             discountAmount: import("@prisma/client-runtime-utils").Decimal;
-            specialInstructions: string | null;
-            paymentMethod: string | null;
-            driverId: string | null;
-            orderNumber: string;
+            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             placedAt: Date;
             acceptedAt: Date | null;
             preparationStartedAt: Date | null;
@@ -90,9 +86,13 @@ export declare class AdminController {
             pickedUpAt: Date | null;
             deliveredAt: Date | null;
             estimatedDeliveryTime: Date | null;
+            specialInstructions: string | null;
+            paymentMethod: string | null;
             paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
             paymentId: string | null;
             customerId: string;
+            businessId: string;
+            driverId: string | null;
         })[];
         meta: {
             page: number;
@@ -177,8 +177,8 @@ export declare class AdminController {
                 firstName: string;
                 lastName: string;
             };
-            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             orderNumber: string;
+            totalAmount: import("@prisma/client-runtime-utils").Decimal;
         }[];
         recentUsers: {
             id: string;

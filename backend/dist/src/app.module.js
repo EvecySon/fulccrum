@@ -26,6 +26,7 @@ const payment_module_1 = require("./payment/payment.module");
 const analytics_module_1 = require("./analytics/analytics.module");
 const admin_module_1 = require("./admin/admin.module");
 const messaging_module_1 = require("./messaging/messaging.module");
+const menu_module_1 = require("./menu/menu.module");
 const throttle_guard_1 = require("./common/guards/throttle.guard");
 let AppModule = class AppModule {
 };
@@ -53,6 +54,7 @@ exports.AppModule = AppModule = __decorate([
             analytics_module_1.AnalyticsModule,
             admin_module_1.AdminModule,
             messaging_module_1.MessagingModule,
+            menu_module_1.MenuModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

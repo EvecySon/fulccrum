@@ -16,18 +16,14 @@ export declare class OrdersController {
         createdAt: Date;
         status: import("@prisma/client").$Enums.OrderStatus;
         updatedAt: Date;
-        businessId: string;
+        orderNumber: string;
         subtotal: import("@prisma/client-runtime-utils").Decimal;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         serviceFee: import("@prisma/client-runtime-utils").Decimal;
         taxAmount: import("@prisma/client-runtime-utils").Decimal;
-        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         tipAmount: import("@prisma/client-runtime-utils").Decimal;
         discountAmount: import("@prisma/client-runtime-utils").Decimal;
-        specialInstructions: string | null;
-        paymentMethod: string | null;
-        driverId: string | null;
-        orderNumber: string;
+        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         placedAt: Date;
         acceptedAt: Date | null;
         preparationStartedAt: Date | null;
@@ -35,9 +31,13 @@ export declare class OrdersController {
         pickedUpAt: Date | null;
         deliveredAt: Date | null;
         estimatedDeliveryTime: Date | null;
+        specialInstructions: string | null;
+        paymentMethod: string | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         paymentId: string | null;
         customerId: string;
+        businessId: string;
+        driverId: string | null;
     }>;
     getOrder(id: string, req: any): Promise<{
         customer: {
@@ -58,18 +58,14 @@ export declare class OrdersController {
         createdAt: Date;
         status: import("@prisma/client").$Enums.OrderStatus;
         updatedAt: Date;
-        businessId: string;
+        orderNumber: string;
         subtotal: import("@prisma/client-runtime-utils").Decimal;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         serviceFee: import("@prisma/client-runtime-utils").Decimal;
         taxAmount: import("@prisma/client-runtime-utils").Decimal;
-        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         tipAmount: import("@prisma/client-runtime-utils").Decimal;
         discountAmount: import("@prisma/client-runtime-utils").Decimal;
-        specialInstructions: string | null;
-        paymentMethod: string | null;
-        driverId: string | null;
-        orderNumber: string;
+        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         placedAt: Date;
         acceptedAt: Date | null;
         preparationStartedAt: Date | null;
@@ -77,9 +73,13 @@ export declare class OrdersController {
         pickedUpAt: Date | null;
         deliveredAt: Date | null;
         estimatedDeliveryTime: Date | null;
+        specialInstructions: string | null;
+        paymentMethod: string | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         paymentId: string | null;
         customerId: string;
+        businessId: string;
+        driverId: string | null;
     }>;
     updateOrderStatus(id: string, dto: UpdateOrderStatusDto, req: any): Promise<{
         customer: {
@@ -97,18 +97,14 @@ export declare class OrdersController {
         createdAt: Date;
         status: import("@prisma/client").$Enums.OrderStatus;
         updatedAt: Date;
-        businessId: string;
+        orderNumber: string;
         subtotal: import("@prisma/client-runtime-utils").Decimal;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         serviceFee: import("@prisma/client-runtime-utils").Decimal;
         taxAmount: import("@prisma/client-runtime-utils").Decimal;
-        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         tipAmount: import("@prisma/client-runtime-utils").Decimal;
         discountAmount: import("@prisma/client-runtime-utils").Decimal;
-        specialInstructions: string | null;
-        paymentMethod: string | null;
-        driverId: string | null;
-        orderNumber: string;
+        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         placedAt: Date;
         acceptedAt: Date | null;
         preparationStartedAt: Date | null;
@@ -116,17 +112,21 @@ export declare class OrdersController {
         pickedUpAt: Date | null;
         deliveredAt: Date | null;
         estimatedDeliveryTime: Date | null;
+        specialInstructions: string | null;
+        paymentMethod: string | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         paymentId: string | null;
         customerId: string;
+        businessId: string;
+        driverId: string | null;
     }>;
     getMyOrders(req: any, page?: string, limit?: string): Promise<{
         data: {
             id: string;
             createdAt: Date;
             status: import("@prisma/client").$Enums.OrderStatus;
-            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             orderNumber: string;
+            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             estimatedDeliveryTime: Date | null;
         }[];
         meta: {
@@ -148,18 +148,14 @@ export declare class OrdersController {
         createdAt: Date;
         status: import("@prisma/client").$Enums.OrderStatus;
         updatedAt: Date;
-        businessId: string;
+        orderNumber: string;
         subtotal: import("@prisma/client-runtime-utils").Decimal;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         serviceFee: import("@prisma/client-runtime-utils").Decimal;
         taxAmount: import("@prisma/client-runtime-utils").Decimal;
-        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         tipAmount: import("@prisma/client-runtime-utils").Decimal;
         discountAmount: import("@prisma/client-runtime-utils").Decimal;
-        specialInstructions: string | null;
-        paymentMethod: string | null;
-        driverId: string | null;
-        orderNumber: string;
+        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         placedAt: Date;
         acceptedAt: Date | null;
         preparationStartedAt: Date | null;
@@ -167,9 +163,13 @@ export declare class OrdersController {
         pickedUpAt: Date | null;
         deliveredAt: Date | null;
         estimatedDeliveryTime: Date | null;
+        specialInstructions: string | null;
+        paymentMethod: string | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         paymentId: string | null;
         customerId: string;
+        businessId: string;
+        driverId: string | null;
     })[]>;
     getBusinessOrders(businessId: string, page?: string, limit?: string): Promise<{
         data: ({
@@ -189,18 +189,14 @@ export declare class OrdersController {
             createdAt: Date;
             status: import("@prisma/client").$Enums.OrderStatus;
             updatedAt: Date;
-            businessId: string;
+            orderNumber: string;
             subtotal: import("@prisma/client-runtime-utils").Decimal;
             deliveryFee: import("@prisma/client-runtime-utils").Decimal;
             serviceFee: import("@prisma/client-runtime-utils").Decimal;
             taxAmount: import("@prisma/client-runtime-utils").Decimal;
-            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             tipAmount: import("@prisma/client-runtime-utils").Decimal;
             discountAmount: import("@prisma/client-runtime-utils").Decimal;
-            specialInstructions: string | null;
-            paymentMethod: string | null;
-            driverId: string | null;
-            orderNumber: string;
+            totalAmount: import("@prisma/client-runtime-utils").Decimal;
             placedAt: Date;
             acceptedAt: Date | null;
             preparationStartedAt: Date | null;
@@ -208,9 +204,13 @@ export declare class OrdersController {
             pickedUpAt: Date | null;
             deliveredAt: Date | null;
             estimatedDeliveryTime: Date | null;
+            specialInstructions: string | null;
+            paymentMethod: string | null;
             paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
             paymentId: string | null;
             customerId: string;
+            businessId: string;
+            driverId: string | null;
         })[];
         meta: {
             page: number;
@@ -224,18 +224,14 @@ export declare class OrdersController {
         createdAt: Date;
         status: import("@prisma/client").$Enums.OrderStatus;
         updatedAt: Date;
-        businessId: string;
+        orderNumber: string;
         subtotal: import("@prisma/client-runtime-utils").Decimal;
         deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         serviceFee: import("@prisma/client-runtime-utils").Decimal;
         taxAmount: import("@prisma/client-runtime-utils").Decimal;
-        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         tipAmount: import("@prisma/client-runtime-utils").Decimal;
         discountAmount: import("@prisma/client-runtime-utils").Decimal;
-        specialInstructions: string | null;
-        paymentMethod: string | null;
-        driverId: string | null;
-        orderNumber: string;
+        totalAmount: import("@prisma/client-runtime-utils").Decimal;
         placedAt: Date;
         acceptedAt: Date | null;
         preparationStartedAt: Date | null;
@@ -243,8 +239,12 @@ export declare class OrdersController {
         pickedUpAt: Date | null;
         deliveredAt: Date | null;
         estimatedDeliveryTime: Date | null;
+        specialInstructions: string | null;
+        paymentMethod: string | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
         paymentId: string | null;
         customerId: string;
+        businessId: string;
+        driverId: string | null;
     }>;
 }
