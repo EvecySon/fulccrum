@@ -10,25 +10,24 @@ export declare class MenuService {
     constructor(prisma: PrismaService);
     createCategory(businessId: string, dto: CreateCategoryDto): Promise<{
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
-        isActive: boolean;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        isActive: boolean;
+        description: string | null;
+        displayOrder: number;
     }>;
     getCategories(businessId: string, includeInactive?: boolean): Promise<({
         items: {
             id: string;
-            name: string;
-            description: string | null;
-            displayOrder: number;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             businessId: string;
+            description: string | null;
+            displayOrder: number;
             isAvailable: boolean;
-            categoryId: string;
             price: import("@prisma/client-runtime-utils").Decimal;
             costPrice: import("@prisma/client-runtime-utils").Decimal | null;
             images: import("@prisma/client/runtime/client").JsonValue;
@@ -37,26 +36,27 @@ export declare class MenuService {
             nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
             preparationTime: number;
             isFeatured: boolean;
+            categoryId: string;
         }[];
     } & {
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
-        isActive: boolean;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        isActive: boolean;
+        description: string | null;
+        displayOrder: number;
     })[]>;
     updateCategory(categoryId: string, businessId: string, dto: Partial<CreateCategoryDto>): Promise<{
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
-        isActive: boolean;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        isActive: boolean;
+        description: string | null;
+        displayOrder: number;
     }>;
     deleteCategory(categoryId: string, businessId: string): Promise<{
         success: boolean;
@@ -64,14 +64,13 @@ export declare class MenuService {
     }>;
     createItem(businessId: string, dto: CreateItemDto): Promise<{
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        description: string | null;
+        displayOrder: number;
         isAvailable: boolean;
-        categoryId: string;
         price: import("@prisma/client-runtime-utils").Decimal;
         costPrice: import("@prisma/client-runtime-utils").Decimal | null;
         images: import("@prisma/client/runtime/client").JsonValue;
@@ -80,18 +79,9 @@ export declare class MenuService {
         nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
         preparationTime: number;
         isFeatured: boolean;
+        categoryId: string;
     }>;
     getItems(businessId: string, categoryId?: string, includeUnavailable?: boolean): Promise<({
-        category: {
-            id: string;
-            name: string;
-            description: string | null;
-            displayOrder: number;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            businessId: string;
-        };
         inventory: {
             id: string;
             updatedAt: Date;
@@ -104,43 +94,52 @@ export declare class MenuService {
             supplier: string | null;
             lastRestocked: Date | null;
         } | null;
+        category: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            updatedAt: Date;
+            businessId: string;
+            isActive: boolean;
+            description: string | null;
+            displayOrder: number;
+        };
         modifiers: ({
             modifier: {
                 options: {
                     id: string;
+                    createdAt: Date;
                     name: string;
                     displayOrder: number;
-                    createdAt: Date;
                     isAvailable: boolean;
-                    modifierId: string;
                     priceAdjustment: import("@prisma/client-runtime-utils").Decimal;
+                    modifierId: string;
                 }[];
             } & {
                 id: string;
-                name: string;
-                displayOrder: number;
                 createdAt: Date;
+                name: string;
                 updatedAt: Date;
                 businessId: string;
                 type: string;
+                displayOrder: number;
                 isRequired: boolean;
             };
         } & {
             id: string;
             createdAt: Date;
-            itemId: string;
             modifierId: string;
+            itemId: string;
         })[];
     } & {
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        description: string | null;
+        displayOrder: number;
         isAvailable: boolean;
-        categoryId: string;
         price: import("@prisma/client-runtime-utils").Decimal;
         costPrice: import("@prisma/client-runtime-utils").Decimal | null;
         images: import("@prisma/client/runtime/client").JsonValue;
@@ -149,18 +148,9 @@ export declare class MenuService {
         nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
         preparationTime: number;
         isFeatured: boolean;
+        categoryId: string;
     })[]>;
     getItem(itemId: string): Promise<{
-        category: {
-            id: string;
-            name: string;
-            description: string | null;
-            displayOrder: number;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            businessId: string;
-        };
         inventory: {
             id: string;
             updatedAt: Date;
@@ -173,43 +163,52 @@ export declare class MenuService {
             supplier: string | null;
             lastRestocked: Date | null;
         } | null;
+        category: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            updatedAt: Date;
+            businessId: string;
+            isActive: boolean;
+            description: string | null;
+            displayOrder: number;
+        };
         modifiers: ({
             modifier: {
                 options: {
                     id: string;
+                    createdAt: Date;
                     name: string;
                     displayOrder: number;
-                    createdAt: Date;
                     isAvailable: boolean;
-                    modifierId: string;
                     priceAdjustment: import("@prisma/client-runtime-utils").Decimal;
+                    modifierId: string;
                 }[];
             } & {
                 id: string;
-                name: string;
-                displayOrder: number;
                 createdAt: Date;
+                name: string;
                 updatedAt: Date;
                 businessId: string;
                 type: string;
+                displayOrder: number;
                 isRequired: boolean;
             };
         } & {
             id: string;
             createdAt: Date;
-            itemId: string;
             modifierId: string;
+            itemId: string;
         })[];
     } & {
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        description: string | null;
+        displayOrder: number;
         isAvailable: boolean;
-        categoryId: string;
         price: import("@prisma/client-runtime-utils").Decimal;
         costPrice: import("@prisma/client-runtime-utils").Decimal | null;
         images: import("@prisma/client/runtime/client").JsonValue;
@@ -218,17 +217,17 @@ export declare class MenuService {
         nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
         preparationTime: number;
         isFeatured: boolean;
+        categoryId: string;
     }>;
     updateItem(itemId: string, businessId: string, dto: Partial<CreateItemDto>): Promise<{
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        description: string | null;
+        displayOrder: number;
         isAvailable: boolean;
-        categoryId: string;
         price: import("@prisma/client-runtime-utils").Decimal;
         costPrice: import("@prisma/client-runtime-utils").Decimal | null;
         images: import("@prisma/client/runtime/client").JsonValue;
@@ -237,6 +236,7 @@ export declare class MenuService {
         nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
         preparationTime: number;
         isFeatured: boolean;
+        categoryId: string;
     }>;
     deleteItem(itemId: string, businessId: string): Promise<{
         success: boolean;
@@ -244,14 +244,13 @@ export declare class MenuService {
     }>;
     toggleItemAvailability(itemId: string, businessId: string): Promise<{
         id: string;
-        name: string;
-        description: string | null;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
+        description: string | null;
+        displayOrder: number;
         isAvailable: boolean;
-        categoryId: string;
         price: import("@prisma/client-runtime-utils").Decimal;
         costPrice: import("@prisma/client-runtime-utils").Decimal | null;
         images: import("@prisma/client/runtime/client").JsonValue;
@@ -260,51 +259,52 @@ export declare class MenuService {
         nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
         preparationTime: number;
         isFeatured: boolean;
+        categoryId: string;
     }>;
     createModifier(businessId: string, dto: CreateModifierDto): Promise<{
         id: string;
-        name: string;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
         type: string;
+        displayOrder: number;
         isRequired: boolean;
     }>;
     getModifiers(businessId: string): Promise<({
         options: {
             id: string;
+            createdAt: Date;
             name: string;
             displayOrder: number;
-            createdAt: Date;
             isAvailable: boolean;
-            modifierId: string;
             priceAdjustment: import("@prisma/client-runtime-utils").Decimal;
+            modifierId: string;
         }[];
     } & {
         id: string;
-        name: string;
-        displayOrder: number;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         businessId: string;
         type: string;
+        displayOrder: number;
         isRequired: boolean;
     })[]>;
     addModifierOption(modifierId: string, businessId: string, dto: CreateModifierOptionDto): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
         displayOrder: number;
-        createdAt: Date;
         isAvailable: boolean;
-        modifierId: string;
         priceAdjustment: import("@prisma/client-runtime-utils").Decimal;
+        modifierId: string;
     }>;
     linkModifierToItem(itemId: string, modifierId: string, businessId: string): Promise<{
         id: string;
         createdAt: Date;
-        itemId: string;
         modifierId: string;
+        itemId: string;
     }>;
     setBusinessHours(businessId: string, hours: CreateBusinessHoursDto[]): Promise<import("@prisma/client").Prisma.BatchPayload>;
     getBusinessHours(businessId: string): Promise<{
@@ -344,14 +344,13 @@ export declare class MenuService {
     getLowStockItems(businessId: string): Promise<({
         item: {
             id: string;
-            name: string;
-            description: string | null;
-            displayOrder: number;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             businessId: string;
+            description: string | null;
+            displayOrder: number;
             isAvailable: boolean;
-            categoryId: string;
             price: import("@prisma/client-runtime-utils").Decimal;
             costPrice: import("@prisma/client-runtime-utils").Decimal | null;
             images: import("@prisma/client/runtime/client").JsonValue;
@@ -360,6 +359,7 @@ export declare class MenuService {
             nutritionalInfo: import("@prisma/client/runtime/client").JsonValue | null;
             preparationTime: number;
             isFeatured: boolean;
+            categoryId: string;
         };
     } & {
         id: string;

@@ -92,13 +92,15 @@ model User {
   ordersAsCustomer Order[] @relation("customer_orders")
   ordersAsDriver   Order[] @relation("driver_orders")
   
-  refreshTokens    RefreshToken[]
-  notifications    Notification[]
-  wallet           DigitalWallet?
-  deviceTokens     DeviceToken[]
+  refreshTokens      RefreshToken[]
+  notifications      Notification[]
+  wallet             DigitalWallet?
+  deviceTokens       DeviceToken[]
   withdrawalRequests WithdrawalRequest[]
-  mediaFiles       MediaFile[]
-  driverLocations  DriverLocation[]
+  mediaFiles         MediaFile[]
+  driverLocations    DriverLocation[]
+  customerReviews    Review[]         @relation("customer_reviews")
+  driverReviews      Review[]         @relation("driver_reviews")
 
   @@map("users")
 }
@@ -165,6 +167,7 @@ model BusinessProfile {
   orders         Order[]
   menuCategories MenuCategory[]
   businessHours  BusinessHours[]
+  reviews        Review[]
 
   @@map("business_profiles")
 }
@@ -227,6 +230,7 @@ model Order {
   customer User            @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
   business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
+  review   Review?
 
   @@index([customerId])
   @@index([businessId])
@@ -506,4 +510,54 @@ model Inventory {
   @@index([businessId])
   @@index([businessId, currentStock])
   @@map("inventory")
+}
+
+// Reviews & Ratings System
+model Review {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @map("order_id") @db.Uuid
+  customerId      String   @map("customer_id") @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  driverId        String?  @map("driver_id") @db.Uuid
+  
+  // Overall rating (1-5)
+  rating          Int      @db.SmallInt
+  
+  // Detailed ratings (1-5 each, optional)
+  foodQuality     Int?     @map("food_quality") @db.SmallInt
+  serviceQuality  Int?     @map("service_quality") @db.SmallInt
+  deliverySpeed   Int?     @map("delivery_speed") @db.SmallInt
+  valueForMoney   Int?     @map("value_for_money") @db.SmallInt
+  
+  // Review content
+  comment         String?  @db.Text
+  images          Json     @default("[]")
+  
+  // Moderation
+  isVerified      Boolean  @default(false) @map("is_verified")
+  isHidden        Boolean  @default(false) @map("is_hidden")
+  moderationNotes String?  @map("moderation_notes") @db.Text
+  
+  // Response from business
+  businessResponse String? @map("business_response") @db.Text
+  respondedAt     DateTime? @map("responded_at")
+  
+  // Helpful votes
+  helpfulCount    Int      @default(0) @map("helpful_count")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  order    Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer User            @relation("customer_reviews", fields: [customerId], references: [id], onDelete: Cascade)
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  driver   User?           @relation("driver_reviews", fields: [driverId], references: [id], onDelete: SetNull)
+  
+  @@index([customerId])
+  @@index([businessId])
+  @@index([driverId])
+  @@index([rating])
+  @@index([createdAt])
+  @@index([businessId, rating])
+  @@map("reviews")
 }
