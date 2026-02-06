@@ -39,6 +39,34 @@ enum OrderStatus {
   refunded
 }
 
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+  partially_refunded
+}
+
+enum NotificationType {
+  order_update
+  delivery_update
+  payment_update
+  promotion
+  system_alert
+  support_message
+  review_request
+}
+
+enum WithdrawalStatus {
+  pending
+  confirmed
+  processing
+  completed
+  failed
+  cancelled
+  expired
+}
+
 model User {
   id            String     @id @default(uuid()) @db.Uuid
   email         String     @unique @db.VarChar(255)
@@ -63,6 +91,14 @@ model User {
 
   ordersAsCustomer Order[] @relation("customer_orders")
   ordersAsDriver   Order[] @relation("driver_orders")
+  
+  refreshTokens    RefreshToken[]
+  notifications    Notification[]
+  wallet           DigitalWallet?
+  deviceTokens     DeviceToken[]
+  withdrawalRequests WithdrawalRequest[]
+  mediaFiles       MediaFile[]
+  driverLocations  DriverLocation[]
 
   @@map("users")
 }
@@ -171,8 +207,12 @@ model Order {
   readyAt       DateTime?   @map("ready_at")
   pickedUpAt    DateTime?   @map("picked_up_at")
   deliveredAt   DateTime?   @map("delivered_at")
+  estimatedDeliveryTime DateTime? @map("estimated_delivery_time")
 
   specialInstructions String? @map("special_instructions")
+  paymentMethod  String?     @map("payment_method") @db.VarChar(50)
+  paymentStatus  PaymentStatus @default(pending) @map("payment_status")
+  paymentId      String?     @map("payment_id") @db.VarChar(255)
 
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -185,4 +225,137 @@ model Order {
   @@index([driverId])
   @@index([status])
   @@map("orders")
+}
+
+// Security: Refresh Token for JWT rotation
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// Digital Wallet for payments and withdrawals
+model DigitalWallet {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  balance        Decimal  @default(0) @db.Decimal(10, 2)
+  pendingBalance Decimal  @default(0) @map("pending_balance") @db.Decimal(10, 2)
+  frozenBalance  Decimal  @default(0) @map("frozen_balance") @db.Decimal(10, 2)
+  currency       String   @default("USD") @db.VarChar(3)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+  
+  @@map("digital_wallets")
+}
+
+// Withdrawal Request with security features
+model WithdrawalRequest {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  walletId          String           @map("wallet_id") @db.Uuid
+  amount            Decimal          @db.Decimal(10, 2)
+  status            WithdrawalStatus @default(pending)
+  confirmationCode  String?          @map("confirmation_code") @db.VarChar(6)
+  codeExpiresAt     DateTime?        @map("code_expires_at")
+  requestedAt       DateTime         @default(now()) @map("requested_at")
+  confirmedAt       DateTime?        @map("confirmed_at")
+  processedAt       DateTime?        @map("processed_at")
+  ipAddress         String?          @map("ip_address") @db.VarChar(45)
+  deviceFingerprint String?          @map("device_fingerprint") @db.VarChar(255)
+  failedReason      String?          @map("failed_reason")
+  
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet DigitalWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@map("withdrawal_requests")
+}
+
+// Notifications for push, email, SMS
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(255)
+  message   String
+  data      Json?            @default("{}")
+  isRead    Boolean          @default(false) @map("is_read")
+  sentAt    DateTime?        @map("sent_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// Device Tokens for push notifications (mobile)
+model DeviceToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  platform  String   @db.VarChar(20) // 'ios' | 'android' | 'web'
+  deviceId  String?  @map("device_id") @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("device_tokens")
+}
+
+// Media Files for uploads (images, documents)
+model MediaFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  filename     String   @db.VarChar(255)
+  originalName String   @map("original_name") @db.VarChar(255)
+  mimeType     String   @map("mime_type") @db.VarChar(100)
+  size         Int
+  url          String   @db.VarChar(500)
+  thumbnailUrl String?  @map("thumbnail_url") @db.VarChar(500)
+  mediumUrl    String?  @map("medium_url") @db.VarChar(500)
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([uploadedAt])
+  @@map("media_files")
+}
+
+// Driver Location for GPS tracking
+model DriverLocation {
+  id        String   @id @default(uuid()) @db.Uuid
+  driverId  String   @map("driver_id") @db.Uuid
+  latitude  Decimal  @db.Decimal(10, 8)
+  longitude Decimal  @db.Decimal(11, 8)
+  accuracy  Float?
+  heading   Float?
+  speed     Float?
+  timestamp DateTime @default(now())
+  
+  driver User @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  
+  @@index([driverId, timestamp])
+  @@index([timestamp])
+  @@map("driver_locations")
 }

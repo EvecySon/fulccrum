@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -10,6 +11,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -44,8 +46,9 @@ export class AuthService {
     });
 
     const accessToken = await this.signAccessToken(user.id, user.role);
+    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
 
-    return { user, accessToken };
+    return { user, accessToken, refreshToken };
   }
 
   async login(dto: LoginDto) {
@@ -62,7 +65,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
     const accessToken = await this.signAccessToken(user.id, user.role);
+    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
 
     return {
       user: {
@@ -73,6 +82,7 @@ export class AuthService {
         lastName: user.lastName,
       },
       accessToken,
+      refreshToken,
     };
   }
 

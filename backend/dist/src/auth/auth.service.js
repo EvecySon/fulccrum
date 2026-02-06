@@ -47,12 +47,15 @@ const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const prisma_service_1 = require("../prisma/prisma.service");
+const refresh_token_service_1 = require("./refresh-token.service");
 let AuthService = class AuthService {
     prisma;
     jwt;
-    constructor(prisma, jwt) {
+    refreshTokenService;
+    constructor(prisma, jwt, refreshTokenService) {
         this.prisma = prisma;
         this.jwt = jwt;
+        this.refreshTokenService = refreshTokenService;
     }
     async register(dto) {
         const existing = await this.prisma.user.findUnique({
@@ -82,7 +85,8 @@ let AuthService = class AuthService {
             },
         });
         const accessToken = await this.signAccessToken(user.id, user.role);
-        return { user, accessToken };
+        const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+        return { user, accessToken, refreshToken };
     }
     async login(dto) {
         const user = await this.prisma.user.findUnique({
@@ -95,7 +99,12 @@ let AuthService = class AuthService {
         if (!ok) {
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() },
+        });
         const accessToken = await this.signAccessToken(user.id, user.role);
+        const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
         return {
             user: {
                 id: user.id,
@@ -105,6 +114,7 @@ let AuthService = class AuthService {
                 lastName: user.lastName,
             },
             accessToken,
+            refreshToken,
         };
     }
     async signAccessToken(userId, role) {
@@ -115,6 +125,7 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        refresh_token_service_1.RefreshTokenService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map
