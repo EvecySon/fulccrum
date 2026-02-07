@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import { colors } from '../../theme/colors';
 import { mockOrders } from '../../data/mockData';
 import { locationAPI } from '../../services/api';

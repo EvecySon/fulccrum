@@ -261,6 +261,71 @@ export default function MerchantSettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Advanced Features */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced Tools</Text>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('SmartKitchen')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#8b5cf6' + '15' }]}>
+                <Ionicons name="restaurant-outline" size={18} color="#8b5cf6" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Smart Kitchen</Text>
+                <Text style={styles.settingDesc}>Kitchen ops, inventory & prep predictions</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('AIInsights')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#ec4899' + '15' }]}>
+                <Ionicons name="sparkles-outline" size={18} color="#ec4899" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>AI Business Insights</Text>
+                <Text style={styles.settingDesc}>Demand forecast, pricing & menu optimization</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('CRM')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#3b82f6' + '15' }]}>
+                <Ionicons name="people-outline" size={18} color="#3b82f6" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Customer CRM</Text>
+                <Text style={styles.settingDesc}>Profiles, loyalty & campaigns</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('MultiChannel')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#f59e0b' + '15' }]}>
+                <Ionicons name="grid-outline" size={18} color="#f59e0b" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Sales Channels</Text>
+                <Text style={styles.settingDesc}>Multi-channel selling & subscriptions</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('DynamicPricing')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#10b981' + '15' }]}>
+                <Ionicons name="pricetags-outline" size={18} color="#10b981" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Dynamic Pricing</Text>
+                <Text style={styles.settingDesc}>Automated pricing rules & surge</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        </View>
+
         {/* Support & Legal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>

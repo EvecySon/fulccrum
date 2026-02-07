@@ -187,13 +187,32 @@ export default function CourierProfileScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* Advanced Tools */}
+        <View style={styles.actionsCard}>
+          <Text style={styles.cardTitle}>Advanced Tools</Text>
+          {[
+            { icon: 'analytics-outline', label: 'Performance & AI', color: '#8b5cf6', screen: 'Performance' },
+            { icon: 'trophy-outline', label: 'Achievements & Rewards', color: '#f59e0b', screen: 'Gamification' },
+            { icon: 'shield-checkmark-outline', label: 'Safety Center', color: '#ef4444', screen: 'Safety' },
+            { icon: 'car-outline', label: 'Vehicle & Delivery', color: '#3b82f6', screen: 'VehicleManagement' },
+          ].map((item, index) => (
+            <React.Fragment key={'adv-' + index}>
+              <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate(item.screen)}>
+                <Ionicons name={item.icon as any} size={20} color={item.color} />
+                <Text style={styles.actionLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+              {index < 3 && <View style={styles.settingDivider} />}
+            </React.Fragment>
+          ))}
+        </View>
+
         {/* Account Actions */}
         <View style={styles.actionsCard}>
           {[
             { icon: 'wallet-outline', label: 'Wallet & Withdrawals', color: colors.navy, screen: 'Wallet' },
             { icon: 'document-text-outline', label: 'Tax Documents', color: colors.navy, screen: null },
             { icon: 'help-circle-outline', label: 'Help & Support', color: colors.navy, screen: null },
-            { icon: 'shield-outline', label: 'Safety Center', color: colors.navy, screen: null },
             { icon: 'star-outline', label: 'Refer a Friend', color: colors.teal, screen: null },
           ].map((item, index) => (
             <React.Fragment key={index}>

@@ -24,6 +24,14 @@ const menuItems = [
   { icon: 'star-outline', label: 'Rate Last Order', screen: 'Feedback' },
 ];
 
+const advancedItems = [
+  { icon: 'sparkles-outline', label: 'AI Recommendations', screen: 'AIRecommendations', color: '#8b5cf6' },
+  { icon: 'mic-outline', label: 'Voice Ordering', screen: 'VoiceOrdering', color: '#ec4899' },
+  { icon: 'cube-outline', label: 'AR Food Preview', screen: 'ARFoodPreview', color: '#f59e0b' },
+  { icon: 'people-circle-outline', label: 'Community Feed', screen: 'SocialFeed', color: '#3b82f6' },
+  { icon: 'leaf-outline', label: 'Eco Impact', screen: 'Sustainability', color: '#10b981' },
+];
+
 export default function AccountScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
@@ -79,6 +87,21 @@ export default function AccountScreen({ navigation }: any) {
               <Text style={styles.loyaltyStatLabel}>Points</Text>
             </View>
           </View>
+        </View>
+
+        {/* Advanced Features */}
+        <View style={styles.advancedSection}>
+          <Text style={styles.advancedTitle}>Explore</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.advancedRow}>
+            {advancedItems.map((item, index) => (
+              <TouchableOpacity key={index} style={styles.advancedCard} onPress={() => navigation.navigate(item.screen)}>
+                <View style={[styles.advancedIcon, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon as any} size={22} color={item.color} />
+                </View>
+                <Text style={styles.advancedLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Menu Items */}
@@ -278,5 +301,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLight,
     marginTop: 8,
+  },
+  advancedSection: {
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  advancedTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 12,
+    marginHorizontal: 20,
+  },
+  advancedRow: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  advancedCard: {
+    alignItems: 'center',
+    width: 80,
+  },
+  advancedIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  advancedLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -15,20 +15,33 @@ const prefix = Linking.createURL('/');
 const linking: LinkingOptions<any> = {
   prefixes: [prefix, 'fulccrum://', 'https://fulccrum.com'],
   config: {
-    screens: {
-      // Auth screens
-      Login: 'login',
-      Register: 'register',
-      ForgotPassword: 'forgot-password',
-      OTPVerification: 'verify-otp',
-      // Customer screens
-      OrderTracking: 'order/:orderId',
-      Restaurant: 'restaurant/:id',
-      // Shared
-      ResetPassword: 'reset-password',
-    },
+    screens: {},
   },
 };
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error: error?.message || String(error) };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('App Error:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#e11d48', marginBottom: 8 }}>Something went wrong</Text>
+          <Text style={{ fontSize: 13, color: '#666', textAlign: 'center' }}>{this.state.error}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -50,11 +63,13 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer linking={linking}>
-        <StatusBar style="dark" />
-        <RootNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NavigationContainer linking={linking}>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
