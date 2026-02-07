@@ -19,6 +19,7 @@ import { AdminModule } from './admin/admin.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { MenuModule } from './menu/menu.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PromosModule } from './promos/promos.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -45,6 +46,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     MessagingModule,
     MenuModule,
     ReviewsModule,
+    PromosModule,
   ],
   controllers: [AppController],
   providers: [

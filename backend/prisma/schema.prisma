@@ -101,6 +101,7 @@ model User {
   driverLocations    DriverLocation[]
   customerReviews    Review[]         @relation("customer_reviews")
   driverReviews      Review[]         @relation("driver_reviews")
+  promoUsages        PromoUsage[]
 
   @@map("users")
 }
@@ -560,4 +561,62 @@ model Review {
   @@index([createdAt])
   @@index([businessId, rating])
   @@map("reviews")
+}
+
+// Promotions & Discounts System
+model PromoCode {
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(50)
+  description     String?  @db.Text
+  
+  // Discount configuration
+  discountType    String   @map("discount_type") @db.VarChar(20) // 'percentage' or 'fixed'
+  discountValue   Decimal  @map("discount_value") @db.Decimal(10, 2)
+  maxDiscount     Decimal? @map("max_discount") @db.Decimal(10, 2) // For percentage discounts
+  minimumOrder    Decimal  @default(0) @map("minimum_order") @db.Decimal(10, 2)
+  
+  // Usage limits
+  usageLimit      Int?     @map("usage_limit") // Total times code can be used
+  usageLimitPerUser Int?   @map("usage_limit_per_user") // Times per user
+  usedCount       Int      @default(0) @map("used_count")
+  
+  // Validity period
+  validFrom       DateTime @map("valid_from")
+  validUntil      DateTime @map("valid_until")
+  
+  // Applicability
+  applicableTo    String   @map("applicable_to") @db.VarChar(50) // 'all', 'first_order', 'specific_business'
+  businessId      String?  @map("business_id") @db.Uuid // If applicable to specific business
+  
+  // Status
+  isActive        Boolean  @default(true) @map("is_active")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  usages PromoUsage[]
+  
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+  @@index([businessId])
+  @@map("promo_codes")
+}
+
+model PromoUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  promoCodeId    String   @map("promo_code_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  orderId        String   @map("order_id") @db.Uuid
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(10, 2)
+  usedAt         DateTime @default(now()) @map("used_at")
+  
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([promoCodeId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([usedAt])
+  @@map("promo_usages")
 }

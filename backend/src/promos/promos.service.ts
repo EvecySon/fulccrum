@@ -1,0 +1,352 @@
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePromoDto } from './dto/create-promo.dto';
+import { ValidatePromoDto } from './dto/validate-promo.dto';
+
+@Injectable()
+export class PromosService {
+  constructor(private prisma: PrismaService) {}
+
+  async createPromo(dto: CreatePromoDto) {
+    const existingPromo = await this.prisma.promoCode.findUnique({
+      where: { code: dto.code.toUpperCase() },
+    });
+
+    if (existingPromo) {
+      throw new BadRequestException('Promo code already exists');
+    }
+
+    if (dto.discountType === 'percentage' && dto.discountValue > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%');
+    }
+
+    return this.prisma.promoCode.create({
+      data: {
+        code: dto.code.toUpperCase(),
+        description: dto.description,
+        discountType: dto.discountType,
+        discountValue: dto.discountValue,
+        maxDiscount: dto.maxDiscount,
+        minimumOrder: dto.minimumOrder || 0,
+        usageLimit: dto.usageLimit,
+        usageLimitPerUser: dto.usageLimitPerUser,
+        validFrom: new Date(dto.validFrom),
+        validUntil: new Date(dto.validUntil),
+        applicableTo: dto.applicableTo,
+        businessId: dto.businessId,
+      },
+    });
+  }
+
+  async validatePromo(userId: string, dto: ValidatePromoDto) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { code: dto.code.toUpperCase() },
+      include: {
+        usages: {
+          where: { userId },
+        },
+      },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Invalid promo code');
+    }
+
+    if (!promo.isActive) {
+      throw new BadRequestException('Promo code is not active');
+    }
+
+    const now = new Date();
+    if (now < promo.validFrom || now > promo.validUntil) {
+      throw new BadRequestException('Promo code has expired or is not yet valid');
+    }
+
+    if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
+      throw new BadRequestException('Promo code usage limit reached');
+    }
+
+    if (promo.usageLimitPerUser) {
+      const userUsageCount = promo.usages.length;
+      if (userUsageCount >= promo.usageLimitPerUser) {
+        throw new BadRequestException('You have already used this promo code the maximum number of times');
+      }
+    }
+
+    if (dto.orderAmount < promo.minimumOrder.toNumber()) {
+      throw new BadRequestException(
+        `Minimum order amount of ₦${promo.minimumOrder} required for this promo code`,
+      );
+    }
+
+    if (promo.applicableTo === 'specific_business' && promo.businessId !== dto.businessId) {
+      throw new BadRequestException('This promo code is not applicable to this business');
+    }
+
+    if (promo.applicableTo === 'first_order') {
+      const orderCount = await this.prisma.order.count({
+        where: {
+          customerId: userId,
+          status: 'delivered',
+        },
+      });
+
+      if (orderCount > 0) {
+        throw new BadRequestException('This promo code is only valid for first orders');
+      }
+    }
+
+    const discountAmount = this.calculateDiscount(promo, dto.orderAmount);
+
+    return {
+      valid: true,
+      promoCode: {
+        id: promo.id,
+        code: promo.code,
+        description: promo.description,
+        discountType: promo.discountType,
+        discountValue: promo.discountValue,
+      },
+      discountAmount,
+      finalAmount: dto.orderAmount - discountAmount,
+    };
+  }
+
+  async applyPromo(userId: string, promoCodeId: string, orderId: string, orderAmount: number) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { id: promoCodeId },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Invalid promo code');
+    }
+
+    const discountAmount = this.calculateDiscount(promo, orderAmount);
+
+    const [usage] = await this.prisma.$transaction([
+      this.prisma.promoUsage.create({
+        data: {
+          promoCodeId,
+          userId,
+          orderId,
+          discountAmount,
+        },
+      }),
+      this.prisma.promoCode.update({
+        where: { id: promoCodeId },
+        data: {
+          usedCount: {
+            increment: 1,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      usage,
+      discountAmount,
+    };
+  }
+
+  private calculateDiscount(promo: any, orderAmount: number): number {
+    let discount = 0;
+
+    if (promo.discountType === 'percentage') {
+      discount = (orderAmount * promo.discountValue.toNumber()) / 100;
+      if (promo.maxDiscount && discount > promo.maxDiscount.toNumber()) {
+        discount = promo.maxDiscount.toNumber();
+      }
+    } else {
+      discount = promo.discountValue.toNumber();
+    }
+
+    return Math.min(discount, orderAmount);
+  }
+
+  async getPromos(page = 1, limit = 20, activeOnly = true) {
+    const skip = (page - 1) * limit;
+
+    const where = activeOnly ? { isActive: true } : {};
+
+    const [promos, total] = await Promise.all([
+      this.prisma.promoCode.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.promoCode.count({ where }),
+    ]);
+
+    return {
+      data: promos,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPromo(promoId: string) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { id: promoId },
+      include: {
+        usages: {
+          take: 10,
+          orderBy: { usedAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Promo code not found');
+    }
+
+    return promo;
+  }
+
+  async updatePromo(promoId: string, dto: Partial<CreatePromoDto>) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { id: promoId },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Promo code not found');
+    }
+
+    if (dto.code && dto.code !== promo.code) {
+      const existingPromo = await this.prisma.promoCode.findUnique({
+        where: { code: dto.code.toUpperCase() },
+      });
+
+      if (existingPromo) {
+        throw new BadRequestException('Promo code already exists');
+      }
+    }
+
+    return this.prisma.promoCode.update({
+      where: { id: promoId },
+      data: {
+        ...(dto.code && { code: dto.code.toUpperCase() }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.discountType && { discountType: dto.discountType }),
+        ...(dto.discountValue !== undefined && { discountValue: dto.discountValue }),
+        ...(dto.maxDiscount !== undefined && { maxDiscount: dto.maxDiscount }),
+        ...(dto.minimumOrder !== undefined && { minimumOrder: dto.minimumOrder }),
+        ...(dto.usageLimit !== undefined && { usageLimit: dto.usageLimit }),
+        ...(dto.usageLimitPerUser !== undefined && { usageLimitPerUser: dto.usageLimitPerUser }),
+        ...(dto.validFrom && { validFrom: new Date(dto.validFrom) }),
+        ...(dto.validUntil && { validUntil: new Date(dto.validUntil) }),
+        ...(dto.applicableTo && { applicableTo: dto.applicableTo }),
+        ...(dto.businessId !== undefined && { businessId: dto.businessId }),
+      },
+    });
+  }
+
+  async togglePromoStatus(promoId: string) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { id: promoId },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Promo code not found');
+    }
+
+    return this.prisma.promoCode.update({
+      where: { id: promoId },
+      data: {
+        isActive: !promo.isActive,
+      },
+    });
+  }
+
+  async deletePromo(promoId: string) {
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { id: promoId },
+    });
+
+    if (!promo) {
+      throw new BadRequestException('Promo code not found');
+    }
+
+    await this.prisma.promoCode.delete({
+      where: { id: promoId },
+    });
+
+    return { success: true, message: 'Promo code deleted successfully' };
+  }
+
+  async getUserPromoUsage(userId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [usages, total] = await Promise.all([
+      this.prisma.promoUsage.findMany({
+        where: { userId },
+        include: {
+          promoCode: {
+            select: {
+              code: true,
+              description: true,
+              discountType: true,
+              discountValue: true,
+            },
+          },
+        },
+        orderBy: { usedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.promoUsage.count({ where: { userId } }),
+    ]);
+
+    return {
+      data: usages,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPromoStats(promoId: string) {
+    const [promo, usages] = await Promise.all([
+      this.prisma.promoCode.findUnique({
+        where: { id: promoId },
+      }),
+      this.prisma.promoUsage.findMany({
+        where: { promoCodeId: promoId },
+      }),
+    ]);
+
+    if (!promo) {
+      throw new BadRequestException('Promo code not found');
+    }
+
+    const totalDiscount = usages.reduce((sum, u) => sum + u.discountAmount.toNumber(), 0);
+    const uniqueUsers = new Set(usages.map((u) => u.userId)).size;
+
+    return {
+      code: promo.code,
+      totalUsages: promo.usedCount,
+      uniqueUsers,
+      totalDiscountGiven: totalDiscount,
+      averageDiscountPerUse: usages.length > 0 ? totalDiscount / usages.length : 0,
+      usageLimit: promo.usageLimit,
+      remainingUses: promo.usageLimit ? promo.usageLimit - promo.usedCount : null,
+      isActive: promo.isActive,
+      validFrom: promo.validFrom,
+      validUntil: promo.validUntil,
+    };
+  }
+}
