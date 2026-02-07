@@ -11,6 +11,10 @@ import EarningsScreen from '../screens/courier/EarningsScreen';
 import CourierProfileScreen from '../screens/courier/ProfileScreen';
 import CourierWalletScreen from '../screens/courier/WalletScreen';
 import DocumentVerificationScreen from '../screens/courier/DocumentVerificationScreen';
+import PerformanceScreen from '../screens/courier/PerformanceScreen';
+import GamificationScreen from '../screens/courier/GamificationScreen';
+import SafetyScreen from '../screens/courier/SafetyScreen';
+import VehicleManagementScreen from '../screens/courier/VehicleManagementScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -81,6 +85,10 @@ export default function CourierNavigator() {
       <Stack.Screen name="CourierTabs" component={CourierTabs} />
       <Stack.Screen name="Wallet" component={CourierWalletScreen} />
       <Stack.Screen name="DocumentVerification" component={DocumentVerificationScreen} />
+      <Stack.Screen name="Performance" component={PerformanceScreen} />
+      <Stack.Screen name="Gamification" component={GamificationScreen} />
+      <Stack.Screen name="Safety" component={SafetyScreen} />
+      <Stack.Screen name="VehicleManagement" component={VehicleManagementScreen} />
     </Stack.Navigator>
   );
 }

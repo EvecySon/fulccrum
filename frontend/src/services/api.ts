@@ -389,3 +389,138 @@ export const uploadAPI = {
   getFiles: (page = 1) => api.get(`/upload/files?page=${page}`),
   deleteFile: (id: string) => api.delete(`/upload/files/${id}`),
 };
+
+// ─── AI / Personalization API ───
+export const aiAPI = {
+  getRecommendations: (limit = 10) => api.get(`/ai/recommendations?limit=${limit}`),
+  getPredictiveOrders: () => api.get('/ai/predictive-orders'),
+  getVoiceProfile: () => api.get('/ai/voice-profile'),
+  processVoiceCommand: (audioUri: string) => api.post('/ai/voice-command', { audioUri }),
+  getBehaviorAnalysis: () => api.get('/ai/behavior-analysis'),
+  dismissRecommendation: (id: string) => api.post(`/ai/recommendations/${id}/dismiss`),
+  acceptRecommendation: (id: string) => api.post(`/ai/recommendations/${id}/accept`),
+};
+
+// ─── AR / VR API ───
+export const arAPI = {
+  getFoodPreview: (itemId: string) => api.get(`/ar/food-preview/${itemId}`),
+  getRestaurantTour: (businessId: string) => api.get(`/ar/restaurant-tour/${businessId}`),
+  getARNavigation: (orderId: string) => api.get(`/ar/navigation/${orderId}`),
+};
+
+// ─── Social API ───
+export const socialAPI = {
+  getConnections: () => api.get('/social/connections'),
+  addConnection: (userId: string, type: string) => api.post('/social/connections', { userId, type }),
+  removeConnection: (connectionId: string) => api.delete(`/social/connections/${connectionId}`),
+  getFeed: (page = 1) => api.get(`/social/posts?page=${page}`),
+  createPost: (data: any) => api.post('/social/posts', data),
+  likePost: (postId: string) => api.post(`/social/posts/${postId}/like`),
+  commentPost: (postId: string, text: string) => api.post(`/social/posts/${postId}/comment`, { text }),
+  getChallenges: () => api.get('/social/challenges'),
+  joinChallenge: (challengeId: string) => api.post(`/social/challenges/${challengeId}/join`),
+  getGroupOrders: () => api.get('/social/group-orders'),
+  createGroupOrder: (data: any) => api.post('/social/group-orders', data),
+};
+
+// ─── Blockchain API ───
+export const blockchainAPI = {
+  getSupplyChain: (itemId: string) => api.get(`/blockchain/supply-chain/${itemId}`),
+  initCryptoPayment: (orderId: string, cryptoType: string) =>
+    api.post('/blockchain/crypto-payment', { orderId, cryptoType }),
+  getNFTRewards: () => api.get('/blockchain/nft-rewards'),
+  claimNFT: (rewardId: string) => api.post(`/blockchain/nft-rewards/${rewardId}/claim`),
+};
+
+// ─── Sustainability API ───
+export const sustainabilityAPI = {
+  getCarbonFootprint: () => api.get('/sustainability/carbon-footprint'),
+  getOrderFootprint: (orderId: string) => api.get(`/sustainability/carbon-footprint/${orderId}`),
+  getEcoOptions: () => api.get('/sustainability/eco-options'),
+  updateEcoOptions: (data: any) => api.patch('/sustainability/eco-options', data),
+  getWasteReduction: () => api.get('/sustainability/waste-reduction'),
+  purchaseOffset: (amount: number) => api.post('/sustainability/carbon-offset', { amount }),
+};
+
+// ─── Smart Kitchen API (Merchant) ───
+export const kitchenAPI = {
+  getOperations: () => api.get('/merchant/kitchen/operations'),
+  updateOperation: (id: string, data: any) => api.patch(`/merchant/kitchen/operations/${id}`, data),
+  getInventory: () => api.get('/merchant/kitchen/inventory'),
+  updateInventory: (id: string, data: any) => api.patch(`/merchant/kitchen/inventory/${id}`, data),
+  getPrepPredictions: () => api.get('/merchant/kitchen/prep-predictions'),
+  startPrep: (orderId: string, itemId: string) =>
+    api.post('/merchant/kitchen/operations', { orderId, itemId, operationType: 'prep_start' }),
+  completePrep: (operationId: string) =>
+    api.patch(`/merchant/kitchen/operations/${operationId}`, { operationType: 'prep_complete' }),
+};
+
+// ─── Merchant AI Insights API ───
+export const merchantInsightsAPI = {
+  getDemandForecast: () => api.get('/merchant/insights/demand-forecast'),
+  getPricingOptimization: () => api.get('/merchant/insights/pricing'),
+  getMenuOptimization: () => api.get('/merchant/insights/menu'),
+  getAllInsights: () => api.get('/merchant/insights'),
+  implementInsight: (id: string) => api.post(`/merchant/insights/${id}/implement`),
+  dismissInsight: (id: string) => api.post(`/merchant/insights/${id}/dismiss`),
+};
+
+// ─── Merchant CRM API ───
+export const merchantCrmAPI = {
+  getCustomerProfiles: (page = 1) => api.get(`/merchant/crm/customers?page=${page}`),
+  getCustomerProfile: (customerId: string) => api.get(`/merchant/crm/customers/${customerId}`),
+  getCampaigns: () => api.get('/merchant/crm/campaigns'),
+  createCampaign: (data: any) => api.post('/merchant/crm/campaigns', data),
+  updateCampaign: (id: string, data: any) => api.patch(`/merchant/crm/campaigns/${id}`, data),
+  deleteCampaign: (id: string) => api.delete(`/merchant/crm/campaigns/${id}`),
+  getLoyaltyProgram: () => api.get('/merchant/crm/loyalty'),
+  updateLoyaltyProgram: (data: any) => api.patch('/merchant/crm/loyalty', data),
+};
+
+// ─── Multi-Channel / Subscriptions API (Merchant) ───
+export const channelsAPI = {
+  getChannels: () => api.get('/merchant/channels'),
+  updateChannel: (id: string, data: any) => api.patch(`/merchant/channels/${id}`, data),
+  getSubscriptions: () => api.get('/merchant/subscriptions'),
+  createSubscription: (data: any) => api.post('/merchant/subscriptions', data),
+  updateSubscription: (id: string, data: any) => api.patch(`/merchant/subscriptions/${id}`, data),
+  deleteSubscription: (id: string) => api.delete(`/merchant/subscriptions/${id}`),
+  getCatering: () => api.get('/merchant/catering'),
+  createCateringOrder: (data: any) => api.post('/merchant/catering', data),
+};
+
+// ─── Dynamic Pricing API (Merchant) ───
+export const dynamicPricingAPI = {
+  getRules: () => api.get('/merchant/pricing/rules'),
+  createRule: (data: any) => api.post('/merchant/pricing/rules', data),
+  updateRule: (id: string, data: any) => api.patch(`/merchant/pricing/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/merchant/pricing/rules/${id}`),
+  toggleRule: (id: string) => api.patch(`/merchant/pricing/rules/${id}/toggle`),
+  getPreview: (ruleId: string) => api.get(`/merchant/pricing/rules/${ruleId}/preview`),
+};
+
+// ─── Courier Performance / Fleet API ───
+export const courierFleetAPI = {
+  getPerformance: () => api.get('/courier/performance'),
+  getPredictions: () => api.get('/courier/predictions'),
+  getDispatch: () => api.get('/courier/dispatch'),
+  getRouteOptimization: (orderId: string) => api.get(`/courier/route-optimize/${orderId}`),
+  getDeliveryMethods: () => api.get('/courier/delivery-methods'),
+};
+
+// ─── Courier Gamification API ───
+export const courierGamificationAPI = {
+  getAchievements: () => api.get('/courier/achievements'),
+  getTiers: () => api.get('/courier/tiers'),
+  getLeaderboard: (period?: string) => api.get(`/courier/leaderboard${period ? `?period=${period}` : ''}`),
+  claimReward: (achievementId: string) => api.post(`/courier/achievements/${achievementId}/claim`),
+};
+
+// ─── Courier Safety API ───
+export const courierSafetyAPI = {
+  reportEmergency: (data: any) => api.post('/courier/safety/emergency', data),
+  getSupport: () => api.get('/courier/support'),
+  submitSupportQuery: (query: string) => api.post('/courier/support', { query }),
+  shareLocation: (data: any) => api.post('/courier/safety/location-share', data),
+  getSafetyEvents: () => api.get('/courier/safety/events'),
+};

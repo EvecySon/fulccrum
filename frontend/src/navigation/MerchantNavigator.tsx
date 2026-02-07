@@ -16,6 +16,11 @@ import DeliveryZonesScreen from '../screens/merchant/DeliveryZonesScreen';
 import PromotionsScreen from '../screens/merchant/PromotionsScreen';
 import WalletScreen from '../screens/merchant/WalletScreen';
 import BusinessVerificationScreen from '../screens/merchant/BusinessVerificationScreen';
+import SmartKitchenScreen from '../screens/merchant/SmartKitchenScreen';
+import AIInsightsScreen from '../screens/merchant/AIInsightsScreen';
+import CRMScreen from '../screens/merchant/CRMScreen';
+import MultiChannelScreen from '../screens/merchant/MultiChannelScreen';
+import DynamicPricingScreen from '../screens/merchant/DynamicPricingScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -91,6 +96,11 @@ export default function MerchantNavigator() {
       <Stack.Screen name="Promotions" component={PromotionsScreen} />
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="BusinessVerification" component={BusinessVerificationScreen} />
+      <Stack.Screen name="SmartKitchen" component={SmartKitchenScreen} />
+      <Stack.Screen name="AIInsights" component={AIInsightsScreen} />
+      <Stack.Screen name="CRM" component={CRMScreen} />
+      <Stack.Screen name="MultiChannel" component={MultiChannelScreen} />
+      <Stack.Screen name="DynamicPricing" component={DynamicPricingScreen} />
     </Stack.Navigator>
   );
 }

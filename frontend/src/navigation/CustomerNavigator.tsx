@@ -22,6 +22,11 @@ import NotificationsScreen from '../screens/customer/NotificationsScreen';
 import GroupOrderScreen from '../screens/customer/GroupOrderScreen';
 import FeedbackScreen from '../screens/customer/FeedbackScreen';
 import EditProfileScreen from '../screens/customer/EditProfileScreen';
+import AIRecommendationsScreen from '../screens/customer/AIRecommendationsScreen';
+import VoiceOrderingScreen from '../screens/customer/VoiceOrderingScreen';
+import ARFoodPreviewScreen from '../screens/customer/ARFoodPreviewScreen';
+import SocialFeedScreen from '../screens/customer/SocialFeedScreen';
+import SustainabilityScreen from '../screens/customer/SustainabilityScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -100,6 +105,11 @@ export default function CustomerNavigator() {
       <Stack.Screen name="GroupOrder" component={GroupOrderScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
+      <Stack.Screen name="VoiceOrdering" component={VoiceOrderingScreen} />
+      <Stack.Screen name="ARFoodPreview" component={ARFoodPreviewScreen} />
+      <Stack.Screen name="SocialFeed" component={SocialFeedScreen} />
+      <Stack.Screen name="Sustainability" component={SustainabilityScreen} />
     </Stack.Navigator>
   );
 }
