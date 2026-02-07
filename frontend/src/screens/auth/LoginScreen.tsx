@@ -9,11 +9,16 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { colors } from '../../theme/colors';
+import { useAuth } from '../../contexts/AuthContext';
+import { authAPI, saveTokens } from '../../services/api';
 
 export default function LoginScreen({ navigation }: any) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,11 +32,57 @@ export default function LoginScreen({ navigation }: any) {
     }
     setError('');
     setLoading(true);
-    // TODO: Replace with real API call
-    setTimeout(() => {
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
       setLoading(false);
-      // navigation will be handled by auth context
-    }, 1500);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken || userInfo.idToken;
+      if (!idToken) throw new Error('No ID token from Google');
+      const response = await authAPI.googleLogin(idToken);
+      await saveTokens(response.access_token, response.refresh_token);
+      // AuthContext will pick up the token on next check
+    } catch (err: any) {
+      if (err.code !== 'SIGN_IN_CANCELLED') {
+        setError(err.message || 'Google sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      setLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error('No identity token from Apple');
+      const response = await authAPI.appleLogin(credential.identityToken, {
+        firstName: credential.fullName?.givenName || undefined,
+        lastName: credential.fullName?.familyName || undefined,
+      });
+      await saveTokens(response.access_token, response.refresh_token);
+    } catch (err: any) {
+      if (err.code !== 'ERR_REQUEST_CANCELED') {
+        setError(err.message || 'Apple sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -134,15 +185,14 @@ export default function LoginScreen({ navigation }: any) {
 
           {/* Social Login */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.socialBtn}>
+            <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin}>
               <Ionicons name="logo-google" size={22} color="#DB4437" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-apple" size={22} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-facebook" size={22} color="#4267B2" />
-            </TouchableOpacity>
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity style={styles.socialBtn} onPress={handleAppleLogin}>
+                <Ionicons name="logo-apple" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

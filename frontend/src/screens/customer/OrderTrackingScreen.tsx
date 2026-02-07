@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { colors } from '../../theme/colors';
 import { mockOrders } from '../../data/mockData';
+import { locationAPI } from '../../services/api';
+import { joinOrderRoom, leaveOrderRoom, onDriverLocationUpdate } from '../../services/socketService';
 
 const order = mockOrders[0];
+
+// Default coordinates (Lagos, Nigeria)
+const RESTAURANT_COORDS = { latitude: 6.5244, longitude: 3.3792 };
+const CUSTOMER_COORDS = { latitude: 6.5344, longitude: 3.3892 };
 
 const stages = [
   { key: 'confirmed', label: 'Order Confirmed', icon: 'checkmark-circle' },
@@ -22,7 +30,40 @@ const stages = [
 
 const currentStageIndex = 3;
 
-export default function OrderTrackingScreen({ navigation }: any) {
+export default function OrderTrackingScreen({ navigation, route }: any) {
+  const orderId = route?.params?.orderId || order.id;
+  const mapRef = useRef<MapView>(null);
+  const [driverLocation, setDriverLocation] = useState({
+    latitude: 6.5294,
+    longitude: 3.3842,
+  });
+
+  useEffect(() => {
+    // Join order tracking room
+    joinOrderRoom(orderId);
+
+    // Listen for driver location updates
+    onDriverLocationUpdate((data: any) => {
+      if (data.latitude && data.longitude) {
+        setDriverLocation({ latitude: data.latitude, longitude: data.longitude });
+      }
+    });
+
+    return () => {
+      leaveOrderRoom(orderId);
+    };
+  }, [orderId]);
+
+  useEffect(() => {
+    // Fit map to show all markers
+    if (mapRef.current) {
+      mapRef.current.fitToCoordinates(
+        [RESTAURANT_COORDS, CUSTOMER_COORDS, driverLocation],
+        { edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, animated: true }
+      );
+    }
+  }, [driverLocation]);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -43,21 +84,42 @@ export default function OrderTrackingScreen({ navigation }: any) {
         <Text style={styles.etaSubtext}>Your food is on its way!</Text>
       </View>
 
-      {/* Map Placeholder */}
-      <View style={styles.mapPlaceholder}>
-        <Ionicons name="map" size={60} color={colors.teal + '40'} />
-        <Text style={styles.mapText}>Live Map Tracking</Text>
-        <View style={styles.routeLine}>
-          <View style={styles.routeDot}>
-            <Ionicons name="restaurant" size={16} color={colors.textWhite} />
-          </View>
-          <View style={styles.routeDash} />
-          <View style={styles.routeDash} />
-          <View style={styles.routeDash} />
-          <View style={[styles.routeDot, { backgroundColor: colors.navy }]}>
-            <Ionicons name="location" size={16} color={colors.textWhite} />
-          </View>
-        </View>
+      {/* Live Map */}
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          initialRegion={{
+            latitude: driverLocation.latitude,
+            longitude: driverLocation.longitude,
+            latitudeDelta: 0.025,
+            longitudeDelta: 0.025,
+          }}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+        >
+          {/* Restaurant Marker */}
+          <Marker coordinate={RESTAURANT_COORDS} title={order.restaurantName}>
+            <View style={styles.markerContainer}>
+              <Ionicons name="restaurant" size={18} color={colors.textWhite} />
+            </View>
+          </Marker>
+
+          {/* Customer Marker */}
+          <Marker coordinate={CUSTOMER_COORDS} title="Your Location">
+            <View style={[styles.markerContainer, { backgroundColor: colors.navy }]}>
+              <Ionicons name="location" size={18} color={colors.textWhite} />
+            </View>
+          </Marker>
+
+          {/* Driver Marker */}
+          <Marker coordinate={driverLocation} title={order.driverName}>
+            <View style={[styles.markerContainer, { backgroundColor: colors.warning }]}>
+              <Ionicons name="bicycle" size={18} color={colors.textWhite} />
+            </View>
+          </Marker>
+        </MapView>
       </View>
 
       {/* Progress Stages */}
@@ -188,39 +250,30 @@ const styles = StyleSheet.create({
     color: colors.tealLight,
     marginTop: 4,
   },
-  mapPlaceholder: {
-    height: 160,
-    backgroundColor: colors.white,
+  mapContainer: {
+    height: 180,
     marginHorizontal: 20,
     marginTop: 16,
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  mapText: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginTop: 8,
-    marginBottom: 16,
+  map: {
+    flex: 1,
   },
-  routeLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  routeDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  markerContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.teal,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  routeDash: {
-    width: 30,
-    height: 3,
-    backgroundColor: colors.teal + '40',
-    borderRadius: 2,
+    borderWidth: 3,
+    borderColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   progressSection: {
     backgroundColor: colors.white,

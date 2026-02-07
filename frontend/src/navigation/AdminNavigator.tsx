@@ -17,6 +17,7 @@ import SupportTicketsScreen from '../screens/admin/SupportTicketsScreen';
 import ReviewModerationScreen from '../screens/admin/ReviewModerationScreen';
 import DeliveryZonesManagementScreen from '../screens/admin/DeliveryZonesManagementScreen';
 import PushNotificationScreen from '../screens/admin/PushNotificationScreen';
+import DisputeResolutionScreen from '../screens/admin/DisputeResolutionScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -93,6 +94,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
       <Stack.Screen name="DeliveryZones" component={DeliveryZonesManagementScreen} />
       <Stack.Screen name="PushNotifications" component={PushNotificationScreen} />
+      <Stack.Screen name="DisputeResolution" component={DisputeResolutionScreen} />
     </Stack.Navigator>
   );
 }

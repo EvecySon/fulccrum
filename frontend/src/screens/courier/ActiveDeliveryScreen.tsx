@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { colors } from '../../theme/colors';
+import { locationAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -22,8 +27,56 @@ const steps: { key: DeliveryStep; label: string; icon: string }[] = [
   { key: 'arrived', label: 'Arrived', icon: 'checkmark-circle' },
 ];
 
+// Default coordinates (Lagos, Nigeria)
+const PICKUP_COORDS = { latitude: 6.5244, longitude: 3.3792 };
+const DROPOFF_COORDS = { latitude: 6.5344, longitude: 3.3892 };
+
 export default function ActiveDeliveryScreen() {
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const mapRef = useRef<MapView>(null);
+  const [driverCoords, setDriverCoords] = useState({
+    latitude: 6.5220,
+    longitude: 3.3770,
+  });
+
+  useEffect(() => {
+    let locationSub: Location.LocationSubscription | null = null;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      locationSub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 5000 },
+        (loc) => {
+          const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setDriverCoords(coords);
+          // Send location to backend
+          locationAPI.updateDriverLocation({ latitude: coords.latitude, longitude: coords.longitude }).catch(() => {});
+        },
+      );
+    })();
+
+    return () => { locationSub?.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current) {
+      const target = currentStep < 2 ? PICKUP_COORDS : DROPOFF_COORDS;
+      mapRef.current.fitToCoordinates(
+        [driverCoords, target],
+        { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true }
+      );
+    }
+  }, [driverCoords, currentStep]);
+
+  const openNavigation = (lat: number, lng: number) => {
+    const url = Platform.select({
+      ios: `maps:0,0?daddr=${lat},${lng}`,
+      android: `google.navigation:q=${lat},${lng}`,
+    });
+    if (url) Linking.openURL(url).catch(() => {});
+  };
 
   const order = {
     id: '#3242',
@@ -95,13 +148,41 @@ export default function ActiveDeliveryScreen() {
         <Text style={styles.stepLabel}>{steps[currentStep].label}</Text>
       </View>
 
-      {/* Map Placeholder */}
+      {/* Live Map */}
       <View style={styles.mapCard}>
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={40} color={colors.textLight} />
-          <Text style={styles.mapText}>Live Navigation</Text>
-          <Text style={styles.mapSubtext}>{order.distance} km · Turn right in 200m</Text>
-        </View>
+        <MapView
+          ref={mapRef}
+          style={styles.mapView}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          initialRegion={{
+            latitude: driverCoords.latitude,
+            longitude: driverCoords.longitude,
+            latitudeDelta: 0.025,
+            longitudeDelta: 0.025,
+          }}
+          showsUserLocation={false}
+        >
+          {/* Driver (you) */}
+          <Marker coordinate={driverCoords} title="You">
+            <View style={[styles.mapMarker, { backgroundColor: colors.teal }]}>
+              <Ionicons name="bicycle" size={16} color={colors.textWhite} />
+            </View>
+          </Marker>
+
+          {/* Pickup */}
+          <Marker coordinate={PICKUP_COORDS} title={order.restaurant}>
+            <View style={[styles.mapMarker, { backgroundColor: colors.warning }]}>
+              <Ionicons name="storefront" size={16} color={colors.textWhite} />
+            </View>
+          </Marker>
+
+          {/* Drop-off */}
+          <Marker coordinate={DROPOFF_COORDS} title={order.customer}>
+            <View style={[styles.mapMarker, { backgroundColor: colors.error }]}>
+              <Ionicons name="location" size={16} color={colors.textWhite} />
+            </View>
+          </Marker>
+        </MapView>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
@@ -114,7 +195,7 @@ export default function ActiveDeliveryScreen() {
               <Text style={styles.routeName}>{order.restaurant}</Text>
               <Text style={styles.routeAddress}>{order.restaurantAddress}</Text>
             </View>
-            <TouchableOpacity style={styles.navBtn}>
+            <TouchableOpacity style={styles.navBtn} onPress={() => openNavigation(PICKUP_COORDS.latitude, PICKUP_COORDS.longitude)}>
               <Ionicons name="navigate" size={18} color={colors.teal} />
             </TouchableOpacity>
           </View>
@@ -134,7 +215,7 @@ export default function ActiveDeliveryScreen() {
               <Text style={styles.routeName}>{order.customer}</Text>
               <Text style={styles.routeAddress}>{order.customerAddress}</Text>
             </View>
-            <TouchableOpacity style={styles.navBtn}>
+            <TouchableOpacity style={styles.navBtn} onPress={() => openNavigation(DROPOFF_COORDS.latitude, DROPOFF_COORDS.longitude)}>
               <Ionicons name="navigate" size={18} color={colors.teal} />
             </TouchableOpacity>
           </View>
@@ -249,12 +330,14 @@ const styles = StyleSheet.create({
   stepLineActive: { backgroundColor: colors.teal },
   stepLabel: { fontSize: 13, color: colors.tealLight, textAlign: 'center' },
   mapCard: { marginHorizontal: 10, marginTop: 10 },
-  mapPlaceholder: {
-    height: 160, backgroundColor: colors.white, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center', gap: 4,
+  mapView: {
+    height: 180, borderRadius: 16, overflow: 'hidden',
   },
-  mapText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-  mapSubtext: { fontSize: 12, color: colors.textLight },
+  mapMarker: {
+    width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: colors.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5,
+  },
   content: { flex: 1, paddingHorizontal: 10, paddingTop: 10 },
   routeCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 10 },
   routePoint: { flexDirection: 'row', alignItems: 'center', gap: 12 },

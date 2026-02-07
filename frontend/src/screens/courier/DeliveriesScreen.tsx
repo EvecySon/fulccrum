@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -55,7 +56,9 @@ export default function DeliveriesScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={colors.teal} />}
+      >
         {filteredDeliveries.map((delivery) => (
           <View key={delivery.id} style={styles.deliveryCard}>
             <View style={styles.cardHeader}>

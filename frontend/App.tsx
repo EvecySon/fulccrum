@@ -1,13 +1,34 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppSwitcher from './src/navigation/AppSwitcher';
 
 // Set to false to require login before accessing the app
 const DEV_SKIP_AUTH = true;
+
+const prefix = Linking.createURL('/');
+
+const linking: LinkingOptions<any> = {
+  prefixes: [prefix, 'fulccrum://', 'https://fulccrum.com'],
+  config: {
+    screens: {
+      // Auth screens
+      Login: 'login',
+      Register: 'register',
+      ForgotPassword: 'forgot-password',
+      OTPVerification: 'verify-otp',
+      // Customer screens
+      OrderTracking: 'order/:orderId',
+      Restaurant: 'restaurant/:id',
+      // Shared
+      ResetPassword: 'reset-password',
+    },
+  },
+};
 
 function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,7 +51,7 @@ function RootNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <StatusBar style="dark" />
         <RootNavigator />
       </NavigationContainer>

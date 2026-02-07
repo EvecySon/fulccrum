@@ -171,6 +171,12 @@ export const authAPI = {
 
   refreshToken: (refreshToken: string) =>
     api.post('/auth/refresh', { refreshToken }),
+
+  googleLogin: (idToken: string) =>
+    api.post('/auth/google', { idToken }),
+
+  appleLogin: (identityToken: string, fullName?: { firstName?: string; lastName?: string }) =>
+    api.post('/auth/apple', { identityToken, fullName }),
 };
 
 // ─── Users API ───

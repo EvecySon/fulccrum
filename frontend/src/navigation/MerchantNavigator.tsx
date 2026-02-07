@@ -15,6 +15,7 @@ import BusinessHoursScreen from '../screens/merchant/BusinessHoursScreen';
 import DeliveryZonesScreen from '../screens/merchant/DeliveryZonesScreen';
 import PromotionsScreen from '../screens/merchant/PromotionsScreen';
 import WalletScreen from '../screens/merchant/WalletScreen';
+import BusinessVerificationScreen from '../screens/merchant/BusinessVerificationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -89,6 +90,7 @@ export default function MerchantNavigator() {
       <Stack.Screen name="DeliveryZones" component={DeliveryZonesScreen} />
       <Stack.Screen name="Promotions" component={PromotionsScreen} />
       <Stack.Screen name="Wallet" component={WalletScreen} />
+      <Stack.Screen name="BusinessVerification" component={BusinessVerificationScreen} />
     </Stack.Navigator>
   );
 }

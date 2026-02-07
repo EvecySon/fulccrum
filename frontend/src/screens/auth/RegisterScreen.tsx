@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { useAuth } from '../../contexts/AuthContext';
 
 const roles = [
   { key: 'customer', label: 'Customer', icon: 'person', desc: 'Order food & groceries' },
@@ -20,6 +21,7 @@ const roles = [
 ];
 
 export default function RegisterScreen({ navigation }: any) {
+  const { register } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedRole, setSelectedRole] = useState('customer');
   const [firstName, setFirstName] = useState('');
@@ -61,11 +63,21 @@ export default function RegisterScreen({ navigation }: any) {
     }
     setError('');
     setLoading(true);
-    // TODO: Replace with real API call
-    setTimeout(() => {
+    try {
+      await register({
+        email,
+        password,
+        firstName,
+        lastName,
+        phone: phone ? `+234${phone}` : undefined,
+        role: selectedRole,
+      });
+      navigation.navigate('OTPVerification', { email, phone: phone ? `+234${phone}` : undefined });
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
       setLoading(false);
-      navigation.navigate('OTPVerification', { email, phone });
-    }, 1500);
+    }
   };
 
   return (

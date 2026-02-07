@@ -10,6 +10,7 @@ import ActiveDeliveryScreen from '../screens/courier/ActiveDeliveryScreen';
 import EarningsScreen from '../screens/courier/EarningsScreen';
 import CourierProfileScreen from '../screens/courier/ProfileScreen';
 import CourierWalletScreen from '../screens/courier/WalletScreen';
+import DocumentVerificationScreen from '../screens/courier/DocumentVerificationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -79,6 +80,7 @@ export default function CourierNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
       <Stack.Screen name="CourierTabs" component={CourierTabs} />
       <Stack.Screen name="Wallet" component={CourierWalletScreen} />
+      <Stack.Screen name="DocumentVerification" component={DocumentVerificationScreen} />
     </Stack.Navigator>
   );
 }

@@ -7,9 +7,13 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { colors } from '../../theme/colors';
+import { menuAPI, uploadAPI } from '../../services/api';
+import { pickImage } from '../../services/uploadService';
 
 const menuCategories = [
   {
@@ -66,6 +70,36 @@ export default function MerchantMenuScreen({ navigation }: any) {
     setItemAvailability(prev => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
+  const handleBulkCSVUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const file = result.assets[0];
+      const formData = new FormData();
+      formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType || 'text/csv' } as any);
+      await uploadAPI.uploadDocument(formData);
+      Alert.alert('Upload Successful', 'Your CSV menu has been uploaded. Items will be processed shortly.');
+    } catch (err: any) {
+      Alert.alert('Upload Failed', err.message || 'Could not upload CSV file.');
+    }
+  };
+
+  const handlePickItemPhoto = async (itemId: string) => {
+    const uri = await pickImage();
+    if (!uri) return;
+    try {
+      const formData = new FormData();
+      formData.append('file', { uri, name: `menu_item_${itemId}.jpg`, type: 'image/jpeg' } as any);
+      const res = await uploadAPI.uploadImage(formData);
+      Alert.alert('Photo Updated', 'Menu item photo has been updated.');
+    } catch (err: any) {
+      Alert.alert('Upload Failed', err.message || 'Could not upload photo.');
+    }
+  };
+
   const currentCategory = menuCategories.find(c => c.id === selectedCategory);
 
   return (
@@ -76,6 +110,9 @@ export default function MerchantMenuScreen({ navigation }: any) {
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerBtn}>
             <Ionicons name="search" size={20} color={colors.textWhite} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleBulkCSVUpload}>
+            <Ionicons name="cloud-upload-outline" size={20} color={colors.textWhite} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.addBtn}>
             <Ionicons name="add" size={20} color={colors.textWhite} />
@@ -146,7 +183,12 @@ export default function MerchantMenuScreen({ navigation }: any) {
 
         {currentCategory?.items.map((item) => (
           <View key={item.id} style={[styles.menuItem, !itemAvailability[item.id] && styles.menuItemDisabled]}>
-            <Image source={{ uri: item.image }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />
+            <TouchableOpacity onPress={() => handlePickItemPhoto(item.id)}>
+              <Image source={{ uri: item.image }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />
+              <View style={styles.photoOverlay}>
+                <Ionicons name="camera" size={14} color={colors.textWhite} />
+              </View>
+            </TouchableOpacity>
             <View style={styles.itemInfo}>
               <View style={styles.itemNameRow}>
                 <Text style={[styles.itemName, !itemAvailability[item.id] && styles.itemNameDisabled]}>{item.name}</Text>
@@ -205,6 +247,10 @@ export default function MerchantMenuScreen({ navigation }: any) {
             <TouchableOpacity style={styles.bulkBtn}>
               <Ionicons name="pricetag-outline" size={18} color={colors.navy} />
               <Text style={styles.bulkText}>Bulk Price</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bulkBtn} onPress={handleBulkCSVUpload}>
+              <Ionicons name="document-text-outline" size={18} color={colors.teal} />
+              <Text style={styles.bulkText}>CSV Import</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -503,5 +549,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  photoOverlay: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
