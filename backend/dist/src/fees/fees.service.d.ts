@@ -29,6 +29,10 @@ export declare class FeesService {
     }>;
     getActiveSettings(): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        currency: string;
+        isActive: boolean;
         baseDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
         perKmRate: import("@prisma/client-runtime-utils").Decimal;
         minDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
@@ -40,13 +44,13 @@ export declare class FeesService {
         taxPercentage: import("@prisma/client-runtime-utils").Decimal;
         taxName: string;
         platformCommissionPercentage: import("@prisma/client-runtime-utils").Decimal;
-        currency: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updateSettings(data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        currency: string;
+        isActive: boolean;
         baseDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
         perKmRate: import("@prisma/client-runtime-utils").Decimal;
         minDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
@@ -58,13 +62,13 @@ export declare class FeesService {
         taxPercentage: import("@prisma/client-runtime-utils").Decimal;
         taxName: string;
         platformCommissionPercentage: import("@prisma/client-runtime-utils").Decimal;
-        currency: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getSettings(): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        currency: string;
+        isActive: boolean;
         baseDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
         perKmRate: import("@prisma/client-runtime-utils").Decimal;
         minDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
@@ -76,10 +80,6 @@ export declare class FeesService {
         taxPercentage: import("@prisma/client-runtime-utils").Decimal;
         taxName: string;
         platformCommissionPercentage: import("@prisma/client-runtime-utils").Decimal;
-        currency: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     calculatePlatformCommission(orderTotal: number): Promise<{
         orderTotal: number;

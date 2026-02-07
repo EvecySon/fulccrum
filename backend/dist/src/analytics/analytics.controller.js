@@ -30,6 +30,22 @@ let AnalyticsController = class AnalyticsController {
     async getTopPerformers(type, limit) {
         return this.analyticsService.getTopPerformers(type, limit ? parseInt(limit) : 10);
     }
+    async getRevenueForecast(req, days) {
+        const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+        return this.analyticsService.getRevenueForecast(businessId, days ? parseInt(days) : 30);
+    }
+    async getOrderTrends(req, days) {
+        const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+        return this.analyticsService.getOrderTrends(businessId, days ? parseInt(days) : 30);
+    }
+    async getCustomerInsights(req) {
+        const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+        return this.analyticsService.getCustomerInsights(businessId);
+    }
+    async getPredictiveAnalytics(req) {
+        const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+        return this.analyticsService.getPredictiveAnalytics(businessId);
+    }
 };
 exports.AnalyticsController = AnalyticsController;
 __decorate([
@@ -55,6 +71,36 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getTopPerformers", null);
+__decorate([
+    (0, common_1.Get)('forecast/revenue'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('days')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getRevenueForecast", null);
+__decorate([
+    (0, common_1.Get)('forecast/orders'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('days')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getOrderTrends", null);
+__decorate([
+    (0, common_1.Get)('insights/customers'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getCustomerInsights", null);
+__decorate([
+    (0, common_1.Get)('predictive'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getPredictiveAnalytics", null);
 exports.AnalyticsController = AnalyticsController = __decorate([
     (0, common_1.Controller)('analytics'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

@@ -21,6 +21,8 @@ import { MenuModule } from './menu/menu.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PromosModule } from './promos/promos.module';
 import { FeesModule } from './fees/fees.module';
+import { ZonesModule } from './zones/zones.module';
+import { SupportModule } from './support/support.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -49,6 +51,8 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     ReviewsModule,
     PromosModule,
     FeesModule,
+    ZonesModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [

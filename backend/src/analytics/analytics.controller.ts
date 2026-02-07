@@ -27,4 +27,28 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getTopPerformers(type, limit ? parseInt(limit) : 10);
   }
+
+  @Get('forecast/revenue')
+  async getRevenueForecast(@Request() req: any, @Query('days') days?: string) {
+    const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+    return this.analyticsService.getRevenueForecast(businessId, days ? parseInt(days) : 30);
+  }
+
+  @Get('forecast/orders')
+  async getOrderTrends(@Request() req: any, @Query('days') days?: string) {
+    const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+    return this.analyticsService.getOrderTrends(businessId, days ? parseInt(days) : 30);
+  }
+
+  @Get('insights/customers')
+  async getCustomerInsights(@Request() req: any) {
+    const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+    return this.analyticsService.getCustomerInsights(businessId);
+  }
+
+  @Get('predictive')
+  async getPredictiveAnalytics(@Request() req: any) {
+    const businessId = req.user.role === 'business_owner' ? req.user.sub : undefined;
+    return this.analyticsService.getPredictiveAnalytics(businessId);
+  }
 }

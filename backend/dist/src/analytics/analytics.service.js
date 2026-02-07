@@ -191,6 +191,183 @@ let AnalyticsService = class AnalyticsService {
             },
         });
     }
+    async getRevenueForecast(businessId, days = 30) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        const where = {
+            paymentStatus: 'paid',
+            createdAt: { gte: startDate },
+        };
+        if (businessId) {
+            where.businessId = businessId;
+        }
+        const orders = await this.prisma.order.findMany({
+            where,
+            select: {
+                totalAmount: true,
+                createdAt: true,
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+        const dailyRevenue = {};
+        orders.forEach((order) => {
+            const date = order.createdAt.toISOString().split('T')[0];
+            dailyRevenue[date] = (dailyRevenue[date] || 0) + order.totalAmount.toNumber();
+        });
+        const revenues = Object.values(dailyRevenue);
+        const avgRevenue = revenues.reduce((a, b) => a + b, 0) / revenues.length;
+        const n = revenues.length;
+        let sumX = 0;
+        let sumY = 0;
+        let sumXY = 0;
+        let sumX2 = 0;
+        revenues.forEach((revenue, index) => {
+            sumX += index;
+            sumY += revenue;
+            sumXY += index * revenue;
+            sumX2 += index * index;
+        });
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        const forecast = [];
+        for (let i = 0; i < 7; i++) {
+            const day = n + i;
+            const predictedRevenue = slope * day + intercept;
+            forecast.push({
+                day: i + 1,
+                predictedRevenue: Math.max(0, Math.round(predictedRevenue * 100) / 100),
+            });
+        }
+        return {
+            historicalData: dailyRevenue,
+            averageDailyRevenue: Math.round(avgRevenue * 100) / 100,
+            trend: slope > 0 ? 'increasing' : slope < 0 ? 'decreasing' : 'stable',
+            trendPercentage: Math.round((slope / avgRevenue) * 100 * 100) / 100,
+            forecast,
+        };
+    }
+    async getOrderTrends(businessId, days = 30) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        const where = {
+            createdAt: { gte: startDate },
+        };
+        if (businessId) {
+            where.businessId = businessId;
+        }
+        const orders = await this.prisma.order.findMany({
+            where,
+            select: {
+                createdAt: true,
+                status: true,
+            },
+        });
+        const dailyOrders = {};
+        orders.forEach((order) => {
+            const date = order.createdAt.toISOString().split('T')[0];
+            dailyOrders[date] = (dailyOrders[date] || 0) + 1;
+        });
+        const orderCounts = Object.values(dailyOrders);
+        const avgOrders = orderCounts.reduce((a, b) => a + b, 0) / orderCounts.length;
+        const hourlyOrders = {};
+        orders.forEach((order) => {
+            const hour = order.createdAt.getHours();
+            hourlyOrders[hour] = (hourlyOrders[hour] || 0) + 1;
+        });
+        const peakHour = Object.entries(hourlyOrders).reduce((a, b) => b[1] > a[1] ? b : a);
+        return {
+            dailyOrders,
+            averageDailyOrders: Math.round(avgOrders * 100) / 100,
+            peakHour: {
+                hour: parseInt(peakHour[0]),
+                orders: peakHour[1],
+            },
+            totalOrders: orders.length,
+        };
+    }
+    async getCustomerInsights(businessId) {
+        const where = {};
+        if (businessId) {
+            where.businessId = businessId;
+        }
+        const [totalCustomers, repeatCustomers, avgOrderValue] = await Promise.all([
+            this.prisma.order.groupBy({
+                by: ['customerId'],
+                where,
+                _count: true,
+            }),
+            this.prisma.order.groupBy({
+                by: ['customerId'],
+                where,
+                _count: true,
+                having: {
+                    customerId: {
+                        _count: {
+                            gt: 1,
+                        },
+                    },
+                },
+            }),
+            this.prisma.order.aggregate({
+                where: { ...where, paymentStatus: 'paid' },
+                _avg: { totalAmount: true },
+            }),
+        ]);
+        const retentionRate = totalCustomers.length > 0
+            ? (repeatCustomers.length / totalCustomers.length) * 100
+            : 0;
+        return {
+            totalCustomers: totalCustomers.length,
+            repeatCustomers: repeatCustomers.length,
+            retentionRate: Math.round(retentionRate * 100) / 100,
+            averageOrderValue: Math.round((avgOrderValue._avg.totalAmount?.toNumber() || 0) * 100) / 100,
+        };
+    }
+    async getPredictiveAnalytics(businessId) {
+        const [revenueForecast, orderTrends, customerInsights] = await Promise.all([
+            this.getRevenueForecast(businessId),
+            this.getOrderTrends(businessId),
+            this.getCustomerInsights(businessId),
+        ]);
+        return {
+            revenueForecast,
+            orderTrends,
+            customerInsights,
+            recommendations: this.generateRecommendations(revenueForecast, orderTrends, customerInsights),
+        };
+    }
+    generateRecommendations(revenueForecast, orderTrends, customerInsights) {
+        const recommendations = [];
+        if (revenueForecast.trend === 'decreasing') {
+            recommendations.push({
+                type: 'revenue',
+                priority: 'high',
+                message: 'Revenue is trending downward. Consider running promotions or improving service quality.',
+            });
+        }
+        if (customerInsights.retentionRate < 30) {
+            recommendations.push({
+                type: 'retention',
+                priority: 'high',
+                message: 'Low customer retention rate. Focus on customer satisfaction and loyalty programs.',
+            });
+        }
+        if (orderTrends.peakHour) {
+            recommendations.push({
+                type: 'operations',
+                priority: 'medium',
+                message: `Peak order time is ${orderTrends.peakHour.hour}:00. Ensure adequate staffing during this period.`,
+            });
+        }
+        if (revenueForecast.trend === 'increasing') {
+            recommendations.push({
+                type: 'growth',
+                priority: 'low',
+                message: 'Revenue is growing steadily. Consider expanding delivery zones or menu offerings.',
+            });
+        }
+        return recommendations;
+    }
 };
 exports.AnalyticsService = AnalyticsService;
 exports.AnalyticsService = AnalyticsService = __decorate([

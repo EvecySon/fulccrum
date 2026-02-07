@@ -5,6 +5,11 @@ export declare class FeesController {
     private feesService;
     constructor(feesService: FeesService);
     getSettings(): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        currency: string;
+        isActive: boolean;
         baseDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
         perKmRate: import("@prisma/client-runtime-utils").Decimal;
         minDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
@@ -16,13 +21,13 @@ export declare class FeesController {
         taxPercentage: import("@prisma/client-runtime-utils").Decimal;
         taxName: string;
         platformCommissionPercentage: import("@prisma/client-runtime-utils").Decimal;
-        currency: string;
-        id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updateSettings(dto: UpdateSettingsDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        currency: string;
+        isActive: boolean;
         baseDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
         perKmRate: import("@prisma/client-runtime-utils").Decimal;
         minDeliveryFee: import("@prisma/client-runtime-utils").Decimal;
@@ -34,11 +39,6 @@ export declare class FeesController {
         taxPercentage: import("@prisma/client-runtime-utils").Decimal;
         taxName: string;
         platformCommissionPercentage: import("@prisma/client-runtime-utils").Decimal;
-        currency: string;
-        id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     calculateFees(dto: CalculateFeesDto): Promise<{
         subtotal: number;

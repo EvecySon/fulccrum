@@ -102,6 +102,9 @@ model User {
   customerReviews    Review[]         @relation("customer_reviews")
   driverReviews      Review[]         @relation("driver_reviews")
   promoUsages        PromoUsage[]
+  supportTickets     SupportTicket[]  @relation("user_tickets")
+  assignedTickets    SupportTicket[]  @relation("assigned_tickets")
+  supportMessages    SupportMessage[]
 
   @@map("users")
 }
@@ -169,6 +172,7 @@ model BusinessProfile {
   menuCategories MenuCategory[]
   businessHours  BusinessHours[]
   reviews        Review[]
+  deliveryZones  DeliveryZone[]
 
   @@map("business_profiles")
 }
@@ -594,6 +598,99 @@ model PlatformSettings {
   updatedAt             DateTime @updatedAt @map("updated_at")
   
   @@map("platform_settings")
+}
+
+// Delivery Zones (Geofencing)
+model DeliveryZone {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  description     String?  @db.Text
+  
+  // Polygon coordinates for geofencing (array of lat/lng points)
+  coordinates     Json     // [{lat: 6.5244, lng: 3.3792}, ...]
+  
+  // Zone-specific pricing
+  deliveryFee     Decimal? @map("delivery_fee") @db.Decimal(10, 2)
+  minimumOrder    Decimal? @map("minimum_order") @db.Decimal(10, 2)
+  
+  // Availability
+  isActive        Boolean  @default(true) @map("is_active")
+  maxOrders       Int?     @map("max_orders") // Max concurrent orders in zone
+  
+  // Timing
+  estimatedDeliveryTime Int @default(30) @map("estimated_delivery_time") // minutes
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([isActive])
+  @@map("delivery_zones")
+}
+
+// Support System
+model SupportTicket {
+  id              String   @id @default(uuid()) @db.Uuid
+  ticketNumber    String   @unique @map("ticket_number") @db.VarChar(20)
+  userId          String   @map("user_id") @db.Uuid
+  category        String   @db.VarChar(50) // 'order', 'payment', 'account', 'technical', 'other'
+  priority        String   @default("medium") @db.VarChar(20) // 'low', 'medium', 'high', 'urgent'
+  status          String   @default("open") @db.VarChar(20) // 'open', 'in_progress', 'resolved', 'closed'
+  
+  subject         String   @db.VarChar(255)
+  description     String   @db.Text
+  attachments     Json     @default("[]")
+  
+  // Assignment
+  assignedToId    String?  @map("assigned_to_id") @db.Uuid
+  
+  // Related entities
+  orderId         String?  @map("order_id") @db.Uuid
+  
+  // Resolution
+  resolution      String?  @db.Text
+  resolvedAt      DateTime? @map("resolved_at")
+  closedAt        DateTime? @map("closed_at")
+  
+  // Ratings
+  satisfactionRating Int?  @map("satisfaction_rating") @db.SmallInt // 1-5
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user       User  @relation("user_tickets", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("assigned_tickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+  
+  @@index([userId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id              String   @id @default(uuid()) @db.Uuid
+  ticketId        String   @map("ticket_id") @db.Uuid
+  senderId        String   @map("sender_id") @db.Uuid
+  message         String   @db.Text
+  attachments     Json     @default("[]")
+  isInternal      Boolean  @default(false) @map("is_internal") // Internal notes
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("support_messages")
 }
 
 // Promotions & Discounts System

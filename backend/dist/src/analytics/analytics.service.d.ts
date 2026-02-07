@@ -63,24 +63,90 @@ export declare class AnalyticsService {
             lastName: string;
         };
     } & {
-        createdAt: Date;
         userId: string;
-        email: string | null;
-        phone: string | null;
-        updatedAt: Date;
-        deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         businessName: string;
         businessType: string;
         description: string | null;
         logoUrl: string | null;
         coverImageUrl: string | null;
         website: string | null;
+        phone: string | null;
+        email: string | null;
         taxId: string | null;
         businessLicense: string | null;
         verificationStatus: string;
         verificationDate: Date | null;
         rating: import("@prisma/client-runtime-utils").Decimal;
         averagePreparationTime: number;
+        deliveryFee: import("@prisma/client-runtime-utils").Decimal;
         minimumOrderAmount: import("@prisma/client-runtime-utils").Decimal;
+        createdAt: Date;
+        updatedAt: Date;
     })[]>;
+    getRevenueForecast(businessId?: string, days?: number): Promise<{
+        historicalData: {
+            [key: string]: number;
+        };
+        averageDailyRevenue: number;
+        trend: string;
+        trendPercentage: number;
+        forecast: {
+            day: number;
+            predictedRevenue: number;
+        }[];
+    }>;
+    getOrderTrends(businessId?: string, days?: number): Promise<{
+        dailyOrders: {
+            [key: string]: number;
+        };
+        averageDailyOrders: number;
+        peakHour: {
+            hour: number;
+            orders: number;
+        };
+        totalOrders: number;
+    }>;
+    getCustomerInsights(businessId?: string): Promise<{
+        totalCustomers: number;
+        repeatCustomers: number;
+        retentionRate: number;
+        averageOrderValue: number;
+    }>;
+    getPredictiveAnalytics(businessId?: string): Promise<{
+        revenueForecast: {
+            historicalData: {
+                [key: string]: number;
+            };
+            averageDailyRevenue: number;
+            trend: string;
+            trendPercentage: number;
+            forecast: {
+                day: number;
+                predictedRevenue: number;
+            }[];
+        };
+        orderTrends: {
+            dailyOrders: {
+                [key: string]: number;
+            };
+            averageDailyOrders: number;
+            peakHour: {
+                hour: number;
+                orders: number;
+            };
+            totalOrders: number;
+        };
+        customerInsights: {
+            totalCustomers: number;
+            repeatCustomers: number;
+            retentionRate: number;
+            averageOrderValue: number;
+        };
+        recommendations: {
+            type: string;
+            priority: string;
+            message: string;
+        }[];
+    }>;
+    private generateRecommendations;
 }
