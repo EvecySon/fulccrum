@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
+
+const mockInventory = [
+  { id: '1', name: 'Beef Patty', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100&h=100&fit=crop', currentStock: 45, minimumStock: 20, unit: 'pieces', costPerUnit: 800, supplier: 'Lagos Meats Ltd', lastRestocked: '2 days ago' },
+  { id: '2', name: 'Burger Buns', image: 'https://images.unsplash.com/photo-1586444248879-bc604bc77dbb?w=100&h=100&fit=crop', currentStock: 12, minimumStock: 30, unit: 'pieces', costPerUnit: 150, supplier: 'Golden Bakery', lastRestocked: '5 days ago' },
+  { id: '3', name: 'Cheddar Cheese', image: 'https://images.unsplash.com/photo-1618164436241-4473940d1f5c?w=100&h=100&fit=crop', currentStock: 8, minimumStock: 10, unit: 'kg', costPerUnit: 3500, supplier: 'Dairy Fresh NG', lastRestocked: '1 week ago' },
+  { id: '4', name: 'French Fries', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=100&h=100&fit=crop', currentStock: 60, minimumStock: 25, unit: 'kg', costPerUnit: 1200, supplier: 'Farm Direct', lastRestocked: '3 days ago' },
+  { id: '5', name: 'Lettuce', image: 'https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=100&h=100&fit=crop', currentStock: 5, minimumStock: 15, unit: 'heads', costPerUnit: 500, supplier: 'Green Farms', lastRestocked: '1 day ago' },
+  { id: '6', name: 'Chicken Wings', image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=100&h=100&fit=crop', currentStock: 30, minimumStock: 20, unit: 'pieces', costPerUnit: 450, supplier: 'Lagos Meats Ltd', lastRestocked: '4 days ago' },
+];
+
+export default function InventoryScreen({ navigation }: any) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
+
+  const filtered = mockInventory
+    .filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(i => {
+      if (filter === 'low') return i.currentStock <= i.minimumStock && i.currentStock > 0;
+      if (filter === 'out') return i.currentStock === 0;
+      return true;
+    });
+
+  const lowStockCount = mockInventory.filter(i => i.currentStock <= i.minimumStock && i.currentStock > 0).length;
+  const outOfStockCount = mockInventory.filter(i => i.currentStock === 0).length;
+  const totalValue = mockInventory.reduce((s, i) => s + i.currentStock * i.costPerUnit, 0);
+
+  const getStockStatus = (item: typeof mockInventory[0]) => {
+    if (item.currentStock === 0) return { label: 'Out of Stock', color: colors.error };
+    if (item.currentStock <= item.minimumStock) return { label: 'Low Stock', color: colors.warning };
+    return { label: 'In Stock', color: colors.success };
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Inventory</Text>
+        <TouchableOpacity>
+          <Ionicons name="add-circle-outline" size={24} color={colors.teal} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Summary Cards */}
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Ionicons name="cube-outline" size={20} color={colors.navy} />
+            <Text style={styles.summaryValue}>{mockInventory.length}</Text>
+            <Text style={styles.summaryLabel}>Items</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Ionicons name="alert-circle-outline" size={20} color={colors.warning} />
+            <Text style={[styles.summaryValue, { color: colors.warning }]}>{lowStockCount}</Text>
+            <Text style={styles.summaryLabel}>Low Stock</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Ionicons name="wallet-outline" size={20} color={colors.teal} />
+            <Text style={styles.summaryValue}>₦{(totalValue / 1000).toFixed(0)}K</Text>
+            <Text style={styles.summaryLabel}>Total Value</Text>
+          </View>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={colors.textLight} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search inventory..."
+            placeholderTextColor={colors.textLight}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        {/* Filter Chips */}
+        <View style={styles.filterRow}>
+          {[
+            { key: 'all', label: 'All Items' },
+            { key: 'low', label: `Low Stock (${lowStockCount})` },
+            { key: 'out', label: `Out of Stock (${outOfStockCount})` },
+          ].map(f => (
+            <TouchableOpacity
+              key={f.key}
+              style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+              onPress={() => setFilter(f.key as any)}
+            >
+              <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Inventory List */}
+        {filtered.map(item => {
+          const status = getStockStatus(item);
+          return (
+            <View key={item.id} style={styles.itemCard}>
+              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <View style={styles.itemInfo}>
+                <View style={styles.itemTop}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+                    <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+                  </View>
+                </View>
+                <View style={styles.stockRow}>
+                  <Text style={styles.stockText}>
+                    <Text style={styles.stockValue}>{item.currentStock}</Text> / {item.minimumStock} {item.unit}
+                  </Text>
+                  <Text style={styles.costText}>₦{item.costPerUnit.toLocaleString()}/{item.unit.slice(0, -1) || item.unit}</Text>
+                </View>
+                <View style={styles.stockBar}>
+                  <View style={[styles.stockFill, {
+                    width: `${Math.min((item.currentStock / (item.minimumStock * 2)) * 100, 100)}%`,
+                    backgroundColor: status.color,
+                  }]} />
+                </View>
+                <View style={styles.itemBottom}>
+                  <Text style={styles.supplierText}>{item.supplier}</Text>
+                  <Text style={styles.restockedText}>Restocked {item.lastRestocked}</Text>
+                </View>
+                <View style={styles.itemActions}>
+                  <TouchableOpacity style={styles.restockBtn}>
+                    <Ionicons name="add" size={16} color={colors.textWhite} />
+                    <Text style={styles.restockBtnText}>Restock</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.editBtn}>
+                    <Ionicons name="create-outline" size={16} color={colors.navy} />
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.lightGray },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: colors.white },
+  backBtn: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  summaryRow: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 16, gap: 10 },
+  summaryCard: { flex: 1, backgroundColor: colors.white, borderRadius: 14, padding: 14, alignItems: 'center', gap: 4 },
+  summaryValue: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+  summaryLabel: { fontSize: 11, color: colors.textLight },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, margin: 16, borderRadius: 12, paddingHorizontal: 14, gap: 10 },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: colors.textPrimary },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border },
+  filterChipActive: { backgroundColor: colors.navy, borderColor: colors.navy },
+  filterText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  filterTextActive: { color: colors.textWhite },
+  itemCard: { flexDirection: 'row', backgroundColor: colors.white, marginHorizontal: 16, marginBottom: 10, borderRadius: 14, padding: 14, gap: 14 },
+  itemImage: { width: 60, height: 60, borderRadius: 12 },
+  itemInfo: { flex: 1 },
+  itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  itemName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontWeight: '600' },
+  stockRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  stockText: { fontSize: 13, color: colors.textSecondary },
+  stockValue: { fontWeight: '700', color: colors.textPrimary },
+  costText: { fontSize: 12, color: colors.textLight },
+  stockBar: { height: 4, backgroundColor: colors.lightGray, borderRadius: 2, marginBottom: 8 },
+  stockFill: { height: 4, borderRadius: 2 },
+  itemBottom: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  supplierText: { fontSize: 12, color: colors.textLight },
+  restockedText: { fontSize: 12, color: colors.textLight },
+  itemActions: { flexDirection: 'row', gap: 8 },
+  restockBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.teal, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  restockBtnText: { fontSize: 12, fontWeight: '600', color: colors.textWhite },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.navy + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  editBtnText: { fontSize: 12, fontWeight: '600', color: colors.navy },
+});
