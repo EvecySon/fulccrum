@@ -105,6 +105,7 @@ model User {
   supportTickets     SupportTicket[]  @relation("user_tickets")
   assignedTickets    SupportTicket[]  @relation("assigned_tickets")
   supportMessages    SupportMessage[]
+  favorites          Favorite[]
 
   @@map("users")
 }
@@ -173,6 +174,7 @@ model BusinessProfile {
   businessHours  BusinessHours[]
   reviews        Review[]
   deliveryZones  DeliveryZone[]
+  favorites      Favorite[]
 
   @@map("business_profiles")
 }
@@ -236,6 +238,7 @@ model Order {
   business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
   review   Review?
+  items    OrderItem[]
 
   @@index([customerId])
   @@index([businessId])
@@ -421,6 +424,7 @@ model MenuItem {
   category  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   inventory Inventory?
   modifiers ItemModifierLink[]
+  orderItems OrderItem[]
   
   @@index([businessId])
   @@index([categoryId])
@@ -749,4 +753,43 @@ model PromoUsage {
   @@index([orderId])
   @@index([usedAt])
   @@map("promo_usages")
+}
+
+// Favorites System
+model Favorite {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  
+  @@unique([userId, businessId])
+  @@index([userId])
+  @@index([businessId])
+  @@map("favorites")
+}
+
+// Order Items (line items in an order)
+model OrderItem {
+  id         String  @id @default(uuid()) @db.Uuid
+  orderId    String  @map("order_id") @db.Uuid
+  menuItemId String  @map("menu_item_id") @db.Uuid
+  quantity   Int     @default(1)
+  unitPrice  Decimal @map("unit_price") @db.Decimal(10, 2)
+  totalPrice Decimal @map("total_price") @db.Decimal(10, 2)
+  
+  // Store selected modifiers as JSON
+  modifiers  Json    @default("[]")
+  
+  // Special instructions for this item
+  notes      String? @db.Text
+  
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
 }

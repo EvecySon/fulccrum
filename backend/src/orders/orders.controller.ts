@@ -69,4 +69,15 @@ export class OrdersController {
   ) {
     return this.ordersService.assignDriver(id, driverId);
   }
+
+  @Get('available/deliveries')
+  async getAvailableDeliveries(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.ordersService.getAvailableDeliveries(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
 }

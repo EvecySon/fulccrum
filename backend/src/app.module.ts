@@ -23,6 +23,9 @@ import { PromosModule } from './promos/promos.module';
 import { FeesModule } from './fees/fees.module';
 import { ZonesModule } from './zones/zones.module';
 import { SupportModule } from './support/support.module';
+import { SearchModule } from './search/search.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { AddressesModule } from './addresses/addresses.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -53,6 +56,9 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     FeesModule,
     ZonesModule,
     SupportModule,
+    SearchModule,
+    FavoritesModule,
+    AddressesModule,
   ],
   controllers: [AppController],
   providers: [

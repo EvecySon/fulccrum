@@ -79,4 +79,27 @@ export class AdminController {
   async getRecentActivity(@Request() req: any, @Query('limit') limit?: string) {
     return this.adminService.getRecentActivity(req.user.role, limit ? parseInt(limit) : 20);
   }
+
+  @Get('merchants/pending')
+  async getPendingMerchants(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getPendingMerchants(
+      req.user.role,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
+  @Patch('merchants/:merchantId/approve')
+  async approveMerchant(@Request() req: any, @Param('merchantId') merchantId: string) {
+    return this.adminService.approveMerchant(req.user.role, merchantId);
+  }
+
+  @Patch('merchants/:merchantId/reject')
+  async rejectMerchant(@Request() req: any, @Param('merchantId') merchantId: string) {
+    return this.adminService.rejectMerchant(req.user.role, merchantId);
+  }
 }

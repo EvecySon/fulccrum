@@ -184,4 +184,54 @@ export class AdminService {
       recentUsers,
     };
   }
+
+  async approveMerchant(userRole: string, merchantId: string) {
+    this.verifyAdmin(userRole);
+
+    return this.prisma.businessProfile.update({
+      where: { userId: merchantId },
+      data: {
+        verificationStatus: 'verified',
+        verificationDate: new Date(),
+      },
+    });
+  }
+
+  async rejectMerchant(userRole: string, merchantId: string) {
+    this.verifyAdmin(userRole);
+
+    return this.prisma.businessProfile.update({
+      where: { userId: merchantId },
+      data: {
+        verificationStatus: 'rejected',
+      },
+    });
+  }
+
+  async getPendingMerchants(userRole: string, page = 1, limit = 50) {
+    this.verifyAdmin(userRole);
+
+    const skip = (page - 1) * limit;
+    const [merchants, total] = await Promise.all([
+      this.prisma.businessProfile.findMany({
+        where: { verificationStatus: 'pending' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.businessProfile.count({ where: { verificationStatus: 'pending' } }),
+    ]);
+
+    return { data: merchants, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
 }

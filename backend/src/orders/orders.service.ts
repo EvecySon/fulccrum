@@ -254,4 +254,60 @@ export class OrdersService {
       },
     });
   }
+
+  async getAvailableDeliveries(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          status: 'ready',
+          driverId: null,
+        },
+        skip,
+        take: limit,
+        include: {
+          business: {
+            select: {
+              businessName: true,
+              phone: true,
+              addresses: {
+                take: 1,
+                select: {
+                  streetAddress: true,
+                  city: true,
+                  latitude: true,
+                  longitude: true,
+                },
+              },
+            },
+          },
+          customer: {
+            select: {
+              firstName: true,
+              lastName: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: { readyAt: 'asc' },
+      }),
+      this.prisma.order.count({
+        where: {
+          status: 'ready',
+          driverId: null,
+        },
+      }),
+    ]);
+
+    return {
+      data: orders,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }
