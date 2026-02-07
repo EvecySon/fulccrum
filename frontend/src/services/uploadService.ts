@@ -94,7 +94,7 @@ export async function uploadFile(
       type: mimeType,
     } as any);
 
-    const result = await uploadAPI.uploadFile(formData);
+    const result = await uploadAPI.uploadImage(formData);
     return result as UploadResult;
   } catch (error) {
     console.error('Failed to upload file:', error);

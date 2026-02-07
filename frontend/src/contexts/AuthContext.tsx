@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authAPI, saveTokens, loadTokens, clearTokens } from '../services/api';
+import { authAPI, usersAPI, notificationsAPI, saveTokens, loadTokens, clearTokens } from '../services/api';
+import { Platform } from 'react-native';
 
 type UserRole = 'customer' | 'business_owner' | 'driver' | 'admin';
 
@@ -44,14 +45,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { access } = await loadTokens();
       if (access) {
-        // TODO: Validate token / fetch user profile from backend
-        // For now, we'll just check if token exists
-        // In production, call GET /users/me or similar
+        const profile = await usersAPI.getProfile();
+        setUser(profile);
       }
     } catch (error) {
       console.log('Auth check failed:', error);
+      await clearTokens();
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const registerPushToken = async () => {
+    try {
+      // Dynamic imports to avoid build errors if packages not installed
+      const Notifications = require('expo-notifications');
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      await notificationsAPI.registerDevice(
+        tokenData.data,
+        Platform.OS,
+        undefined,
+      );
+    } catch (err) {
+      // Push registration is optional — skip silently if packages unavailable
     }
   };
 
@@ -59,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authAPI.login(email, password);
     await saveTokens(response.access_token, response.refresh_token);
     setUser(response.user);
+    registerPushToken();
   };
 
   const register = async (data: {

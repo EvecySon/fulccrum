@@ -154,9 +154,9 @@ export default function GroupOrderScreen({ navigation }: any) {
             <View style={styles.splitRow}>
               <Text style={styles.splitLabel}>Your Share</Text>
               <Text style={styles.splitValueBold}>
-                ${splitMethod === 'equal'
-                  ? ((totalAmount + 3.99) / groupMembers.length).toFixed(2)
-                  : (groupMembers[0].total + 3.99 / groupMembers.length).toFixed(2)
+                ₦{splitMethod === 'equal'
+                  ? ((totalAmount + 600) / groupMembers.length).toLocaleString()
+                  : (groupMembers[0].total + 600 / groupMembers.length).toLocaleString()
                 }
               </Text>
             </View>

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { authAPI } from '../../services/api';
 
 export default function OTPVerificationScreen({ navigation, route }: any) {
   const { email, phone, mode } = route?.params || {};
@@ -52,21 +53,28 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     }
     setError('');
     setLoading(true);
-    // TODO: Replace with real API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authAPI.verifyOTP(code, email, phone);
       if (mode === 'reset') {
         navigation.navigate('ResetPassword', { code });
       } else {
-        // Verification successful — auth context will handle navigation
+        navigation.navigate('Login');
       }
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Invalid code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setCountdown(60);
     setOtp(['', '', '', '', '', '']);
-    // TODO: Call resend API
+    try {
+      await authAPI.resendOTP(email, phone);
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code.');
+    }
   };
 
   const destination = email || phone || 'your account';

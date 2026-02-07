@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { authAPI } from '../../services/api';
 
 export default function ForgotPasswordScreen({ navigation }: any) {
   const [method, setMethod] = useState<'email' | 'phone'>('email');
@@ -27,11 +28,14 @@ export default function ForgotPasswordScreen({ navigation }: any) {
     }
     setError('');
     setLoading(true);
-    // TODO: Replace with real API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authAPI.forgotPassword(method, method === 'phone' ? `+234${value}` : value);
       setSent(true);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

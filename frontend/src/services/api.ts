@@ -52,6 +52,23 @@ async function request<T = any>(
     headers,
   });
 
+  if (response.status === 401 && accessToken) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+      const retryResponse = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => ({}));
+        const error: any = new Error(errorData.message || `Request failed (${retryResponse.status})`);
+        error.status = retryResponse.status;
+        error.data = errorData;
+        throw error;
+      }
+      if (retryResponse.status === 204) return {} as T;
+      return retryResponse.json();
+    }
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const error: any = new Error(errorData.message || `Request failed (${response.status})`);
@@ -64,6 +81,30 @@ async function request<T = any>(
   if (response.status === 204) return {} as T;
 
   return response.json();
+}
+
+// Refresh token logic
+let isRefreshing = false;
+async function tryRefreshToken(): Promise<boolean> {
+  if (isRefreshing) return false;
+  isRefreshing = true;
+  try {
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    if (!refreshToken) return false;
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    await saveTokens(data.access_token, data.refresh_token);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    isRefreshing = false;
+  }
 }
 
 // HTTP methods
@@ -115,6 +156,55 @@ export const authAPI = {
     phone?: string;
     role?: string;
   }) => api.post('/auth/register', data),
+
+  forgotPassword: (method: 'email' | 'phone', value: string) =>
+    api.post('/auth/forgot-password', { [method]: value }),
+
+  verifyOTP: (code: string, email?: string, phone?: string) =>
+    api.post('/auth/verify-otp', { code, email, phone }),
+
+  resetPassword: (code: string, newPassword: string) =>
+    api.post('/auth/reset-password', { code, newPassword }),
+
+  resendOTP: (email?: string, phone?: string) =>
+    api.post('/auth/resend-otp', { email, phone }),
+
+  refreshToken: (refreshToken: string) =>
+    api.post('/auth/refresh', { refreshToken }),
+};
+
+// ─── Users API ───
+export const usersAPI = {
+  getProfile: () => api.get('/users/profile'),
+  updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string }) =>
+    api.patch('/users/profile', data),
+  updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),
+};
+
+// ─── Search API ───
+export const searchAPI = {
+  searchAll: (query: string) => api.get(`/search?q=${encodeURIComponent(query)}`),
+  searchBusinesses: (query: string) => api.get(`/search/businesses?q=${encodeURIComponent(query)}`),
+  searchMenuItems: (query: string, businessId?: string) =>
+    api.get(`/search/menu-items?q=${encodeURIComponent(query)}${businessId ? `&businessId=${businessId}` : ''}`),
+};
+
+// ─── Favorites API ───
+export const favoritesAPI = {
+  getAll: () => api.get('/favorites'),
+  add: (businessId: string) => api.post(`/favorites/${businessId}`),
+  remove: (businessId: string) => api.delete(`/favorites/${businessId}`),
+  check: (businessId: string) => api.get(`/favorites/check/${businessId}`),
+};
+
+// ─── Addresses API ───
+export const addressesAPI = {
+  getAll: () => api.get('/addresses'),
+  get: (id: string) => api.get(`/addresses/${id}`),
+  create: (data: any) => api.post('/addresses', data),
+  update: (id: string, data: any) => api.patch(`/addresses/${id}`, data),
+  delete: (id: string) => api.delete(`/addresses/${id}`),
+  setDefault: (id: string) => api.patch(`/addresses/${id}/set-default`),
 };
 
 // ─── Orders API ───
@@ -128,6 +218,8 @@ export const ordersAPI = {
     api.get(`/orders/business/${businessId}?page=${page}&limit=${limit}`),
   assignDriver: (orderId: string, driverId: string) =>
     api.patch(`/orders/${orderId}/assign-driver`, { driverId }),
+  getAvailableDeliveries: (page = 1, limit = 20) =>
+    api.get(`/orders/available/deliveries?page=${page}&limit=${limit}`),
 };
 
 // ─── Menu API ───
@@ -245,6 +337,9 @@ export const adminAPI = {
   approveWithdrawal: (id: string) => api.post(`/admin/withdrawals/${id}/approve`),
   rejectWithdrawal: (id: string, reason: string) => api.post(`/admin/withdrawals/${id}/reject`, { reason }),
   getActivity: (limit = 20) => api.get(`/admin/activity?limit=${limit}`),
+  getPendingMerchants: (page = 1) => api.get(`/admin/merchants/pending?page=${page}`),
+  approveMerchant: (merchantId: string) => api.patch(`/admin/merchants/${merchantId}/approve`),
+  rejectMerchant: (merchantId: string) => api.patch(`/admin/merchants/${merchantId}/reject`),
 };
 
 // ─── Support API ───
@@ -280,5 +375,11 @@ export const zonesAPI = {
 
 // ─── Upload API ───
 export const uploadAPI = {
-  uploadFile: (formData: FormData) => api.upload('/upload', formData),
+  uploadImage: (formData: FormData) => api.upload('/upload/image', formData),
+  uploadDocument: (formData: FormData) => api.upload('/upload/document', formData),
+  uploadAvatar: (formData: FormData) => api.upload('/upload/avatar', formData),
+  uploadBusinessLogo: (formData: FormData) => api.upload('/upload/business/logo', formData),
+  uploadBusinessCover: (formData: FormData) => api.upload('/upload/business/cover', formData),
+  getFiles: (page = 1) => api.get(`/upload/files?page=${page}`),
+  deleteFile: (id: string) => api.delete(`/upload/files/${id}`),
 };
