@@ -563,6 +563,39 @@ model Review {
   @@map("reviews")
 }
 
+// Platform Settings & Fee Configuration
+model PlatformSettings {
+  id                    String   @id @default(uuid()) @db.Uuid
+  
+  // Delivery Fee Configuration
+  baseDeliveryFee       Decimal  @default(200) @map("base_delivery_fee") @db.Decimal(10, 2)
+  perKmRate             Decimal  @default(50) @map("per_km_rate") @db.Decimal(10, 2)
+  minDeliveryFee        Decimal  @default(200) @map("min_delivery_fee") @db.Decimal(10, 2)
+  maxDeliveryFee        Decimal  @default(2000) @map("max_delivery_fee") @db.Decimal(10, 2)
+  freeDeliveryThreshold Decimal? @map("free_delivery_threshold") @db.Decimal(10, 2) // Order amount for free delivery
+  
+  // Service Fee Configuration
+  serviceFeePercentage  Decimal  @default(5) @map("service_fee_percentage") @db.Decimal(5, 2)
+  minServiceFee         Decimal  @default(50) @map("min_service_fee") @db.Decimal(10, 2)
+  maxServiceFee         Decimal? @map("max_service_fee") @db.Decimal(10, 2)
+  
+  // Tax Configuration
+  taxPercentage         Decimal  @default(7.5) @map("tax_percentage") @db.Decimal(5, 2) // VAT
+  taxName               String   @default("VAT") @map("tax_name") @db.VarChar(50)
+  
+  // Platform Commission
+  platformCommissionPercentage Decimal @default(15) @map("platform_commission_percentage") @db.Decimal(5, 2)
+  
+  // Other Settings
+  currency              String   @default("NGN") @db.VarChar(3)
+  isActive              Boolean  @default(true) @map("is_active")
+  
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  
+  @@map("platform_settings")
+}
+
 // Promotions & Discounts System
 model PromoCode {
   id              String   @id @default(uuid()) @db.Uuid

@@ -20,6 +20,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { MenuModule } from './menu/menu.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PromosModule } from './promos/promos.module';
+import { FeesModule } from './fees/fees.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -47,6 +48,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     MenuModule,
     ReviewsModule,
     PromosModule,
+    FeesModule,
   ],
   controllers: [AppController],
   providers: [

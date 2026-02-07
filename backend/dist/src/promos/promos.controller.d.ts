@@ -6,8 +6,12 @@ export declare class PromosController {
     constructor(promosService: PromosService);
     createPromo(dto: CreatePromoDto): Promise<{
         id: string;
-        code: string;
+        createdAt: Date;
+        updatedAt: Date;
+        businessId: string | null;
+        isActive: boolean;
         description: string | null;
+        code: string;
         discountType: string;
         discountValue: import("@prisma/client-runtime-utils").Decimal;
         maxDiscount: import("@prisma/client-runtime-utils").Decimal | null;
@@ -18,10 +22,6 @@ export declare class PromosController {
         validFrom: Date;
         validUntil: Date;
         applicableTo: string;
-        businessId: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     validatePromo(req: any, dto: ValidatePromoDto): Promise<{
         valid: boolean;
@@ -38,8 +38,12 @@ export declare class PromosController {
     getPromos(page?: string, limit?: string, activeOnly?: string): Promise<{
         data: {
             id: string;
-            code: string;
+            createdAt: Date;
+            updatedAt: Date;
+            businessId: string | null;
+            isActive: boolean;
             description: string | null;
+            code: string;
             discountType: string;
             discountValue: import("@prisma/client-runtime-utils").Decimal;
             maxDiscount: import("@prisma/client-runtime-utils").Decimal | null;
@@ -50,10 +54,6 @@ export declare class PromosController {
             validFrom: Date;
             validUntil: Date;
             applicableTo: string;
-            businessId: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
         }[];
         meta: {
             page: number;
@@ -65,17 +65,17 @@ export declare class PromosController {
     getMyPromoUsage(req: any, page?: string, limit?: string): Promise<{
         data: ({
             promoCode: {
-                code: string;
                 description: string | null;
+                code: string;
                 discountType: string;
                 discountValue: import("@prisma/client-runtime-utils").Decimal;
             };
         } & {
             id: string;
             userId: string;
-            promoCodeId: string;
-            orderId: string;
             discountAmount: import("@prisma/client-runtime-utils").Decimal;
+            orderId: string;
+            promoCodeId: string;
             usedAt: Date;
         })[];
         meta: {
@@ -94,15 +94,19 @@ export declare class PromosController {
         } & {
             id: string;
             userId: string;
-            promoCodeId: string;
-            orderId: string;
             discountAmount: import("@prisma/client-runtime-utils").Decimal;
+            orderId: string;
+            promoCodeId: string;
             usedAt: Date;
         })[];
     } & {
         id: string;
-        code: string;
+        createdAt: Date;
+        updatedAt: Date;
+        businessId: string | null;
+        isActive: boolean;
         description: string | null;
+        code: string;
         discountType: string;
         discountValue: import("@prisma/client-runtime-utils").Decimal;
         maxDiscount: import("@prisma/client-runtime-utils").Decimal | null;
@@ -113,10 +117,6 @@ export declare class PromosController {
         validFrom: Date;
         validUntil: Date;
         applicableTo: string;
-        businessId: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getPromoStats(id: string): Promise<{
         code: string;
@@ -132,8 +132,12 @@ export declare class PromosController {
     }>;
     updatePromo(id: string, dto: Partial<CreatePromoDto>): Promise<{
         id: string;
-        code: string;
+        createdAt: Date;
+        updatedAt: Date;
+        businessId: string | null;
+        isActive: boolean;
         description: string | null;
+        code: string;
         discountType: string;
         discountValue: import("@prisma/client-runtime-utils").Decimal;
         maxDiscount: import("@prisma/client-runtime-utils").Decimal | null;
@@ -144,15 +148,15 @@ export declare class PromosController {
         validFrom: Date;
         validUntil: Date;
         applicableTo: string;
-        businessId: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     togglePromoStatus(id: string): Promise<{
         id: string;
-        code: string;
+        createdAt: Date;
+        updatedAt: Date;
+        businessId: string | null;
+        isActive: boolean;
         description: string | null;
+        code: string;
         discountType: string;
         discountValue: import("@prisma/client-runtime-utils").Decimal;
         maxDiscount: import("@prisma/client-runtime-utils").Decimal | null;
@@ -163,10 +167,6 @@ export declare class PromosController {
         validFrom: Date;
         validUntil: Date;
         applicableTo: string;
-        businessId: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deletePromo(id: string): Promise<{
         success: boolean;
