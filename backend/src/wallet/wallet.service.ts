@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaystackService } from '../payment/paystack.service';
 import { randomInt } from 'crypto';
 
 @Injectable()
 export class WalletService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private paystackService: PaystackService,
+  ) {}
 
   async getOrCreateWallet(userId: string) {
     let wallet = await this.prisma.digitalWallet.findUnique({
@@ -161,7 +165,16 @@ export class WalletService {
   async confirmWithdrawal(userId: string, requestId: string, code: string) {
     const request = await this.prisma.withdrawalRequest.findUnique({
       where: { id: requestId },
-      include: { wallet: true },
+      include: {
+        wallet: true,
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        bankAccounts: true,
+      },
     });
 
     if (!request) {
@@ -169,18 +182,18 @@ export class WalletService {
     }
 
     if (request.userId !== userId) {
-      throw new BadRequestException('This withdrawal request does not belong to you');
+      throw new BadRequestException('Unauthorized');
     }
 
     if (request.status !== 'pending') {
-      throw new BadRequestException(`Request already ${request.status}`);
+      throw new BadRequestException('Request already processed');
     }
 
-    if (!request.confirmationCode || request.confirmationCode !== code) {
+    if (request.confirmationCode !== code) {
       throw new BadRequestException('Invalid confirmation code');
     }
 
-    if (!request.codeExpiresAt || new Date() > request.codeExpiresAt) {
+    if (request.codeExpiresAt && request.codeExpiresAt < new Date()) {
       await this.prisma.withdrawalRequest.update({
         where: { id: requestId },
         data: { status: 'expired' },
@@ -195,6 +208,11 @@ export class WalletService {
     }
 
     // Update request status
+    const defaultAccount = user?.bankAccounts.find((a: any) => a.isDefault);
+    if (!defaultAccount) {
+      throw new BadRequestException('No default bank account found');
+    }
+
     await this.prisma.withdrawalRequest.update({
       where: { id: requestId },
       data: {
@@ -203,59 +221,58 @@ export class WalletService {
       },
     });
 
-    // Deduct from wallet (move to pending)
-    await this.prisma.digitalWallet.update({
-      where: { id: request.walletId },
-      data: {
-        balance: {
-          decrement: request.amount,
-        },
-        pendingBalance: {
-          increment: request.amount,
-        },
-      },
-    });
-
-    // TODO: Process actual withdrawal with payment provider
-    // For now, we'll simulate immediate processing
-    await this.processWithdrawal(requestId);
-
-    return {
-      success: true,
-      amount: Number(request.amount),
-      message: 'Withdrawal confirmed and processing',
-    };
-  }
-
-  private async processWithdrawal(requestId: string) {
-    // Simulate payment processing
-    setTimeout(async () => {
-      const request = await this.prisma.withdrawalRequest.findUnique({
-        where: { id: requestId },
+    try {
+      const recipient = await this.paystackService.createTransferRecipient({
+        type: 'nuban',
+        name: defaultAccount.accountName,
+        account_number: defaultAccount.accountNumber,
+        bank_code: defaultAccount.bankCode,
+        currency: 'NGN',
       });
 
-      if (request && request.status === 'confirmed') {
-        await this.prisma.withdrawalRequest.update({
-          where: { id: requestId },
-          data: {
-            status: 'completed',
-            processedAt: new Date(),
-          },
-        });
+      const transfer = await this.paystackService.initiateTransfer({
+        amount: Number(request.amount) * 100,
+        recipient: recipient.recipient_code,
+        reason: `Withdrawal for ${user?.email}`,
+        reference: `WD-${requestId.substring(0, 8)}-${Date.now()}`,
+      });
 
-        // Move from pending to completed (remove from pending)
-        await this.prisma.digitalWallet.update({
-          where: { id: request.walletId },
-          data: {
-            pendingBalance: {
-              decrement: request.amount,
-            },
-          },
-        });
+      await this.prisma.withdrawalRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'processing',
+          processedAt: new Date(),
+        },
+      });
 
-        console.log(`[WITHDRAWAL] Completed withdrawal ${requestId}`);
-      }
-    }, 2000); // Simulate 2-second processing
+      await this.prisma.digitalWallet.update({
+        where: { id: request.walletId },
+        data: {
+          balance: {
+            decrement: request.amount,
+          },
+        },
+      });
+
+      console.log(`[WITHDRAWAL] Initiated Paystack transfer of ₦${request.amount} for user ${userId}`);
+      console.log(`[WITHDRAWAL] Transfer reference: ${transfer.reference}`);
+
+      return {
+        success: true,
+        message: 'Withdrawal is being processed',
+        reference: transfer.reference,
+      };
+    } catch (error) {
+      await this.prisma.withdrawalRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'failed',
+          failedReason: error instanceof Error ? error.message : 'Transfer failed',
+        },
+      });
+
+      throw new BadRequestException('Withdrawal failed. Please try again or contact support.');
+    }
   }
 
   async getWithdrawalHistory(userId: string, page = 1, limit = 20) {

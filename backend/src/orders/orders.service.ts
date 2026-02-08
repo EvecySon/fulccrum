@@ -158,6 +158,112 @@ export class OrdersService {
     return updatedOrder;
   }
 
+  async cancelOrder(orderId: string, userId: string, reason?: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        business: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.customerId !== userId) {
+      throw new ForbiddenException('You can only cancel your own orders');
+    }
+
+    if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
+      throw new BadRequestException(`Cannot cancel order with status: ${order.status}`);
+    }
+
+    const cancelledOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'cancelled',
+        paymentStatus: 'refunded',
+      },
+    });
+
+    this.realtimeGateway.emitOrderUpdate(orderId, 'cancelled', {
+      orderNumber: cancelledOrder.orderNumber,
+      reason,
+    });
+
+    console.log(`[ORDER] Order ${orderId} cancelled by user ${userId}`);
+    if (reason) {
+      console.log(`[ORDER] Cancellation reason: ${reason}`);
+    }
+
+    return {
+      success: true,
+      message: 'Order cancelled successfully',
+      order: cancelledOrder,
+    };
+  }
+
+  async reorder(orderId: string, customerId: string) {
+    const originalOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!originalOrder) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (originalOrder.customerId !== customerId) {
+      throw new ForbiddenException('You can only reorder your own orders');
+    }
+
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    const newOrder = await this.prisma.order.create({
+      data: {
+        orderNumber,
+        customerId,
+        businessId: originalOrder.businessId,
+        status: 'pending',
+        subtotal: originalOrder.subtotal,
+        deliveryFee: originalOrder.deliveryFee,
+        serviceFee: originalOrder.serviceFee,
+        taxAmount: originalOrder.taxAmount,
+        tipAmount: 0,
+        discountAmount: 0,
+        totalAmount: originalOrder.subtotal.add(originalOrder.deliveryFee).add(originalOrder.serviceFee).add(originalOrder.taxAmount),
+        paymentMethod: originalOrder.paymentMethod,
+        paymentStatus: 'pending',
+        specialInstructions: originalOrder.specialInstructions,
+        items: {
+          create: originalOrder.items.map(item => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            modifiers: item.modifiers,
+            notes: item.notes,
+          })),
+        },
+      },
+      include: {
+        items: true,
+        business: true,
+      },
+    });
+
+    console.log(`[ORDER] Reordered ${orderId} as ${newOrder.id}`);
+
+    return {
+      success: true,
+      message: 'Order placed successfully',
+      order: newOrder,
+    };
+  }
+
   async getCustomerOrders(customerId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     

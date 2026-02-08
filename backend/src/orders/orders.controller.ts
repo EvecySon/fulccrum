@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } 
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('orders')
@@ -26,6 +27,20 @@ export class OrdersController {
     @Request() req,
   ) {
     return this.ordersService.updateOrderStatus(id, dto, req.user.sub, req.user.role);
+  }
+
+  @Post(':id/cancel')
+  async cancelOrder(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+  ) {
+    return this.ordersService.cancelOrder(id, req.user.sub, dto.reason);
+  }
+
+  @Post(':id/reorder')
+  async reorder(@Request() req: any, @Param('id') id: string) {
+    return this.ordersService.reorder(id, req.user.sub);
   }
 
   @Get('customer/my-orders')

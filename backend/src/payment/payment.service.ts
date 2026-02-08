@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import axios from 'axios';
@@ -211,6 +211,140 @@ export class PaymentService {
       await this.verifyPayment(data.reference);
     }
 
-    return { received: true };
+    return { message: 'Webhook processed' };
+  }
+
+  async saveCard(
+    userId: string,
+    authorizationCode: string,
+    cardType: string,
+    last4: string,
+    expMonth: string,
+    expYear: string,
+    bank: string,
+  ) {
+    const existing = await this.prisma.savedCard.findFirst({
+      where: {
+        userId,
+        authorizationCode,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Card already saved');
+    }
+
+    const isFirst = (await this.prisma.savedCard.count({ where: { userId } })) === 0;
+
+    return this.prisma.savedCard.create({
+      data: {
+        userId,
+        authorizationCode,
+        cardType,
+        last4,
+        expMonth,
+        expYear,
+        bank,
+        isDefault: isFirst,
+      },
+    });
+  }
+
+  async getSavedCards(userId: string) {
+    return this.prisma.savedCard.findMany({
+      where: { userId, isActive: true },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        cardType: true,
+        last4: true,
+        expMonth: true,
+        expYear: true,
+        bank: true,
+        isDefault: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async setDefaultCard(userId: string, cardId: string) {
+    const card = await this.prisma.savedCard.findUnique({
+      where: { id: cardId },
+    });
+
+    if (!card || card.userId !== userId) {
+      throw new NotFoundException('Card not found');
+    }
+
+    await this.prisma.savedCard.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    });
+
+    return this.prisma.savedCard.update({
+      where: { id: cardId },
+      data: { isDefault: true },
+    });
+  }
+
+  async deleteCard(userId: string, cardId: string) {
+    const card = await this.prisma.savedCard.findUnique({
+      where: { id: cardId },
+    });
+
+    if (!card || card.userId !== userId) {
+      throw new NotFoundException('Card not found');
+    }
+
+    await this.prisma.savedCard.update({
+      where: { id: cardId },
+      data: { isActive: false },
+    });
+
+    if (card.isDefault) {
+      const firstCard = await this.prisma.savedCard.findFirst({
+        where: { userId, isActive: true },
+      });
+
+      if (firstCard) {
+        await this.prisma.savedCard.update({
+          where: { id: firstCard.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+
+    return { success: true, message: 'Card removed' };
+  }
+
+  async chargeCard(userId: string, cardId: string, amount: number, email: string) {
+    const card = await this.prisma.savedCard.findUnique({
+      where: { id: cardId },
+    });
+
+    if (!card || card.userId !== userId || !card.isActive) {
+      throw new NotFoundException('Card not found');
+    }
+
+    const charge = await axios.post(
+      `${this.paystackBaseUrl}/charge`,
+      {
+        email,
+        amount: amount * 100,
+        authorization_code: card.authorizationCode,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.paystackSecretKey}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    return {
+      success: true,
+      reference: charge.data.reference,
+      amount: charge.data.amount / 100,
+    };
   }
 }

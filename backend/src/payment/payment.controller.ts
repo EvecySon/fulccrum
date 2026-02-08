@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, Delete, Patch } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
+import { SaveCardDto } from './dto/save-card.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('payment')
@@ -43,5 +44,33 @@ export class PaymentController {
   async handleWebhook(@Body() payload: any, @Request() req: any) {
     const signature = req.headers['x-paystack-signature'];
     return this.paymentService.handleWebhook(payload, signature);
+  }
+
+  @Post('cards')
+  async saveCard(@Request() req: any, @Body() dto: SaveCardDto) {
+    return this.paymentService.saveCard(
+      req.user.sub,
+      dto.authorizationCode,
+      dto.cardType,
+      dto.last4,
+      dto.expMonth,
+      dto.expYear,
+      dto.bank,
+    );
+  }
+
+  @Get('cards')
+  async getSavedCards(@Request() req: any) {
+    return this.paymentService.getSavedCards(req.user.sub);
+  }
+
+  @Patch('cards/:id/set-default')
+  async setDefaultCard(@Request() req: any, @Param('id') id: string) {
+    return this.paymentService.setDefaultCard(req.user.sub, id);
+  }
+
+  @Delete('cards/:id')
+  async deleteCard(@Request() req: any, @Param('id') id: string) {
+    return this.paymentService.deleteCard(req.user.sub, id);
   }
 }

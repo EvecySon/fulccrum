@@ -6,12 +6,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { EmailService } from '../messaging/email.service';
 import { TermiiService } from '../messaging/termii.service';
+import { PaystackService } from '../payment/paystack.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterPaymentDto } from './dto/register-payment.dto';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +23,7 @@ export class AuthService {
     private readonly refreshTokenService: RefreshTokenService,
     private readonly emailService: EmailService,
     private readonly termiiService: TermiiService,
+    private readonly paystackService: PaystackService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -239,6 +242,53 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: newRefreshToken,
+    };
+  }
+
+  async initiateRegistrationPayment(dto: RegisterPaymentDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const fee = 5000;
+
+    const payment = await this.paystackService.initializePayment({
+      email: dto.email,
+      amount: fee * 100,
+      metadata: {
+        type: 'registration_fee',
+        role: dto.role,
+      },
+      callback_url: process.env.FRONTEND_URL + '/auth/register/complete',
+    });
+
+    return {
+      authorizationUrl: payment.authorization_url,
+      reference: payment.reference,
+      amount: fee,
+    };
+  }
+
+  async verifyRegistrationPayment(reference: string) {
+    const payment = await this.paystackService.verifyPayment(reference);
+
+    if (payment.status !== 'success') {
+      throw new BadRequestException('Payment verification failed');
+    }
+
+    if (payment.metadata.type !== 'registration_fee') {
+      throw new BadRequestException('Invalid payment type');
+    }
+
+    return {
+      success: true,
+      email: payment.customer.email,
+      role: payment.metadata.role,
+      amount: payment.amount / 100,
     };
   }
 

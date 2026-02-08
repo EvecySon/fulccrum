@@ -3,6 +3,9 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { InviteMerchantDto } from './dto/invite-merchant.dto';
+import { InviteCourierDto } from './dto/invite-courier.dto';
+import { ApproveCourierDto } from './dto/approve-courier.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -104,5 +107,25 @@ export class AdminController {
   @Patch('merchants/:merchantId/reject')
   async rejectMerchant(@Request() req: any, @Param('merchantId') merchantId: string) {
     return this.adminService.rejectMerchant(req.user.role, merchantId);
+  }
+
+  @Patch('merchants/:id/verify')
+  async verifyMerchant(@Param('id') id: string) {
+    return this.adminService.verifyMerchant(id);
+  }
+
+  @Post('invite/merchant')
+  async inviteMerchant(@Body() dto: InviteMerchantDto) {
+    return this.adminService.inviteMerchant(dto.email, dto.businessName);
+  }
+
+  @Post('invite/courier')
+  async inviteCourier(@Body() dto: InviteCourierDto) {
+    return this.adminService.inviteCourier(dto.email, dto.firstName, dto.lastName);
+  }
+
+  @Patch('couriers/:id/approve')
+  async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
+    return this.adminService.approveCourier(id, dto.approved, dto.notes);
   }
 }

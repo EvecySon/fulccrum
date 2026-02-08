@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -6,6 +6,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterPaymentDto } from './dto/register-payment.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -39,5 +40,15 @@ export class AuthController {
   @Post('refresh-token')
   refreshToken(@Body() dto: RefreshTokenDto) {
     return this.auth.refreshAccessToken(dto);
+  }
+
+  @Post('register/payment')
+  initiateRegistrationPayment(@Body() dto: RegisterPaymentDto) {
+    return this.auth.initiateRegistrationPayment(dto);
+  }
+
+  @Post('register/payment/verify')
+  verifyRegistrationPayment(@Query('reference') reference: string) {
+    return this.auth.verifyRegistrationPayment(reference);
   }
 }
