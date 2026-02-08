@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { promosAPI } from '../../services/api';
 
-const vouchers = [
+const mockVouchers = [
   { id: '1', code: 'WELCOME20', discount: '20% off', description: 'First order discount', minOrder: 15, expires: 'Mar 15, 2026', isNew: true },
   { id: '2', code: 'FREEDELIVERY', discount: 'Free Delivery', description: 'No delivery fee on your next order', minOrder: 10, expires: 'Feb 28, 2026', isNew: false },
   { id: '3', code: 'LUNCH10', discount: '₦3,000 off', description: 'Lunch special (11AM - 2PM)', minOrder: 5000, expires: 'Feb 20, 2026', isNew: false },
@@ -25,6 +26,16 @@ const usedVouchers = [
 export default function VouchersScreen({ navigation }: any) {
   const [tab, setTab] = useState<'available' | 'used'>('available');
   const [promoCode, setPromoCode] = useState('');
+  const [vouchers, setVouchers] = useState(mockVouchers);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await promosAPI.getAll();
+        if (res?.data?.length) setVouchers(res.data);
+      } catch {}
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>

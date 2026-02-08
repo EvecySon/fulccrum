@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
 const periods = ['Today', 'This Week', 'This Month', 'This Year'];
 
-const revenueData = {
+const mockRevenueData = {
   today: { total: 1890.75, change: '+12.5%', positive: true },
   orders: { total: 47, change: '+8.2%', positive: true },
   avgOrder: { total: 40.23, change: '-2.1%', positive: false },
@@ -54,6 +55,16 @@ const peakHours = [
 
 export default function MerchantAnalyticsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('Today');
+  const [revenueData, setRevenueData] = useState(mockRevenueData);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.dashboard();
+        if (res) setRevenueData(prev => ({ ...prev, ...res }));
+      } catch {}
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>

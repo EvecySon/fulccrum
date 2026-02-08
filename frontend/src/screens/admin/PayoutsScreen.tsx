@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +40,15 @@ const recentPayments = [
 export default function PayoutsScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'merchants' | 'couriers' | 'history'>('merchants');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminAPI.getPendingWithdrawals();
+        // When backend returns real data, update state here
+      } catch {}
+    })();
+  }, []);
 
   const totalMerchantPending = merchantPayouts.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
   const totalCourierPending = courierPayouts.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount + p.tips, 0);

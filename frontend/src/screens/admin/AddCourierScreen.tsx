@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 const vehicleTypes = [
   { key: 'bicycle', label: 'Bicycle', icon: 'bicycle' },
@@ -37,8 +38,7 @@ export default function AddCourierScreen({ navigation }: any) {
     setError('');
     setLoading(true);
     try {
-      // In production: await adminAPI.inviteCourier({ ... })
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await adminAPI.inviteCourier({ email, fullName, phone: phone || undefined, vehicleType });
       Alert.alert(
         'Invitation Sent!',
         `An invite has been sent to ${email}. ${fullName} will receive instructions to complete registration and document verification${waiveFee ? ' (registration fee waived)' : ''}.`,

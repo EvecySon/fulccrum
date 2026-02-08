@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
-const merchants = [
+const mockMerchants = [
   { id: '1', name: 'Burger House', owner: 'Mike Chen', email: 'mike@burgerhouse.com', status: 'active', rating: 4.7, orders: 182, revenue: 12500, commission: 10, joined: 'Nov 20, 2025', category: 'American' },
   { id: '2', name: 'Sushi Palace', owner: 'Anna Park', email: 'anna@sushipalace.com', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 12, joined: 'Feb 4, 2026', category: 'Japanese' },
   { id: '3', name: 'Pizza Roma', owner: 'Marco Rossi', email: 'marco@pizzaroma.com', status: 'active', rating: 4.5, orders: 143, revenue: 9800, commission: 10, joined: 'Oct 15, 2025', category: 'Italian' },
@@ -25,6 +26,19 @@ const filters = ['All', 'Active', 'Pending', 'Suspended'];
 export default function MerchantsScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [merchants, setMerchants] = useState(mockMerchants);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminAPI.getUsers(1, 100);
+        if (res?.data?.length) {
+          const m = res.data.filter((u: any) => u.role === 'business_owner' || u.role === 'merchant');
+          if (m.length) setMerchants(m);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const filtered = merchants.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.owner.toLowerCase().includes(search.toLowerCase());

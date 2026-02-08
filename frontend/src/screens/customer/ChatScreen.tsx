@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { chatAPI } from '../../services/api';
 
 const chatMessages = [
   { id: '1', sender: 'support', text: 'Hi John! Welcome to Fulccrum support. How can I help you today?', time: '2:30 PM' },
@@ -32,7 +33,7 @@ export default function ChatScreen({ navigation }: any) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState(chatMessages);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!message.trim()) return;
     const newMsg = {
       id: String(messages.length + 1),
@@ -42,6 +43,9 @@ export default function ChatScreen({ navigation }: any) {
     };
     setMessages([...messages, newMsg]);
     setMessage('');
+    try {
+      await chatAPI.sendMessage('support', { text: newMsg.text });
+    } catch {}
   };
 
   return (

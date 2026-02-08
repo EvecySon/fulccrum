@@ -259,6 +259,12 @@ export const paymentAPI = {
   verify: (reference: string) => api.get(`/payment/verify/${reference}`),
   refund: (orderId: string, amount?: number) => api.post(`/payment/refund/${orderId}`, { amount }),
   history: (page = 1, limit = 20) => api.get(`/payment/history?page=${page}&limit=${limit}`),
+  // Saved cards
+  getSavedCards: () => api.get('/payment/cards'),
+  saveCard: (data: { authorizationCode: string; cardType: string; last4: string; expMonth: string; expYear: string; bank: string }) =>
+    api.post('/payment/cards', data),
+  setDefaultCard: (id: string) => api.patch(`/payment/cards/${id}/set-default`),
+  deleteCard: (id: string) => api.delete(`/payment/cards/${id}`),
 };
 
 // ─── Wallet API ───

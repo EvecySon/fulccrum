@@ -64,19 +64,14 @@ export default function RegisterScreen({ navigation }: any) {
     setError('');
     setLoading(true);
     try {
-      if (__DEV__) {
-        // Dev mode: skip API call, go straight to OTP
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else {
-        await register({
-          email,
-          password,
-          firstName,
-          lastName,
-          phone: phone ? `+234${phone}` : undefined,
-          role: selectedRole,
-        });
-      }
+      await register({
+        email,
+        password,
+        firstName,
+        lastName,
+        phone: phone ? `+234${phone}` : undefined,
+        role: selectedRole,
+      });
       navigation.navigate('OTPVerification', { email, phone: phone ? `+234${phone}` : undefined, role: selectedRole });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');

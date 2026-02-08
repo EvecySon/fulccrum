@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { paymentAPI, walletAPI } from '../../services/api';
 
-const paymentMethods = [
+const mockPaymentMethods = [
   { id: '1', type: 'visa', last4: '4242', expiry: '12/27', isDefault: true, label: 'Personal Visa' },
   { id: '2', type: 'mastercard', last4: '8888', expiry: '06/26', isDefault: false, label: 'Work Card' },
   { id: '3', type: 'apple_pay', last4: '', expiry: '', isDefault: false, label: 'Apple Pay' },
@@ -34,6 +35,21 @@ const getCardColor = (type: string) => {
 };
 
 export default function PaymentMethodsScreen({ navigation }: any) {
+  const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
+  const [walletBalance, setWalletBalance] = useState(12500);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [cardsRes, balRes] = await Promise.all([
+          paymentAPI.getSavedCards().catch(() => null),
+          walletAPI.getBalance().catch(() => null),
+        ]);
+        if (cardsRes?.length) setPaymentMethods(cardsRes);
+        if (balRes?.balance != null) setWalletBalance(balRes.balance);
+      } catch {}
+    })();
+  }, []);
   return (
     <View style={styles.container}>
       <View style={styles.header}>

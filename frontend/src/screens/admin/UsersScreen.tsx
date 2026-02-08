@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
-const users = [
+const mockUsers = [
   { id: '1', name: 'John Smith', email: 'john@example.com', role: 'customer', status: 'active', orders: 23, joined: 'Jan 15, 2026', spent: 456 },
   { id: '2', name: 'Sarah Lee', email: 'sarah@example.com', role: 'courier', status: 'active', deliveries: 342, joined: 'Dec 3, 2025', rating: 4.9 },
   { id: '3', name: 'Mike Chen', email: 'mike@burgerhouse.com', role: 'merchant', status: 'active', restaurant: 'Burger House', joined: 'Nov 20, 2025', revenue: 12500 },
@@ -45,6 +46,16 @@ const getStatusColor = (status: string) => {
 export default function UsersScreen() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [users, setUsers] = useState(mockUsers);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminAPI.getUsers();
+        if (res?.data?.length) setUsers(res.data);
+      } catch {}
+    })();
+  }, []);
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());

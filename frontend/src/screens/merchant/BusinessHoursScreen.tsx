@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { menuAPI } from '../../services/api';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -30,6 +31,15 @@ const timeSlots = Array.from({ length: 48 }, (_, i) => {
 
 export default function BusinessHoursScreen({ navigation }: any) {
   const [hours, setHours] = useState(initialHours);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getBusinessHours('me');
+        if (res?.length) setHours(res);
+      } catch {}
+    })();
+  }, []);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<'open' | 'close' | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -52,8 +62,10 @@ export default function BusinessHoursScreen({ navigation }: any) {
     setHasChanges(true);
   };
 
-  const handleSave = () => {
-    // TODO: Call menuAPI.setBusinessHours(hours)
+  const handleSave = async () => {
+    try {
+      await menuAPI.setBusinessHours(hours);
+    } catch {}
     setHasChanges(false);
   };
 

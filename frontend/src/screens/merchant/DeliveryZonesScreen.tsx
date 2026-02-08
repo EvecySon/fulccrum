@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { zonesAPI } from '../../services/api';
 
 const mockZones = [
   { id: '1', name: 'Lekki Phase 1', description: 'Primary delivery zone', deliveryFee: 500, minimumOrder: 3000, estimatedDeliveryTime: 20, maxOrders: 50, isActive: true, orderCount: 34 },
@@ -20,6 +21,15 @@ const mockZones = [
 
 export default function DeliveryZonesScreen({ navigation }: any) {
   const [zones, setZones] = useState(mockZones);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await zonesAPI.getBusinessZones('me');
+        if (res?.length) setZones(res);
+      } catch {}
+    })();
+  }, []);
   const [expandedZone, setExpandedZone] = useState<string | null>(null);
 
   const toggleZone = (id: string) => {

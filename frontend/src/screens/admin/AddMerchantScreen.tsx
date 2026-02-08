@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 const commissionOptions = [8, 10, 12, 15, 20];
 
@@ -44,8 +45,7 @@ export default function AddMerchantScreen({ navigation }: any) {
     setError('');
     setLoading(true);
     try {
-      // In production: await adminAPI.inviteMerchant({ ... })
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await adminAPI.inviteMerchant({ email, businessName, ownerName, phone: phone || undefined, commission });
       Alert.alert(
         'Invitation Sent!',
         `An invite has been sent to ${email}. ${ownerName} will receive an email with instructions to complete registration${waiveFee ? ' (registration fee waived)' : ''}.`,

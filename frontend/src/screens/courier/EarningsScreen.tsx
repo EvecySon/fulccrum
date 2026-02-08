@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,17 @@ const deliveryHistory = [
 
 export default function EarningsScreen() {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
+  const [earnings, setEarnings] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.revenue(30);
+        if (res) setEarnings(res);
+      } catch {}
+    })();
+  }, []);
+
   const maxAmount = Math.max(...weeklyData.map(d => d.amount));
 
   const todayEarnings = 148.73;

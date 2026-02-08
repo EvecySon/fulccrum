@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { menuAPI } from '../../services/api';
 
 const mockInventory = [
   { id: '1', name: 'Beef Patty', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100&h=100&fit=crop', currentStock: 45, minimumStock: 20, unit: 'pieces', costPerUnit: 800, supplier: 'Lagos Meats Ltd', lastRestocked: '2 days ago' },
@@ -23,8 +24,18 @@ const mockInventory = [
 export default function InventoryScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [inventory, setInventory] = useState(mockInventory);
 
-  const filtered = mockInventory
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getInventory();
+        if (res?.length) setInventory(res);
+      } catch {}
+    })();
+  }, []);
+
+  const filtered = inventory
     .filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
     .filter(i => {
       if (filter === 'low') return i.currentStock <= i.minimumStock && i.currentStock > 0;
@@ -32,9 +43,9 @@ export default function InventoryScreen({ navigation }: any) {
       return true;
     });
 
-  const lowStockCount = mockInventory.filter(i => i.currentStock <= i.minimumStock && i.currentStock > 0).length;
-  const outOfStockCount = mockInventory.filter(i => i.currentStock === 0).length;
-  const totalValue = mockInventory.reduce((s, i) => s + i.currentStock * i.costPerUnit, 0);
+  const lowStockCount = inventory.filter(i => i.currentStock <= i.minimumStock && i.currentStock > 0).length;
+  const outOfStockCount = inventory.filter(i => i.currentStock === 0).length;
+  const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.costPerUnit, 0);
 
   const getStockStatus = (item: typeof mockInventory[0]) => {
     if (item.currentStock === 0) return { label: 'Out of Stock', color: colors.error };

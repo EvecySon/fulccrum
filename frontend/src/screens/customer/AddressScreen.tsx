@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { addressesAPI } from '../../services/api';
 
-const addresses = [
+const mockAddresses = [
   { id: '1', label: 'Home', address: '123 Main Street, Apt 4B', city: 'New York, NY 10001', icon: 'home', isDefault: true },
   { id: '2', label: 'Work', address: '456 Business Ave, Floor 12', city: 'New York, NY 10018', icon: 'briefcase', isDefault: false },
   { id: '3', label: 'Gym', address: '789 Fitness Blvd', city: 'New York, NY 10003', icon: 'barbell', isDefault: false },
 ];
 
 export default function AddressScreen({ navigation }: any) {
+  const [addresses, setAddresses] = useState(mockAddresses);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await addressesAPI.getAll();
+        if (res?.length) setAddresses(res);
+      } catch {}
+    })();
+  }, []);
   return (
     <View style={styles.container}>
       <View style={styles.header}>

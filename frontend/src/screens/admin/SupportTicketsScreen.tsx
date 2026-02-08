@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { supportAPI } from '../../services/api';
 
 const mockTickets = [
   { id: '1', subject: 'Missing item from order', user: 'Adaeze O.', avatar: 'https://i.pravatar.cc/100?img=1', role: 'customer', orderId: '#3242', status: 'open', priority: 'high', category: 'order_issue', createdAt: '10 min ago', messages: 3, assignedTo: null },
@@ -25,8 +26,18 @@ const stats = { open: 2, inProgress: 2, resolved: 2, avgResponseTime: '12 min' }
 export default function SupportTicketsScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
   const [search, setSearch] = useState('');
+  const [tickets, setTickets] = useState(mockTickets);
 
-  const filtered = mockTickets
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await supportAPI.getTickets();
+        if (res?.data?.length) setTickets(res.data);
+      } catch {}
+    })();
+  }, []);
+
+  const filtered = tickets
     .filter(t => filter === 'all' || t.status === filter)
     .filter(t => t.subject.toLowerCase().includes(search.toLowerCase()) || t.user.toLowerCase().includes(search.toLowerCase()));
 

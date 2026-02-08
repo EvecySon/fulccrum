@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,28 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockMenuItems } from '../../data/mockData';
+import { menuAPI } from '../../services/api';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [menuItems, setMenuItems] = useState(mockMenuItems);
 
-  const categories = ['All', ...new Set(mockMenuItems.map((item) => item.category))];
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getItems(restaurant.id);
+        if (res?.length) setMenuItems(res);
+      } catch {}
+    })();
+  }, [restaurant.id]);
+
+  const categories = ['All', ...new Set(menuItems.map((item: any) => item.category))];
 
   const filteredItems =
     selectedCategory === 'All'
-      ? mockMenuItems
-      : mockMenuItems.filter((item) => item.category === selectedCategory);
+      ? menuItems
+      : menuItems.filter((item: any) => item.category === selectedCategory);
 
   const renderMenuItem = ({ item }: any) => (
     <TouchableOpacity

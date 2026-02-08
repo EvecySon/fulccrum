@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { reviewsAPI } from '../../services/api';
 
 const mockReviews = [
   { id: '1', customer: 'Adaeze O.', avatar: 'https://i.pravatar.cc/100?img=1', business: 'Burger House', rating: 1, comment: 'Terrible food, arrived cold and missing items. Never ordering again!', date: '2 hrs ago', flagged: true, flagReason: 'Potentially abusive', orderId: '#3242' },
@@ -23,9 +24,19 @@ export default function ReviewModerationScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | 'flagged'>('flagged');
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderationNote, setModerationNote] = useState('');
+  const [reviews, setReviews] = useState(mockReviews);
 
-  const filtered = filter === 'flagged' ? mockReviews.filter(r => r.flagged) : mockReviews;
-  const flaggedCount = mockReviews.filter(r => r.flagged).length;
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await reviewsAPI.getBusinessReviews('all');
+        if (res?.data?.length) setReviews(res.data);
+      } catch {}
+    })();
+  }, []);
+
+  const filtered = filter === 'flagged' ? reviews.filter(r => r.flagged) : reviews;
+  const flaggedCount = reviews.filter(r => r.flagged).length;
 
   const renderStars = (rating: number) => (
     <View style={{ flexDirection: 'row', gap: 2 }}>

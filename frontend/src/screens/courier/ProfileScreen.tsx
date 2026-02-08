@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { usersAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const achievements = [
   { id: '1', name: '100 Deliveries', icon: 'bicycle', earned: true, color: colors.teal },
@@ -21,7 +23,18 @@ const achievements = [
 ];
 
 export default function CourierProfileScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
   const [pushNotifs, setPushNotifs] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await usersAPI.getProfile();
+        if (res) setProfile(res);
+      } catch {}
+    })();
+  }, []);
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [autoAccept, setAutoAccept] = useState(false);
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI, analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-const monthlyRevenue = [
+const mockMonthlyRevenue = [
   { month: 'Sep', amount: 32000 },
   { month: 'Oct', amount: 38000 },
   { month: 'Nov', amount: 41000 },
@@ -21,7 +22,7 @@ const monthlyRevenue = [
   { month: 'Feb', amount: 48000 },
 ];
 
-const transactions = [
+const mockTransactions = [
   { id: '1', type: 'commission', desc: 'Burger House commission', amount: 245.80, date: 'Today, 3:00 PM' },
   { id: '2', type: 'payout', desc: 'Courier payouts batch', amount: -1850.00, date: 'Today, 2:00 PM' },
   { id: '3', type: 'commission', desc: 'Sushi Palace commission', amount: 312.50, date: 'Today, 1:30 PM' },
@@ -43,6 +44,22 @@ const getTxIcon = (type: string) => {
 
 export default function FinanceScreen({ navigation }: any) {
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('month');
+  const [monthlyRevenue, setMonthlyRevenue] = useState(mockMonthlyRevenue);
+  const [transactions, setTransactions] = useState(mockTransactions);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [revRes, txRes] = await Promise.all([
+          analyticsAPI.revenue(180).catch(() => null),
+          adminAPI.getPendingWithdrawals().catch(() => null),
+        ]);
+        if (revRes?.length) setMonthlyRevenue(revRes);
+        if (txRes?.data?.length) setTransactions(txRes.data);
+      } catch {}
+    })();
+  }, []);
+
   const maxRevenue = Math.max(...monthlyRevenue.map(m => m.amount));
 
   return (

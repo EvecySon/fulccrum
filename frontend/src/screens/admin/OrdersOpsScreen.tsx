@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
 const statusFilters = ['All', 'New', 'Preparing', 'In Transit', 'Delivered', 'Cancelled'];
 
-const orders = [
+const mockOrders = [
   { id: '#3252', customer: 'John S.', restaurant: 'Burger House', courier: 'Mike J.', total: 29.49, status: 'in_transit', time: '3 min ago', items: 3 },
   { id: '#3251', customer: 'Anna D.', restaurant: 'Sushi Palace', courier: 'Sarah L.', total: 45.98, status: 'preparing', time: '8 min ago', items: 4 },
   { id: '#3250', customer: 'David W.', restaurant: 'Pizza Roma', courier: null, total: 18.99, status: 'new', time: '2 min ago', items: 2 },
@@ -48,6 +49,16 @@ const getStatusLabel = (status: string) => {
 
 export default function OrdersOpsScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
+  const [orders, setOrders] = useState(mockOrders);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminAPI.getOrders();
+        if (res?.data?.length) setOrders(res.data);
+      } catch {}
+    })();
+  }, []);
 
   const filteredOrders = orders.filter((o) => {
     if (activeFilter === 'All') return true;

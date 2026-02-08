@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { reviewsAPI } from '../../services/api';
 
 const mockReviews = [
   {
@@ -45,8 +46,33 @@ export default function ReviewsScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | number>('all');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [reviews, setReviews] = useState(mockReviews);
+  const [stats, setStats] = useState(ratingStats);
 
-  const filtered = filter === 'all' ? mockReviews : mockReviews.filter(r => r.rating === filter);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [revRes, statsRes] = await Promise.all([
+          reviewsAPI.getBusinessReviews('me').catch(() => null),
+          reviewsAPI.getBusinessStats('me').catch(() => null),
+        ]);
+        if (revRes?.data?.length) setReviews(revRes.data);
+        if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
+      } catch {}
+    })();
+  }, []);
+
+  const handleRespond = async (reviewId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      await reviewsAPI.respond(reviewId, replyText);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, responded: true, businessResponse: replyText } : r));
+    } catch {}
+    setReplyingTo(null);
+    setReplyText('');
+  };
+
+  const filtered = filter === 'all' ? reviews : reviews.filter(r => r.rating === filter);
 
   const renderStars = (rating: number, size = 14) => (
     <View style={{ flexDirection: 'row', gap: 2 }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockRestaurants, mockMenuItems } from '../../data/mockData';
+import { mockRestaurants } from '../../data/mockData';
+import { searchAPI } from '../../services/api';
 
 const recentSearches = ['Pizza', 'Sushi', 'Burger', 'Thai Food'];
 const popularSearches = ['Fried Chicken', 'Tacos', 'Ramen', 'Salad', 'Ice Cream'];
@@ -19,18 +20,22 @@ export default function SearchScreen({ navigation }: any) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleSearch = (text: string) => {
     setQuery(text);
-    if (text.length > 0) {
-      const filtered = mockRestaurants.filter(
-        (r) =>
-          r.name.toLowerCase().includes(text.toLowerCase()) ||
-          r.cuisine.toLowerCase().includes(text.toLowerCase())
-      );
-      setResults(filtered);
-    } else {
-      setResults([]);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.length === 0) { setResults([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await searchAPI.searchBusinesses(text);
+        if (res?.length) { setResults(res); return; }
+      } catch {}
+      // Fallback to local filter
+      setResults(mockRestaurants.filter(
+        (r) => r.name.toLowerCase().includes(text.toLowerCase()) || r.cuisine.toLowerCase().includes(text.toLowerCase())
+      ));
+    }, 300);
   };
 
   return (

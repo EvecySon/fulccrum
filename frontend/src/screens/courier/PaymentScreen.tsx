@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { paymentAPI } from '../../services/api';
 
 export default function CourierPaymentScreen({ navigation }: any) {
   const [feePaid, setFeePaid] = useState(false);
@@ -21,8 +22,7 @@ export default function CourierPaymentScreen({ navigation }: any) {
     setProcessing(true);
     setError('');
     try {
-      // In production: call payment API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await paymentAPI.initialize('registration-courier', 15000);
       setFeePaid(true);
     } catch (err: any) {
       setError(err.message || 'Payment failed. Please try again.');

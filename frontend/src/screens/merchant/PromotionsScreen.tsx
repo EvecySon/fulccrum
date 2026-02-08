@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { promosAPI } from '../../services/api';
 
 const mockPromos = [
   { id: '1', code: 'WELCOME20', discountType: 'percentage', discountValue: 20, maxDiscount: 3000, minimumOrder: 5000, usedCount: 145, usageLimit: 500, validFrom: 'Jan 1', validUntil: 'Mar 31', isActive: true, applicableTo: 'first_order' },
@@ -21,7 +22,17 @@ export default function PromotionsScreen({ navigation }: any) {
   const [promos, setPromos] = useState(mockPromos);
   const [tab, setTab] = useState<'active' | 'expired'>('active');
 
-  const togglePromo = (id: string) => {
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await promosAPI.getAll(1, false);
+        if (res?.data?.length) setPromos(res.data);
+      } catch {}
+    })();
+  }, []);
+
+  const togglePromo = async (id: string) => {
+    try { await promosAPI.toggle(id); } catch {}
     setPromos(prev => prev.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
   };
 

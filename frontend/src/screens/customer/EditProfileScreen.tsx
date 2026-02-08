@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,30 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { usersAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function EditProfileScreen({ navigation }: any) {
-  const [firstName, setFirstName] = useState('John');
-  const [lastName, setLastName] = useState('Doe');
-  const [email, setEmail] = useState('john@example.com');
-  const [phone, setPhone] = useState('+1234567890');
+  const { user, setUser } = useAuth();
+  const [firstName, setFirstName] = useState(user?.firstName || 'John');
+  const [lastName, setLastName] = useState(user?.lastName || 'Doe');
+  const [email, setEmail] = useState(user?.email || 'john@example.com');
+  const [phone, setPhone] = useState(user?.phone || '+1234567890');
   const [dob, setDob] = useState('1990-05-15');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await usersAPI.updateProfile({ firstName, lastName, email, phone });
+      if (updated) setUser(updated);
+      navigation.goBack();
+    } catch {
+      navigation.goBack();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -25,8 +42,8 @@ export default function EditProfileScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity>
-          <Text style={styles.saveBtn}>Save</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving}>
+          <Text style={styles.saveBtn}>{saving ? 'Saving...' : 'Save'}</Text>
         </TouchableOpacity>
       </View>
 
