@@ -177,6 +177,11 @@ export const authAPI = {
 
   appleLogin: (identityToken: string, fullName?: { firstName?: string; lastName?: string }) =>
     api.post('/auth/apple', { identityToken, fullName }),
+
+  initiateRegistrationPayment: (data: { email: string; role: string; amount: number }) =>
+    api.post('/auth/register/payment', data),
+  verifyRegistrationPayment: (reference: string) =>
+    api.post(`/auth/register/payment/verify?reference=${reference}`),
 };
 
 // ─── Users API ───
