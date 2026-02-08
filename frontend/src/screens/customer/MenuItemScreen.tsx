@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { menuAPI } from '../../services/api';
 
 // Modifier groups matching backend ItemModifier + ModifierOption structure
 const mockModifierGroups = [
@@ -54,6 +55,16 @@ export default function MenuItemScreen({ route, navigation }: any) {
   const { item, restaurant } = route.params;
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomizations, setSelectedCustomizations] = useState<string[]>([]);
+  const [modifierGroups, setModifierGroups] = useState(mockModifierGroups);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getModifiers(restaurant?.id || 'me');
+        if (res?.length) setModifierGroups(res);
+      } catch {}
+    })();
+  }, [restaurant?.id]);
   // Modifier selections: { [groupId]: optionId } for single, { [groupId]: optionId[] } for multiple
   const [modifierSelections, setModifierSelections] = useState<Record<string, string | string[]>>({
     m1: 'o1', // Default to Regular size
@@ -84,7 +95,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
     .reduce((sum: number, c: any) => sum + c.price, 0);
 
   // Calculate modifier total
-  const modifierTotal = mockModifierGroups.reduce((sum, group) => {
+  const modifierTotal = modifierGroups.reduce((sum, group) => {
     const selection = modifierSelections[group.id];
     if (!selection) return sum;
     if (group.type === 'single') {
@@ -135,7 +146,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
         </View>
 
         {/* Modifier Groups */}
-        {mockModifierGroups.map((group) => (
+        {modifierGroups.map((group) => (
           <View key={group.id} style={styles.modifierSection}>
             <View style={styles.modifierHeader}>
               <View>

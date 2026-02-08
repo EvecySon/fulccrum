@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockUser } from '../../data/mockData';
+import { useAuth } from '../../contexts/AuthContext';
 
 const menuItems = [
   { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
@@ -33,6 +34,7 @@ const advancedItems = [
 ];
 
 export default function AccountScreen({ navigation }: any) {
+  const { user } = useAuth();
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -49,10 +51,10 @@ export default function AccountScreen({ navigation }: any) {
           />
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {mockUser.firstName} {mockUser.lastName}
+              {user?.firstName || mockUser.firstName} {user?.lastName || mockUser.lastName}
             </Text>
-            <Text style={styles.profileEmail}>{mockUser.email}</Text>
-            <Text style={styles.profilePhone}>{mockUser.phone}</Text>
+            <Text style={styles.profileEmail}>{user?.email || mockUser.email}</Text>
+            <Text style={styles.profilePhone}>{user?.phone || mockUser.phone}</Text>
           </View>
           <TouchableOpacity>
             <Ionicons name="chevron-forward" size={22} color={colors.textLight} />

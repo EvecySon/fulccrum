@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { notificationsAPI } from '../../services/api';
 
 const recentNotifications = [
   { id: '1', title: 'Weekend Sale!', body: '20% off all orders this weekend. Use code WEEKEND20', audience: 'all_customers', sentAt: '2 hrs ago', delivered: 12450, opened: 3200 },
@@ -32,15 +33,15 @@ export default function PushNotificationScreen({ navigation }: any) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!title.trim() || !body.trim()) return;
     setSending(true);
-    // TODO: Call notificationsAPI to send push
-    setTimeout(() => {
-      setSending(false);
+    try {
+      await notificationsAPI.create({ title, body, audience });
       setSent(true);
       setTimeout(() => { setSent(false); setTitle(''); setBody(''); }, 2000);
-    }, 1500);
+    } catch {}
+    setSending(false);
   };
 
   const selectedAudience = audienceOptions.find(a => a.key === audience);

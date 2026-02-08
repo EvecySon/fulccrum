@@ -324,6 +324,9 @@ export const notificationsAPI = {
   delete: (id: string) => api.delete(`/notifications/${id}`),
   registerDevice: (token: string, platform: string, deviceId?: string) =>
     api.post('/notifications/devices/register', { token, platform, deviceId }),
+  create: (data: { title: string; body: string; audience?: string; userId?: string }) =>
+    api.post('/notifications', data),
+  sendTest: (userId: string) => api.post(`/notifications/test/${userId}`),
 };
 
 // ─── Location API ───

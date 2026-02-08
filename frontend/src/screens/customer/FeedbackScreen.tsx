@@ -9,15 +9,36 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { reviewsAPI } from '../../services/api';
 
 const feedbackTags = ['Fast Delivery', 'Great Food', 'Good Packaging', 'Friendly Courier', 'Hot & Fresh', 'Accurate Order'];
 
-export default function FeedbackScreen({ navigation }: any) {
+export default function FeedbackScreen({ navigation, route }: any) {
   const [foodRating, setFoodRating] = useState(0);
   const [deliveryRating, setDeliveryRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [tipAmount, setTipAmount] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (foodRating === 0) return;
+    setSubmitting(true);
+    try {
+      await reviewsAPI.create({
+        orderId: route?.params?.orderId,
+        rating: foodRating,
+        deliveryRating,
+        comment,
+        tags: selectedTags,
+      });
+      navigation.goBack();
+    } catch {
+      navigation.goBack();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
