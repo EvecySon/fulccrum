@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { promosAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -37,9 +38,20 @@ const redeemOptions = [
 ];
 
 export default function LoyaltyScreen({ navigation }: any) {
-  const currentPoints = 350;
-  const currentTier = 'Bronze';
-  const nextTier = tiers[1];
+  const [currentPoints, setCurrentPoints] = useState(350);
+  const [currentTier, setCurrentTier] = useState('Bronze');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await promosAPI.myUsage();
+        if (res?.points != null) setCurrentPoints(res.points);
+        if (res?.tier) setCurrentTier(res.tier);
+      } catch {}
+    })();
+  }, []);
+
+  const nextTier = tiers.find(t => t.minPoints > currentPoints) || tiers[tiers.length - 1];
   const progress = (currentPoints / nextTier.minPoints) * 100;
 
   return (
