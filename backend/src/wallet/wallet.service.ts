@@ -51,6 +51,53 @@ export class WalletService {
     };
   }
 
+  async creditOrderEarnings(
+    orderId: string,
+    businessId: string,
+    driverId: string | null,
+    orderTotal: number,
+    deliveryFee: number,
+  ) {
+    const platformSettings = await this.prisma.platformSettings.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const commissionRate = platformSettings?.platformCommissionPercentage.toNumber() || 15;
+
+    const platformCommission = (orderTotal * commissionRate) / 100;
+    const businessEarnings = orderTotal - platformCommission;
+
+    const businessWallet = await this.getOrCreateWallet(businessId);
+    await this.prisma.digitalWallet.update({
+      where: { id: businessWallet.id },
+      data: {
+        balance: { increment: businessEarnings },
+      },
+    });
+
+    console.log(`[WALLET] Credited ${businessEarnings} NGN to business ${businessId} for order ${orderId}`);
+
+    if (driverId) {
+      const driverWallet = await this.getOrCreateWallet(driverId);
+      await this.prisma.digitalWallet.update({
+        where: { id: driverWallet.id },
+        data: {
+          balance: { increment: deliveryFee },
+        },
+      });
+
+      console.log(`[WALLET] Credited ${deliveryFee} NGN to driver ${driverId} for order ${orderId}`);
+    }
+
+    return {
+      success: true,
+      businessEarnings,
+      driverEarnings: driverId ? deliveryFee : 0,
+      platformCommission,
+    };
+  }
+
   async requestWithdrawal(userId: string, amount: number, ipAddress: string) {
     const wallet = await this.getOrCreateWallet(userId);
 
@@ -246,6 +293,94 @@ export class WalletService {
     };
   }
 
+  async addBankAccount(
+    userId: string,
+    accountName: string,
+    accountNumber: string,
+    bankCode: string,
+    bankName: string,
+  ) {
+    const existing = await this.prisma.bankAccount.findFirst({
+      where: {
+        userId,
+        accountNumber,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Bank account already exists');
+    }
+
+    const isFirst = (await this.prisma.bankAccount.count({ where: { userId } })) === 0;
+
+    return this.prisma.bankAccount.create({
+      data: {
+        userId,
+        accountName,
+        accountNumber,
+        bankCode,
+        bankName,
+        isDefault: isFirst,
+      },
+    });
+  }
+
+  async getBankAccounts(userId: string) {
+    return this.prisma.bankAccount.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async setDefaultBankAccount(userId: string, accountId: string) {
+    const account = await this.prisma.bankAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account || account.userId !== userId) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    await this.prisma.bankAccount.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    });
+
+    return this.prisma.bankAccount.update({
+      where: { id: accountId },
+      data: { isDefault: true },
+    });
+  }
+
+  async deleteBankAccount(userId: string, accountId: string) {
+    const account = await this.prisma.bankAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account || account.userId !== userId) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    await this.prisma.bankAccount.delete({
+      where: { id: accountId },
+    });
+
+    if (account.isDefault) {
+      const firstAccount = await this.prisma.bankAccount.findFirst({
+        where: { userId },
+      });
+
+      if (firstAccount) {
+        await this.prisma.bankAccount.update({
+          where: { id: firstAccount.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+
+    return { success: true, message: 'Bank account deleted' };
+  }
+
   async cancelWithdrawalRequest(userId: string, requestId: string) {
     const request = await this.prisma.withdrawalRequest.findUnique({
       where: { id: requestId },
@@ -273,4 +408,5 @@ export class WalletService {
       message: 'Withdrawal request cancelled',
     };
   }
+
 }

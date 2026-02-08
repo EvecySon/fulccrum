@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TermiiService } from './termii.service';
 import { FirebaseService } from './firebase.service';
+import { TermiiService } from './termii.service';
+import { EmailService } from './email.service';
 
 @Module({
-  providers: [TermiiService, FirebaseService],
-  exports: [TermiiService, FirebaseService],
+  providers: [FirebaseService, TermiiService, EmailService],
+  exports: [FirebaseService, TermiiService, EmailService],
 })
 export class MessagingModule {}

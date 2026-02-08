@@ -55,4 +55,36 @@ export class RealtimeGateway {
     if (!orderId) return;
     client.leave(`order:${orderId}`);
   }
+
+  emitOrderUpdate(orderId: string, status: string, data: any) {
+    this.server.to(`order:${orderId}`).emit('order:update', {
+      orderId,
+      status,
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitLocationUpdate(orderId: string, driverId: string, location: { latitude: number; longitude: number }) {
+    this.server.to(`order:${orderId}`).emit('location:update', {
+      orderId,
+      driverId,
+      location,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitNotification(userId: string, notification: any) {
+    this.server.to(`user:${userId}`).emit('notification', {
+      ...notification,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitToRole(role: string, event: string, data: any) {
+    this.server.to(`role:${role}`).emit(event, {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
 }

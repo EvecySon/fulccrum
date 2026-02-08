@@ -106,6 +106,8 @@ model User {
   assignedTickets    SupportTicket[]  @relation("assigned_tickets")
   supportMessages    SupportMessage[]
   favorites          Favorite[]
+  passwordResets     PasswordReset[]
+  bankAccounts       BankAccount[]
 
   @@map("users")
 }
@@ -769,6 +771,43 @@ model Favorite {
   @@index([userId])
   @@index([businessId])
   @@map("favorites")
+}
+
+// Password Reset System
+model PasswordReset {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  otp        String   @db.VarChar(6)
+  resetToken String   @map("reset_token") @db.VarChar(64)
+  expiresAt  DateTime @map("expires_at")
+  isUsed     Boolean  @default(false) @map("is_used")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([resetToken])
+  @@index([expiresAt])
+  @@map("password_resets")
+}
+
+// Bank Account for Withdrawals
+model BankAccount {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  accountName   String   @map("account_name") @db.VarChar(255)
+  accountNumber String   @map("account_number") @db.VarChar(10)
+  bankCode      String   @map("bank_code") @db.VarChar(10)
+  bankName      String   @map("bank_name") @db.VarChar(100)
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@map("bank_accounts")
 }
 
 // Order Items (line items in an order)

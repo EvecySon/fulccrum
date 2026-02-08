@@ -1,11 +1,19 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WalletService } from '../wallet/wallet.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => WalletService))
+    private walletService: WalletService,
+    @Inject(forwardRef(() => RealtimeGateway))
+    private realtimeGateway: RealtimeGateway,
+  ) {}
 
   async createOrder(customerId: string, dto: CreateOrderDto) {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -107,6 +115,7 @@ export class OrdersService {
       }
     } else if (dto.status === 'delivered') {
       updateData.deliveredAt = new Date();
+      updateData.paymentStatus = 'completed';
     }
 
     const updatedOrder = await this.prisma.order.update({
@@ -128,6 +137,22 @@ export class OrdersService {
           },
         },
       },
+    });
+
+    if (dto.status === 'delivered') {
+      await this.walletService.creditOrderEarnings(
+        updatedOrder.id,
+        updatedOrder.businessId,
+        updatedOrder.driverId,
+        Number(updatedOrder.totalAmount),
+        Number(updatedOrder.deliveryFee),
+      );
+    }
+
+    this.realtimeGateway.emitOrderUpdate(updatedOrder.id, dto.status, {
+      orderNumber: updatedOrder.orderNumber,
+      customer: updatedOrder.customer,
+      driver: updatedOrder.driver,
     });
 
     return updatedOrder;

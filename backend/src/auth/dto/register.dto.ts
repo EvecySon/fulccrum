@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -17,4 +17,8 @@ export class RegisterDto {
 
   @IsString()
   lastName!: string;
+
+  @IsOptional()
+  @IsEnum(['customer', 'business_owner', 'driver', 'admin'])
+  role?: 'customer' | 'business_owner' | 'driver' | 'admin';
 }
