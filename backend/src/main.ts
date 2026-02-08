@@ -22,7 +22,9 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: true,
+    origin: process.env.NODE_ENV === 'production' 
+      ? [process.env.FRONTEND_URL || 'https://fulccrum.com']
+      : '*',
     credentials: true,
   });
 
