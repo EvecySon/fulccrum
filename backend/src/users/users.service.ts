@@ -45,7 +45,7 @@ export class UsersService {
         phone: true,
         firstName: true,
         lastName: true,
-        avatar: true,
+        avatarUrl: true,
         role: true,
         status: true,
       },

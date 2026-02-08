@@ -8,42 +8,42 @@ export class MerchantCrmController {
   constructor(private readonly crmService: MerchantCrmService) {}
 
   @Get('customers')
-  async getCustomerProfiles(@Request() req, @Query('page') page = 1) {
+  async getCustomerProfiles(@Request() req: any, @Query('page') page = 1) {
     return this.crmService.getCustomerProfiles(req.user.sub, +page);
   }
 
   @Get('customers/:customerId')
-  async getCustomerProfile(@Request() req, @Param('customerId') customerId: string) {
+  async getCustomerProfile(@Request() req: any, @Param('customerId') customerId: string) {
     return this.crmService.getCustomerProfile(req.user.sub, customerId);
   }
 
   @Get('campaigns')
-  async getCampaigns(@Request() req) {
+  async getCampaigns(@Request() req: any) {
     return this.crmService.getCampaigns(req.user.sub);
   }
 
   @Post('campaigns')
-  async createCampaign(@Request() req, @Body() data: any) {
+  async createCampaign(@Request() req: any, @Body() data: any) {
     return this.crmService.createCampaign(req.user.sub, data);
   }
 
   @Patch('campaigns/:id')
-  async updateCampaign(@Request() req, @Param('id') id: string, @Body() data: any) {
+  async updateCampaign(@Request() req: any, @Param('id') id: string, @Body() data: any) {
     return this.crmService.updateCampaign(req.user.sub, id, data);
   }
 
   @Delete('campaigns/:id')
-  async deleteCampaign(@Request() req, @Param('id') id: string) {
+  async deleteCampaign(@Request() req: any, @Param('id') id: string) {
     return this.crmService.deleteCampaign(req.user.sub, id);
   }
 
   @Get('loyalty')
-  async getLoyaltyProgram(@Request() req) {
+  async getLoyaltyProgram(@Request() req: any) {
     return this.crmService.getLoyaltyProgram(req.user.sub);
   }
 
   @Patch('loyalty')
-  async updateLoyaltyProgram(@Request() req, @Body() data: any) {
+  async updateLoyaltyProgram(@Request() req: any, @Body() data: any) {
     return this.crmService.updateLoyaltyProgram(req.user.sub, data);
   }
 }

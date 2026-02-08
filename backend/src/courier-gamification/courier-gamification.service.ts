@@ -38,7 +38,7 @@ export class CourierGamificationService {
   async getLeaderboard(courierId: string, period?: string) {
     const drivers = await this.prisma.user.findMany({
       where: { role: 'driver' },
-      select: { id: true, firstName: true, lastName: true, avatar: true },
+      select: { id: true, firstName: true, lastName: true, avatarUrl: true },
       take: 20,
     });
 
@@ -51,7 +51,7 @@ export class CourierGamificationService {
           rank: i + 1,
           userId: d.id,
           name: `${d.firstName || ''} ${d.lastName || ''}`.trim(),
-          avatar: d.avatar,
+          avatar: d.avatarUrl,
           deliveries: count,
           isCurrentUser: d.id === courierId,
         };

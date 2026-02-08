@@ -8,22 +8,22 @@ export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
   @Get()
-  async getUserFavorites(@Request() req) {
+  async getUserFavorites(@Request() req: any) {
     return this.favoritesService.getUserFavorites(req.user.sub);
   }
 
   @Post(':businessId')
-  async addFavorite(@Request() req, @Param('businessId') businessId: string) {
+  async addFavorite(@Request() req: any, @Param('businessId') businessId: string) {
     return this.favoritesService.addFavorite(req.user.sub, businessId);
   }
 
   @Delete(':businessId')
-  async removeFavorite(@Request() req, @Param('businessId') businessId: string) {
+  async removeFavorite(@Request() req: any, @Param('businessId') businessId: string) {
     return this.favoritesService.removeFavorite(req.user.sub, businessId);
   }
 
   @Get('check/:businessId')
-  async isFavorite(@Request() req, @Param('businessId') businessId: string) {
+  async isFavorite(@Request() req: any, @Param('businessId') businessId: string) {
     return this.favoritesService.isFavorite(req.user.sub, businessId);
   }
 }

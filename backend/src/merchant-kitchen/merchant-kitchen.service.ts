@@ -7,20 +7,20 @@ export class MerchantKitchenService {
 
   async getOperations(merchantId: string) {
     const orders = await this.prisma.order.findMany({
-      where: { businessId: merchantId, status: { in: ['confirmed', 'preparing'] } },
+      where: { businessId: merchantId, status: { in: ['accepted', 'preparing'] } },
       orderBy: { createdAt: 'asc' },
       take: 20,
       include: {
-        items: { include: { menuItem: { select: { name: true, imageUrl: true } } } },
+        items: { include: { menuItem: { select: { name: true, images: true } } } },
         customer: { select: { firstName: true, lastName: true } },
       },
     });
 
-    return orders.map((o) => ({
+    return orders.map((o: any) => ({
       id: o.id,
       orderId: o.id,
       customerName: `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.trim(),
-      items: o.items?.map((i) => i.menuItem?.name).filter(Boolean) || [],
+      items: o.items?.map((i: any) => i.menuItem?.name).filter(Boolean) || [],
       status: o.status === 'preparing' ? 'prepping' : 'pending',
       createdAt: o.createdAt,
       estimatedPrepTime: 15,
@@ -41,7 +41,7 @@ export class MerchantKitchenService {
     if (data.operationType === 'prep_complete') {
       await this.prisma.order.update({
         where: { id },
-        data: { status: 'ready_for_pickup' },
+        data: { status: 'ready' },
       });
     }
     return { message: 'Operation updated', id, ...data };
@@ -53,18 +53,17 @@ export class MerchantKitchenService {
       select: {
         id: true,
         name: true,
-        imageUrl: true,
+        images: true,
         isAvailable: true,
-        stockQuantity: true,
       },
     });
 
     return items.map((item) => ({
       id: item.id,
       name: item.name,
-      image: item.imageUrl,
+      image: Array.isArray(item.images) ? (item.images as any)[0] || '' : '',
       inStock: item.isAvailable,
-      quantity: item.stockQuantity ?? 0,
+      quantity: 0,
       lowStockThreshold: 5,
     }));
   }
@@ -73,7 +72,6 @@ export class MerchantKitchenService {
     await this.prisma.menuItem.update({
       where: { id },
       data: {
-        stockQuantity: data.quantity,
         isAvailable: data.inStock,
       },
     });

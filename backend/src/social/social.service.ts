@@ -25,7 +25,7 @@ export class SocialService {
       take: 20,
       skip: (page - 1) * 20,
       include: {
-        customer: { select: { firstName: true, lastName: true, avatar: true } },
+        customer: { select: { firstName: true, lastName: true, avatarUrl: true } },
         business: { select: { businessName: true } },
       },
     });
@@ -33,7 +33,7 @@ export class SocialService {
     const posts = recentReviews.map((r) => ({
       id: r.id,
       userName: `${r.customer?.firstName || 'User'} ${r.customer?.lastName?.charAt(0) || ''}.`,
-      userAvatar: r.customer?.avatar || '',
+      userAvatar: r.customer?.avatarUrl || '',
       image: '',
       caption: r.comment || `Rated ${r.rating}/5`,
       restaurant: r.business?.businessName || '',

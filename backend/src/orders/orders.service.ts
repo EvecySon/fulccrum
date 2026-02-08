@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -245,8 +245,8 @@ export class OrdersService {
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice,
             modifiers: item.modifiers,
-            notes: item.notes,
-          })),
+            notes: item.notes || undefined,
+          })) as any,
         },
       },
       include: {

@@ -51,7 +51,7 @@ export class FirebaseService implements OnModuleInit {
         tokens,
       };
 
-      const response = await admin.messaging().sendMulticast(message);
+      const response = await (admin.messaging() as any).sendEachForMulticast(message);
       console.log(`[FIREBASE] Success: ${response.successCount}, Failed: ${response.failureCount}`);
       
       return {

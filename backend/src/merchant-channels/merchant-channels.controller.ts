@@ -8,42 +8,42 @@ export class MerchantChannelsController {
   constructor(private readonly channelsService: MerchantChannelsService) {}
 
   @Get('channels')
-  async getChannels(@Request() req) {
+  async getChannels(@Request() req: any) {
     return this.channelsService.getChannels(req.user.sub);
   }
 
   @Patch('channels/:id')
-  async updateChannel(@Request() req, @Param('id') id: string, @Body() data: any) {
+  async updateChannel(@Request() req: any, @Param('id') id: string, @Body() data: any) {
     return this.channelsService.updateChannel(req.user.sub, id, data);
   }
 
   @Get('subscriptions')
-  async getSubscriptions(@Request() req) {
+  async getSubscriptions(@Request() req: any) {
     return this.channelsService.getSubscriptions(req.user.sub);
   }
 
   @Post('subscriptions')
-  async createSubscription(@Request() req, @Body() data: any) {
+  async createSubscription(@Request() req: any, @Body() data: any) {
     return this.channelsService.createSubscription(req.user.sub, data);
   }
 
   @Patch('subscriptions/:id')
-  async updateSubscription(@Request() req, @Param('id') id: string, @Body() data: any) {
+  async updateSubscription(@Request() req: any, @Param('id') id: string, @Body() data: any) {
     return this.channelsService.updateSubscription(req.user.sub, id, data);
   }
 
   @Delete('subscriptions/:id')
-  async deleteSubscription(@Request() req, @Param('id') id: string) {
+  async deleteSubscription(@Request() req: any, @Param('id') id: string) {
     return this.channelsService.deleteSubscription(req.user.sub, id);
   }
 
   @Get('catering')
-  async getCatering(@Request() req) {
+  async getCatering(@Request() req: any) {
     return this.channelsService.getCatering(req.user.sub);
   }
 
   @Post('catering')
-  async createCateringOrder(@Request() req, @Body() data: any) {
+  async createCateringOrder(@Request() req: any, @Body() data: any) {
     return this.channelsService.createCateringOrder(req.user.sub, data);
   }
 }

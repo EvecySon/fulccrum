@@ -11,10 +11,10 @@ export class ArService {
       select: {
         id: true,
         name: true,
-        imageUrl: true,
+        images: true,
         description: true,
         price: true,
-        calories: true,
+        nutritionalInfo: true,
         allergens: true,
       },
     });
@@ -23,15 +23,17 @@ export class ArService {
       throw new NotFoundException('Menu item not found');
     }
 
+    const nutrition = (item.nutritionalInfo as any) || {};
     return {
       ...item,
+      imageUrl: Array.isArray(item.images) ? (item.images as any)[0] || '' : '',
       arModelUrl: '',
       servingSize: 'Regular',
       nutritionFacts: {
-        calories: item.calories || 0,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
+        calories: nutrition.calories || 0,
+        protein: nutrition.protein || 0,
+        carbs: nutrition.carbs || 0,
+        fat: nutrition.fat || 0,
       },
     };
   }
@@ -66,8 +68,8 @@ export class ArService {
       where: { id: orderId, OR: [{ customerId: userId }, { driverId: userId }] },
       select: {
         id: true,
-        deliveryAddress: true,
         status: true,
+        specialInstructions: true,
       },
     });
 
@@ -77,7 +79,7 @@ export class ArService {
 
     return {
       orderId: order.id,
-      destination: order.deliveryAddress,
+      destination: '',
       arWaypoints: [],
       estimatedArrival: null,
     };

@@ -10,17 +10,17 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('profile')
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     return this.usersService.findById(req.user.sub);
   }
 
   @Patch('profile')
-  async updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.sub, dto);
   }
 
   @Patch('business/profile')
-  async updateBusinessProfile(@Request() req, @Body() dto: UpdateBusinessProfileDto) {
+  async updateBusinessProfile(@Request() req: any, @Body() dto: UpdateBusinessProfileDto) {
     return this.usersService.updateBusinessProfile(req.user.sub, dto);
   }
 }

@@ -12,7 +12,7 @@ export class AiService {
       orderBy: { createdAt: 'desc' },
       take: 20,
       include: {
-        business: { select: { businessName: true, logoUrl: true, cuisine: true, rating: true } },
+        business: { select: { businessName: true, logoUrl: true, rating: true } },
         items: { include: { menuItem: true } },
       },
     });
@@ -23,7 +23,7 @@ export class AiService {
       type: i === 0 ? 'reorder' : 'meal',
       title: order.items?.[0]?.menuItem?.name || 'Recommended Item',
       subtitle: order.business?.businessName || 'Restaurant',
-      image: order.items?.[0]?.menuItem?.imageUrl || '',
+      image: (order.items?.[0]?.menuItem as any)?.images?.[0] || '',
       confidence: Math.round((0.95 - i * 0.03) * 100) / 100,
       price: order.totalAmount,
       reason: i === 0 ? 'Your most recent order' : `Based on your order history`,
@@ -50,7 +50,7 @@ export class AiService {
     const topOrder = recentOrders[0];
     return {
       nextOrderTime: new Date(Date.now() + 4 * 3600000).toISOString(),
-      predictedItems: topOrder.items?.map(i => i.menuItem?.name).filter(Boolean) || [],
+      predictedItems: topOrder.items?.map((i: any) => i.menuItem?.name).filter(Boolean) || [],
       predictedRestaurant: topOrder.business?.businessName || null,
       confidence: 0.85,
     };

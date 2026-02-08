@@ -13,17 +13,17 @@ export class BlockchainController {
   }
 
   @Post('crypto-payment')
-  async initCryptoPayment(@Request() req, @Body() body: { orderId: string; cryptoType: string }) {
+  async initCryptoPayment(@Request() req: any, @Body() body: { orderId: string; cryptoType: string }) {
     return this.blockchainService.initCryptoPayment(req.user.sub, body.orderId, body.cryptoType);
   }
 
   @Get('nft-rewards')
-  async getNFTRewards(@Request() req) {
+  async getNFTRewards(@Request() req: any) {
     return this.blockchainService.getNFTRewards(req.user.sub);
   }
 
   @Post('nft-rewards/:rewardId/claim')
-  async claimNFT(@Request() req, @Param('rewardId') rewardId: string) {
+  async claimNFT(@Request() req: any, @Param('rewardId') rewardId: string) {
     return this.blockchainService.claimNFT(req.user.sub, rewardId);
   }
 }

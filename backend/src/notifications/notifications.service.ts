@@ -10,7 +10,7 @@ export class NotificationsService {
     const notification = await this.prisma.notification.create({
       data: {
         userId,
-        type: dto.type,
+        type: dto.type as any,
         title: dto.title,
         message: dto.message,
         data: dto.data || {},

@@ -26,7 +26,7 @@ export class MerchantCrmService {
         firstName: true,
         lastName: true,
         email: true,
-        avatar: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
@@ -42,7 +42,7 @@ export class MerchantCrmService {
         firstName: true,
         lastName: true,
         email: true,
-        avatar: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });

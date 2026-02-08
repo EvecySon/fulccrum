@@ -18,7 +18,7 @@ export class ArController {
   }
 
   @Get('navigation/:orderId')
-  async getARNavigation(@Request() req, @Param('orderId') orderId: string) {
+  async getARNavigation(@Request() req: any, @Param('orderId') orderId: string) {
     return this.arService.getARNavigation(req.user.sub, orderId);
   }
 }

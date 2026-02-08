@@ -305,11 +305,11 @@ export class SupportService {
         resolved: resolvedTickets,
         closed: closedTickets,
       },
-      categoryBreakdown: categoryBreakdown.reduce((acc, item) => {
+      categoryBreakdown: categoryBreakdown.reduce((acc: Record<string, any>, item: any) => {
         acc[item.category] = item._count;
         return acc;
       }, {}),
-      priorityBreakdown: priorityBreakdown.reduce((acc, item) => {
+      priorityBreakdown: priorityBreakdown.reduce((acc: Record<string, any>, item: any) => {
         acc[item.priority] = item._count;
         return acc;
       }, {}),

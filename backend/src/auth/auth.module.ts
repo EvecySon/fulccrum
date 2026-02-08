@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
@@ -14,7 +14,7 @@ import { PaymentModule } from '../payment/payment.module';
     ConfigModule,
     PrismaModule,
     MessagingModule,
-    PaymentModule,
+    forwardRef(() => PaymentModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => ({

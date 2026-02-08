@@ -213,6 +213,69 @@ export class AdminService {
     });
   }
 
+  async verifyMerchant(merchantId: string) {
+    return this.prisma.businessProfile.update({
+      where: { userId: merchantId },
+      data: {
+        verificationStatus: 'verified',
+        verificationDate: new Date(),
+      },
+    });
+  }
+
+  async inviteMerchant(email: string, businessName: string) {
+    const tempPassword = randomBytes(8).toString('hex');
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash: tempPassword,
+        role: 'business_owner',
+        status: 'active',
+        firstName: businessName,
+        lastName: '',
+      },
+    });
+    await this.prisma.businessProfile.create({
+      data: {
+        userId: user.id,
+        businessName,
+        businessType: 'restaurant',
+      },
+    });
+    return { message: 'Merchant invited', userId: user.id, email };
+  }
+
+  async inviteCourier(email: string, firstName: string, lastName: string) {
+    const tempPassword = randomBytes(8).toString('hex');
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash: tempPassword,
+        role: 'driver',
+        status: 'active',
+        firstName,
+        lastName,
+      },
+    });
+    await this.prisma.driverProfile.create({
+      data: {
+        userId: user.id,
+        vehicleType: 'motorcycle',
+        licensePlate: '',
+      },
+    });
+    return { message: 'Courier invited', userId: user.id, email };
+  }
+
+  async approveCourier(courierId: string, approved: boolean, notes?: string) {
+    const status = approved ? 'active' : 'suspended';
+    await this.prisma.user.update({
+      where: { id: courierId },
+      data: { status },
+    });
+    return { message: approved ? 'Courier approved' : 'Courier rejected', courierId, notes };
+  }
+
   async getPendingMerchants(userRole: string, page = 1, limit = 50) {
     this.verifyAdmin(userRole);
 

@@ -44,19 +44,18 @@ export class CourierFleetService {
 
   async getDispatch(courierId: string) {
     const pendingOrders = await this.prisma.order.findMany({
-      where: { driverId: courierId, status: { in: ['ready_for_pickup', 'picked_up'] } },
+      where: { driverId: courierId, status: { in: ['ready', 'picked_up'] } },
       include: {
         business: { select: { businessName: true } },
         customer: { select: { firstName: true, lastName: true } },
       },
     });
 
-    return pendingOrders.map((o) => ({
+    return pendingOrders.map((o: any) => ({
       id: o.id,
       businessName: o.business?.businessName || '',
       customerName: `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.trim(),
       status: o.status,
-      deliveryAddress: o.deliveryAddress,
       createdAt: o.createdAt,
     }));
   }
@@ -64,7 +63,7 @@ export class CourierFleetService {
   async getRouteOptimization(courierId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, driverId: courierId },
-      select: { id: true, deliveryAddress: true, pickupAddress: true },
+      select: { id: true, status: true },
     });
 
     return {
@@ -72,8 +71,8 @@ export class CourierFleetService {
       optimizedRoute: [],
       estimatedTime: 0,
       distance: 0,
-      pickupAddress: order?.pickupAddress || '',
-      deliveryAddress: order?.deliveryAddress || '',
+      pickupAddress: '',
+      deliveryAddress: '',
     };
   }
 

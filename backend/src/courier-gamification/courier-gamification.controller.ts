@@ -8,22 +8,22 @@ export class CourierGamificationController {
   constructor(private readonly gamificationService: CourierGamificationService) {}
 
   @Get('achievements')
-  async getAchievements(@Request() req) {
+  async getAchievements(@Request() req: any) {
     return this.gamificationService.getAchievements(req.user.sub);
   }
 
   @Get('tiers')
-  async getTiers(@Request() req) {
+  async getTiers(@Request() req: any) {
     return this.gamificationService.getTiers(req.user.sub);
   }
 
   @Get('leaderboard')
-  async getLeaderboard(@Request() req, @Query('period') period?: string) {
+  async getLeaderboard(@Request() req: any, @Query('period') period?: string) {
     return this.gamificationService.getLeaderboard(req.user.sub, period);
   }
 
   @Post('achievements/:achievementId/claim')
-  async claimReward(@Request() req, @Param('achievementId') achievementId: string) {
+  async claimReward(@Request() req: any, @Param('achievementId') achievementId: string) {
     return this.gamificationService.claimReward(req.user.sub, achievementId);
   }
 }
