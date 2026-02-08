@@ -7,6 +7,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -50,5 +52,15 @@ export class AuthController {
   @Post('register/payment/verify')
   verifyRegistrationPayment(@Query('reference') reference: string) {
     return this.auth.verifyRegistrationPayment(reference);
+  }
+
+  @Post('google')
+  googleLogin(@Body() dto: GoogleLoginDto) {
+    return this.auth.googleLogin(dto);
+  }
+
+  @Post('apple')
+  appleLogin(@Body() dto: AppleLoginDto) {
+    return this.auth.appleLogin(dto);
   }
 }

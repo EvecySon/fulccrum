@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { EmailService } from '../messaging/email.service';
@@ -14,6 +15,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -64,12 +67,17 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          { phone: dto.email },
+        ],
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
@@ -290,6 +298,117 @@ export class AuthService {
       role: payment.metadata.role,
       amount: payment.amount / 100,
     };
+  }
+
+  async googleLogin(dto: GoogleLoginDto) {
+    try {
+      const response = await axios.get(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${dto.idToken}`
+      );
+
+      const { email, name, picture, sub: googleId } = response.data;
+
+      if (!email) {
+        throw new BadRequestException('Email not provided by Google');
+      }
+
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        const [firstName, ...lastNameParts] = (name || 'User').split(' ');
+        const lastName = lastNameParts.join(' ') || 'User';
+
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            firstName,
+            lastName,
+            passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 12),
+            role: 'customer',
+            status: 'active',
+            avatarUrl: picture,
+          },
+        });
+
+        await this.emailService.sendWelcomeEmail(email, firstName);
+      }
+
+      const accessToken = await this.signAccessToken(user.id, user.role);
+      const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        accessToken,
+        refreshToken,
+      };
+    } catch (error) {
+      console.error('[GOOGLE LOGIN] Error:', error);
+      throw new UnauthorizedException('Invalid Google token');
+    }
+  }
+
+  async appleLogin(dto: AppleLoginDto) {
+    try {
+      const response = await axios.get('https://appleid.apple.com/auth/keys');
+      const keys = response.data.keys;
+
+      const decodedToken = this.jwt.decode(dto.identityToken, { complete: true }) as any;
+      
+      if (!decodedToken) {
+        throw new UnauthorizedException('Invalid Apple token');
+      }
+
+      const { email, sub: appleId } = decodedToken.payload;
+
+      if (!email) {
+        throw new BadRequestException('Email not provided by Apple');
+      }
+
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            firstName: 'Apple',
+            lastName: 'User',
+            passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 12),
+            role: 'customer',
+            status: 'active',
+          },
+        });
+
+        await this.emailService.sendWelcomeEmail(email, 'Apple User');
+      }
+
+      const accessToken = await this.signAccessToken(user.id, user.role);
+      const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        accessToken,
+        refreshToken,
+      };
+    } catch (error) {
+      console.error('[APPLE LOGIN] Error:', error);
+      throw new UnauthorizedException('Invalid Apple token');
+    }
   }
 
   private async signAccessToken(userId: string, role: string) {
