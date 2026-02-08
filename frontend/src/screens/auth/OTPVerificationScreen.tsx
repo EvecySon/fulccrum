@@ -54,12 +54,7 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     setError('');
     setLoading(true);
     try {
-      if (__DEV__) {
-        // Dev mode: simulate OTP success
-        await new Promise(resolve => setTimeout(resolve, 800));
-      } else {
-        await authAPI.verifyOTP(code, email);
-      }
+      await authAPI.verifyOTP(code, email);
       // Route based on mode and role
       if (mode === 'reset') {
         navigation.navigate('ResetPassword', { email, resetToken: code });

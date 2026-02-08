@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -47,7 +48,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
         ]);
         if (cardsRes?.length) setPaymentMethods(cardsRes);
         if (balRes?.balance != null) setWalletBalance(balRes.balance);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   return (

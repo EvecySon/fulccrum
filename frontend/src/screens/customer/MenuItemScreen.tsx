@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -62,7 +63,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
       try {
         const res = await menuAPI.getModifiers(restaurant?.id || 'me');
         if (res?.length) setModifierGroups(res);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, [restaurant?.id]);
   // Modifier selections: { [groupId]: optionId } for single, { [groupId]: optionId[] } for multiple

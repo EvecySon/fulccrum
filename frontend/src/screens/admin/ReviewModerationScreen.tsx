@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -31,7 +32,7 @@ export default function ReviewModerationScreen({ navigation }: any) {
       try {
         const res = await reviewsAPI.getBusinessReviews('all');
         if (res?.data?.length) setReviews(res.data);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

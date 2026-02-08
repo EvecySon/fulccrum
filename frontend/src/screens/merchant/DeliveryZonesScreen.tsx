@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -27,7 +28,7 @@ export default function DeliveryZonesScreen({ navigation }: any) {
       try {
         const res = await zonesAPI.getBusinessZones('me');
         if (res?.length) setZones(res);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   const [expandedZone, setExpandedZone] = useState<string | null>(null);

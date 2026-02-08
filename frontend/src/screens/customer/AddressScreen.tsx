@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -24,7 +25,7 @@ export default function AddressScreen({ navigation }: any) {
       try {
         const res = await addressesAPI.getAll();
         if (res?.length) setAddresses(res);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   return (

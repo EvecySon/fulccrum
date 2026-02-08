@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -71,12 +72,12 @@ export default function SmartKitchenScreen({ navigation }: any) {
 
   const handleCompletePrep = async (id: string) => {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'ready' as const } : o));
-    try { await kitchenAPI.completePrep(id); } catch {}
+    try { await kitchenAPI.completePrep(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const handleStartPrep = async (id: string) => {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'prepping' as const } : o));
-    try { const order = orders.find(o => o.id === id); if (order) await kitchenAPI.startPrep(order.orderId, id); } catch {}
+    try { const order = orders.find(o => o.id === id); if (order) await kitchenAPI.startPrep(order.orderId, id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const statusColor = (s: string) => s === 'ready' ? colors.success : s === 'prepping' ? colors.warning : colors.textLight;

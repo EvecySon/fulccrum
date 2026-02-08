@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -40,7 +41,7 @@ export default function PushNotificationScreen({ navigation }: any) {
       await notificationsAPI.create({ title, body, audience });
       setSent(true);
       setTimeout(() => { setSent(false); setTitle(''); setBody(''); }, 2000);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setSending(false);
   };
 

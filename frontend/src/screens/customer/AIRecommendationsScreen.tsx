@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
   ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -53,12 +54,12 @@ export default function AIRecommendationsScreen({ navigation }: any) {
   };
 
   const handleAccept = async (id: string) => {
-    try { await aiAPI.acceptRecommendation(id); } catch {}
+    try { await aiAPI.acceptRecommendation(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setRecommendations(prev => prev.filter(r => r.id !== id));
   };
 
   const handleDismiss = async (id: string) => {
-    try { await aiAPI.dismissRecommendation(id); } catch {}
+    try { await aiAPI.dismissRecommendation(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setRecommendations(prev => prev.filter(r => r.id !== id));
   };
 

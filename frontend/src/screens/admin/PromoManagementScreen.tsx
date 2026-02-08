@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -30,12 +31,12 @@ export default function PromoManagementScreen({ navigation }: any) {
       try {
         const res = await promosAPI.getAll(1, false);
         if (res?.data?.length) setPromos(res.data);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 
   const togglePromo = async (id: string) => {
-    try { await promosAPI.toggle(id); } catch {}
+    try { await promosAPI.toggle(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setPromos(prev => prev.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
   };
 

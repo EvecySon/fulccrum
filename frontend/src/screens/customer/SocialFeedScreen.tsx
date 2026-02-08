@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
   TextInput, ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -57,7 +58,7 @@ export default function SocialFeedScreen({ navigation }: any) {
     setPosts(prev => prev.map(p =>
       p.id === postId ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p
     ));
-    try { await socialAPI.likePost(postId); } catch {}
+    try { await socialAPI.likePost(postId); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const renderPost = ({ item }: { item: FoodPost }) => (

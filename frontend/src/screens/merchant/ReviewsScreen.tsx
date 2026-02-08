@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -58,7 +59,7 @@ export default function ReviewsScreen({ navigation }: any) {
         ]);
         if (revRes?.data?.length) setReviews(revRes.data);
         if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 
@@ -67,7 +68,7 @@ export default function ReviewsScreen({ navigation }: any) {
     try {
       await reviewsAPI.respond(reviewId, replyText);
       setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, responded: true, businessResponse: replyText } : r));
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setReplyingTo(null);
     setReplyText('');
   };

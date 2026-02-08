@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -45,7 +46,7 @@ export default function PerformanceScreen({ navigation }: any) {
     try {
       const data = await courierFleetAPI.getPerformance();
       if (data) setPerformance(data);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setLoading(false);
     setRefreshing(false);
   };

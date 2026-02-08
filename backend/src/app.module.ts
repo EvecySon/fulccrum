@@ -26,6 +26,19 @@ import { SupportModule } from './support/support.module';
 import { SearchModule } from './search/search.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { AiModule } from './ai/ai.module';
+import { ArModule } from './ar/ar.module';
+import { SocialModule } from './social/social.module';
+import { BlockchainModule } from './blockchain/blockchain.module';
+import { SustainabilityModule } from './sustainability/sustainability.module';
+import { MerchantKitchenModule } from './merchant-kitchen/merchant-kitchen.module';
+import { MerchantInsightsModule } from './merchant-insights/merchant-insights.module';
+import { MerchantCrmModule } from './merchant-crm/merchant-crm.module';
+import { MerchantChannelsModule } from './merchant-channels/merchant-channels.module';
+import { MerchantPricingModule } from './merchant-pricing/merchant-pricing.module';
+import { CourierFleetModule } from './courier-fleet/courier-fleet.module';
+import { CourierGamificationModule } from './courier-gamification/courier-gamification.module';
+import { CourierSafetyModule } from './courier-safety/courier-safety.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -59,6 +72,19 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     SearchModule,
     FavoritesModule,
     AddressesModule,
+    AiModule,
+    ArModule,
+    SocialModule,
+    BlockchainModule,
+    SustainabilityModule,
+    MerchantKitchenModule,
+    MerchantInsightsModule,
+    MerchantCrmModule,
+    MerchantChannelsModule,
+    MerchantPricingModule,
+    CourierFleetModule,
+    CourierGamificationModule,
+    CourierSafetyModule,
   ],
   controllers: [AppController],
   providers: [

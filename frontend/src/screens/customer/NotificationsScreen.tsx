@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -39,7 +40,7 @@ export default function NotificationsScreen({ navigation }: any) {
       try {
         const res = await notificationsAPI.getAll();
         if (res?.data?.length) setNotifications(res.data);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -45,7 +46,7 @@ export default function ChatScreen({ navigation }: any) {
     setMessage('');
     try {
       await chatAPI.sendMessage('support', { text: newMsg.text });
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   return (

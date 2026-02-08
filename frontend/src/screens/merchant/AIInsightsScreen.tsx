@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -50,12 +51,12 @@ export default function AIInsightsScreen({ navigation }: any) {
 
   const handleImplement = async (id: string) => {
     setInsights(prev => prev.map(i => i.id === id ? { ...i, implemented: true } : i));
-    try { await merchantInsightsAPI.implementInsight(id); } catch {}
+    try { await merchantInsightsAPI.implementInsight(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const handleDismiss = async (id: string) => {
     setInsights(prev => prev.filter(i => i.id !== id));
-    try { await merchantInsightsAPI.dismissInsight(id); } catch {}
+    try { await merchantInsightsAPI.dismissInsight(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const typeConfig = (type: string) => {

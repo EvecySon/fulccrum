@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -47,7 +48,7 @@ export default function LoyaltyScreen({ navigation }: any) {
         const res = await promosAPI.myUsage();
         if (res?.points != null) setCurrentPoints(res.points);
         if (res?.tier) setCurrentTier(res.tier);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

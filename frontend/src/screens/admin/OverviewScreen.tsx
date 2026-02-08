@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -36,7 +37,7 @@ export default function OverviewScreen({ navigation }: any) {
       try {
         const res = await adminAPI.getMetrics();
         if (res) setStats(prev => ({ ...prev, ...res }));
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   const maxOrders = Math.max(...stats.dailyOrders.map(d => d.orders));

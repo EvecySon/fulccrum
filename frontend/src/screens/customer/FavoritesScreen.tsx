@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -35,7 +36,7 @@ export default function FavoritesScreen({ navigation }: any) {
         const res = await favoritesAPI.getAll();
         if (res?.restaurants?.length) setFavoriteRestaurants(res.restaurants);
         if (res?.items?.length) setFavoriteItems(res.items);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

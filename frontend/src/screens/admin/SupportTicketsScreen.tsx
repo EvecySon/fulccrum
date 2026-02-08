@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -33,7 +34,7 @@ export default function SupportTicketsScreen({ navigation }: any) {
       try {
         const res = await supportAPI.getTickets();
         if (res?.data?.length) setTickets(res.data);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

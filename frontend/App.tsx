@@ -8,7 +8,7 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 import AppSwitcher from './src/navigation/AppSwitcher';
 
 // Set to false to require login before accessing the app
-const DEV_SKIP_AUTH = true;
+const DEV_SKIP_AUTH = false;
 
 const prefix = Linking.createURL('/');
 

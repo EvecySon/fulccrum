@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -30,7 +31,7 @@ export default function SearchScreen({ navigation }: any) {
       try {
         const res = await searchAPI.searchBusinesses(text);
         if (res?.length) { setResults(res); return; }
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
       // Fallback to local filter
       setResults(mockRestaurants.filter(
         (r) => r.name.toLowerCase().includes(text.toLowerCase()) || r.cuisine.toLowerCase().includes(text.toLowerCase())

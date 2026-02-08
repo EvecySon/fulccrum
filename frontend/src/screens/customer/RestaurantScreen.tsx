@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -23,7 +24,7 @@ export default function RestaurantScreen({ route, navigation }: any) {
       try {
         const res = await menuAPI.getItems(restaurant.id);
         if (res?.length) setMenuItems(res);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, [restaurant.id]);
 

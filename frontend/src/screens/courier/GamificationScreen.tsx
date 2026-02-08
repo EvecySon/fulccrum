@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -72,7 +73,7 @@ export default function GamificationScreen({ navigation }: any) {
   };
 
   const handleClaim = async (id: string) => {
-    try { await courierGamificationAPI.claimReward(id); } catch {}
+    try { await courierGamificationAPI.claimReward(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setAchievements(prev => prev.map(a => a.id === id ? { ...a, unlocked: true } : a));
   };
 

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -62,7 +63,7 @@ export default function MerchantAnalyticsScreen() {
       try {
         const res = await analyticsAPI.dashboard();
         if (res) setRevenueData(prev => ({ ...prev, ...res }));
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

@@ -42,7 +42,7 @@ export default function DynamicPricingScreen({ navigation }: any) {
 
   const toggleRule = async (id: string) => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, active: !r.active } : r));
-    try { await dynamicPricingAPI.toggleRule(id); } catch {}
+    try { await dynamicPricingAPI.toggleRule(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const deleteRule = async (id: string) => {
@@ -50,7 +50,7 @@ export default function DynamicPricingScreen({ navigation }: any) {
       { text: 'Cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         setRules(prev => prev.filter(r => r.id !== id));
-        try { await dynamicPricingAPI.deleteRule(id); } catch {}
+        try { await dynamicPricingAPI.deleteRule(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
       }},
     ]);
   };

@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -75,7 +76,7 @@ export default function WalletScreen({ navigation }: any) {
         if (defaultBank) setSelectedBank(defaultBank.id);
       }
       if (historyRes?.data?.length) setTransactions(historyRes.data);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const handleWithdraw = async () => {

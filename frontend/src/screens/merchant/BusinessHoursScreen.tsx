@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -37,7 +38,7 @@ export default function BusinessHoursScreen({ navigation }: any) {
       try {
         const res = await menuAPI.getBusinessHours('me');
         if (res?.length) setHours(res);
-      } catch {}
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   const [editingDay, setEditingDay] = useState<number | null>(null);
@@ -65,7 +66,7 @@ export default function BusinessHoursScreen({ navigation }: any) {
   const handleSave = async () => {
     try {
       await menuAPI.setBusinessHours(hours);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setHasChanges(false);
   };
 

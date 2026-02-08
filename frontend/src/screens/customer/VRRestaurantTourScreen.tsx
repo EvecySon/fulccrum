@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -101,7 +102,7 @@ export default function VRRestaurantTourScreen({ navigation, route }: any) {
     setLoading(true);
     try {
       await arAPI.getRestaurantTour(tour.id);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setTimeout(() => {
       setLoading(false);
       setVrActive(true);

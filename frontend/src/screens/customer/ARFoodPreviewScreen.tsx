@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -32,7 +33,7 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
     setLoading(true);
     try {
       if (itemId) await arAPI.getFoodPreview(itemId);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setTimeout(() => {
       setLoading(false);
       setArActive(true);

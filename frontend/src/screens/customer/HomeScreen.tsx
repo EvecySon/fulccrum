@@ -9,6 +9,7 @@ import {
   Image,
   FlatList,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -37,7 +38,7 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const res = await searchAPI.searchBusinesses('');
       if (res?.data?.length) setRestaurants(res.data);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const renderMoodCard = ({ item }: any) => (

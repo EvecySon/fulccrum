@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch,
   ActivityIndicator, RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -64,7 +65,7 @@ export default function MultiChannelScreen({ navigation }: any) {
     try {
       const ch = channels.find(c => c.id === id);
       await channelsAPI.updateChannel(id, { active: !ch?.active });
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   const totalRevenue = channels.reduce((sum, c) => sum + c.revenue, 0);

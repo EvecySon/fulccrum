@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -48,7 +49,7 @@ export default function SustainabilityScreen({ navigation }: any) {
       ]);
       if (footprint) setStats(footprint);
       if (Array.isArray(options)) setEcoOptions(options);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setLoading(false);
   };
 
@@ -57,7 +58,7 @@ export default function SustainabilityScreen({ navigation }: any) {
     try {
       const updated = ecoOptions.find(o => o.key === key);
       await sustainabilityAPI.updateEcoOptions({ [key]: !updated?.enabled });
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
   if (loading) {

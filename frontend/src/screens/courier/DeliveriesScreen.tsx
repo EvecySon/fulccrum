@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -23,7 +24,7 @@ export default function DeliveriesScreen() {
     try {
       const res = await ordersAPI.getAvailableDeliveries();
       if (res?.data?.length) setDeliveries(res.data);
-    } catch {}
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
 
   useEffect(() => {
