@@ -343,9 +343,27 @@ export const adminAPI = {
   approveWithdrawal: (id: string) => api.post(`/admin/withdrawals/${id}/approve`),
   rejectWithdrawal: (id: string, reason: string) => api.post(`/admin/withdrawals/${id}/reject`, { reason }),
   getActivity: (limit = 20) => api.get(`/admin/activity?limit=${limit}`),
+  // Merchant management
   getPendingMerchants: (page = 1) => api.get(`/admin/merchants/pending?page=${page}`),
   approveMerchant: (merchantId: string) => api.patch(`/admin/merchants/${merchantId}/approve`),
-  rejectMerchant: (merchantId: string) => api.patch(`/admin/merchants/${merchantId}/reject`),
+  rejectMerchant: (merchantId: string, reason?: string) => api.patch(`/admin/merchants/${merchantId}/reject`, { reason }),
+  // Courier management
+  getPendingCouriers: (page = 1) => api.get(`/admin/couriers/pending?page=${page}`),
+  approveCourier: (courierId: string) => api.patch(`/admin/couriers/${courierId}/approve`),
+  rejectCourier: (courierId: string, reason?: string) => api.patch(`/admin/couriers/${courierId}/reject`, { reason }),
+  getCouriers: (page = 1, limit = 50) => api.get(`/admin/couriers?page=${page}&limit=${limit}`),
+  // Admin-initiated registration (invite)
+  inviteMerchant: (data: { email: string; businessName: string; ownerName: string; phone?: string; commission?: number }) =>
+    api.post('/admin/merchants/invite', data),
+  inviteCourier: (data: { email: string; fullName: string; phone?: string; vehicleType?: string }) =>
+    api.post('/admin/couriers/invite', data),
+  resendInvite: (userId: string) => api.post(`/admin/users/${userId}/resend-invite`),
+  // Registration fee management
+  getRegistrationFees: () => api.get('/admin/registration-fees'),
+  updateRegistrationFee: (role: string, data: { amount: number; currency?: string; description?: string }) =>
+    api.put(`/admin/registration-fees/${role}`, data),
+  getRegistrationPayments: (page = 1) => api.get(`/admin/registration-payments?page=${page}`),
+  waiveRegistrationFee: (userId: string) => api.post(`/admin/users/${userId}/waive-fee`),
 };
 
 // ─── Support API ───
@@ -388,6 +406,17 @@ export const uploadAPI = {
   uploadBusinessCover: (formData: FormData) => api.upload('/upload/business/cover', formData),
   getFiles: (page = 1) => api.get(`/upload/files?page=${page}`),
   deleteFile: (id: string) => api.delete(`/upload/files/${id}`),
+};
+
+// ─── Messaging / Chat API ───
+export const chatAPI = {
+  getConversations: () => api.get('/chat/conversations'),
+  getConversation: (orderId: string) => api.get(`/chat/conversations/${orderId}`),
+  getMessages: (conversationId: string, page = 1) => api.get(`/chat/conversations/${conversationId}/messages?page=${page}`),
+  sendMessage: (conversationId: string, data: { text?: string; image?: string; type?: string }) => api.post(`/chat/conversations/${conversationId}/messages`, data),
+  markRead: (conversationId: string) => api.put(`/chat/conversations/${conversationId}/read`, {}),
+  startCall: (conversationId: string, type: 'voice' | 'video') => api.post(`/chat/conversations/${conversationId}/call`, { type }),
+  endCall: (callId: string) => api.put(`/chat/calls/${callId}/end`, {}),
 };
 
 // ─── AI / Personalization API ───

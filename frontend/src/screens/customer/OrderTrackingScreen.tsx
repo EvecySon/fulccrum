@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Image,
   Platform,
@@ -84,6 +85,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         <Text style={styles.etaSubtext}>Your food is on its way!</Text>
       </View>
 
+      <ScrollView showsVerticalScrollIndicator={false}>
       {/* Live Map */}
       <View style={styles.mapContainer}>
         <MapView
@@ -166,25 +168,68 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         ))}
       </View>
 
-      {/* Driver Info */}
-      <View style={styles.driverSection}>
-        <Image
-          source={{ uri: order.driverAvatar }}
-          style={styles.driverAvatar}
-        />
-        <View style={styles.driverInfo}>
-          <Text style={styles.driverName}>{order.driverName}</Text>
-          <View style={styles.driverRating}>
-            <Ionicons name="star" size={14} color={colors.warning} />
-            <Text style={styles.driverRatingText}>{order.driverRating}</Text>
+      {/* Contact Restaurant */}
+      <View style={styles.contactSection}>
+        <Text style={styles.contactLabel}>Restaurant</Text>
+        <View style={styles.contactRow}>
+          <View style={styles.contactAvatarWrap}>
+            <Ionicons name="restaurant" size={20} color={colors.textWhite} />
           </View>
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{order.restaurantName}</Text>
+            <Text style={styles.contactRoleText}>Preparing your order</Text>
+          </View>
+          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('OrderChat', {
+            orderId: order.id,
+            recipientName: order.restaurantName,
+            recipientRole: 'merchant',
+          })}>
+            <Ionicons name="chatbubble-ellipses" size={20} color={colors.navy} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.driverAction, styles.callAction]} onPress={() => navigation.navigate('Call', {
+            orderId: order.id,
+            recipientName: order.restaurantName,
+            recipientRole: 'merchant',
+            callType: 'voice',
+          })}>
+            <Ionicons name="call" size={20} color={colors.textWhite} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.driverAction}>
-          <Ionicons name="chatbubble-ellipses" size={22} color={colors.teal} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.driverAction}>
-          <Ionicons name="call" size={22} color={colors.teal} />
-        </TouchableOpacity>
+      </View>
+
+      {/* Contact Driver */}
+      <View style={styles.contactSection}>
+        <Text style={styles.contactLabel}>Delivery Driver</Text>
+        <View style={styles.contactRow}>
+          <Image
+            source={{ uri: order.driverAvatar }}
+            style={styles.driverAvatar}
+          />
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{order.driverName}</Text>
+            <View style={styles.driverRating}>
+              <Ionicons name="star" size={14} color={colors.warning} />
+              <Text style={styles.driverRatingText}>{order.driverRating}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('OrderChat', {
+            orderId: order.id,
+            recipientName: order.driverName,
+            recipientAvatar: order.driverAvatar,
+            recipientRole: 'courier',
+          })}>
+            <Ionicons name="chatbubble-ellipses" size={20} color={colors.teal} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.driverAction, styles.callActionTeal]} onPress={() => navigation.navigate('Call', {
+            orderId: order.id,
+            recipientName: order.driverName,
+            recipientAvatar: order.driverAvatar,
+            recipientRole: 'courier',
+            callType: 'voice',
+          })}>
+            <Ionicons name="call" size={20} color={colors.textWhite} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Order Details */}
@@ -200,6 +245,8 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
           <Text style={styles.totalValue}>₦{order.total.toFixed(2)}</Text>
         </View>
       </View>
+      <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -330,6 +377,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.teal,
   },
+  contactSection: {
+    backgroundColor: colors.white,
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 16,
+  },
+  contactLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  contactAvatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.navy,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactRoleText: {
+    fontSize: 13,
+    color: colors.textLight,
+    marginTop: 2,
+  },
   driverSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,6 +451,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.teal + '15',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  callAction: {
+    backgroundColor: colors.navy,
+  },
+  callActionTeal: {
+    backgroundColor: colors.teal,
   },
   orderDetails: {
     backgroundColor: colors.white,

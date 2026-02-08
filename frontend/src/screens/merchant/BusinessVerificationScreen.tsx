@@ -115,16 +115,18 @@ export default function BusinessVerificationScreen({ navigation }: any) {
     }
   };
 
+  const allSteps: VerificationStep[] = ['info', 'documents', 'review'];
+
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
-      {(['info', 'documents', 'review'] as VerificationStep[]).map((s, i) => (
+      {allSteps.map((s, i) => (
         <React.Fragment key={s}>
-          <View style={[styles.stepDot, (step === s || i < ['info', 'documents', 'review'].indexOf(step)) && styles.stepDotActive]}>
-            <Text style={[styles.stepNum, (step === s || i < ['info', 'documents', 'review'].indexOf(step)) && styles.stepNumActive]}>
+          <View style={[styles.stepDot, (step === s || i < allSteps.indexOf(step)) && styles.stepDotActive]}>
+            <Text style={[styles.stepNum, (step === s || i < allSteps.indexOf(step)) && styles.stepNumActive]}>
               {i + 1}
             </Text>
           </View>
-          {i < 2 && <View style={[styles.stepLine, i < ['info', 'documents', 'review'].indexOf(step) && styles.stepLineActive]} />}
+          {i < allSteps.length - 1 && <View style={[styles.stepLine, i < allSteps.indexOf(step) && styles.stepLineActive]} />}
         </React.Fragment>
       ))}
     </View>
@@ -135,9 +137,9 @@ export default function BusinessVerificationScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => {
-          if (step === 'info') navigation.goBack();
-          else if (step === 'documents') setStep('info');
-          else setStep('documents');
+          const idx = allSteps.indexOf(step);
+          if (idx === 0) navigation.goBack();
+          else setStep(allSteps[idx - 1]);
         }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -333,18 +335,11 @@ export default function BusinessVerificationScreen({ navigation }: any) {
             </View>
 
             <TouchableOpacity
-              style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
+              style={styles.primaryBtn}
+              onPress={() => navigation.navigate('MerchantPayment')}
             >
-              {loading ? (
-                <ActivityIndicator color={colors.textWhite} />
-              ) : (
-                <>
-                  <Ionicons name="shield-checkmark" size={20} color={colors.textWhite} />
-                  <Text style={styles.primaryBtnText}>Submit for Verification</Text>
-                </>
-              )}
+              <Text style={styles.primaryBtnText}>Continue to Payment</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
             </TouchableOpacity>
           </View>
         )}

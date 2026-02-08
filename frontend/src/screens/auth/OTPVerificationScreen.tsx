@@ -15,7 +15,7 @@ import { colors } from '../../theme/colors';
 import { authAPI } from '../../services/api';
 
 export default function OTPVerificationScreen({ navigation, route }: any) {
-  const { email, phone, mode } = route?.params || {};
+  const { email, phone, mode, role } = route?.params || {};
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,11 +54,25 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     setError('');
     setLoading(true);
     try {
-      await authAPI.verifyOTP(code, email, phone);
-      if (mode === 'reset') {
-        navigation.navigate('ResetPassword', { code });
+      if (__DEV__) {
+        // Dev mode: simulate OTP success and route based on role
+        await new Promise(resolve => setTimeout(resolve, 800));
+        if (mode === 'reset') {
+          navigation.navigate('ResetPassword', { code });
+        } else if (role === 'business_owner') {
+          navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
+        } else if (role === 'driver') {
+          navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
+        } else {
+          navigation.navigate('Login');
+        }
       } else {
-        navigation.navigate('Login');
+        await authAPI.verifyOTP(code, email, phone);
+        if (mode === 'reset') {
+          navigation.navigate('ResetPassword', { code });
+        } else {
+          navigation.navigate('Login');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Invalid code. Please try again.');

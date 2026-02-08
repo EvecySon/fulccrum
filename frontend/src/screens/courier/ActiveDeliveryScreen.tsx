@@ -31,7 +31,7 @@ const steps: { key: DeliveryStep; label: string; icon: string }[] = [
 const PICKUP_COORDS = { latitude: 6.5244, longitude: 3.3792 };
 const DROPOFF_COORDS = { latitude: 6.5344, longitude: 3.3892 };
 
-export default function ActiveDeliveryScreen() {
+export default function ActiveDeliveryScreen({ navigation }: any) {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const mapRef = useRef<MapView>(null);
   const [driverCoords, setDriverCoords] = useState({
@@ -259,10 +259,19 @@ export default function ActiveDeliveryScreen() {
             </View>
           </View>
           <View style={styles.contactActions}>
-            <TouchableOpacity style={styles.contactBtn}>
+            <TouchableOpacity style={styles.contactBtn} onPress={() => navigation.navigate('OrderChat', {
+              orderId: order.id,
+              recipientName: order.customer,
+              recipientRole: 'customer',
+            })}>
               <Ionicons name="chatbubble-outline" size={20} color={colors.navy} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.contactBtn, styles.callBtn]}>
+            <TouchableOpacity style={[styles.contactBtn, styles.callBtn]} onPress={() => navigation.navigate('Call', {
+              orderId: order.id,
+              recipientName: order.customer,
+              recipientRole: 'customer',
+              callType: 'voice',
+            })}>
               <Ionicons name="call" size={20} color={colors.textWhite} />
             </TouchableOpacity>
           </View>

@@ -158,20 +158,14 @@ export default function DocumentVerificationScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* Submit */}
+        {/* Continue to Payment */}
         <TouchableOpacity
-          style={[styles.submitBtn, (!requiredComplete || loading) && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={!requiredComplete || loading}
+          style={[styles.submitBtn, !requiredComplete && styles.submitBtnDisabled]}
+          onPress={() => navigation.navigate('CourierPayment')}
+          disabled={!requiredComplete}
         >
-          {loading ? (
-            <ActivityIndicator color={colors.textWhite} />
-          ) : (
-            <>
-              <Ionicons name="shield-checkmark" size={20} color={colors.textWhite} />
-              <Text style={styles.submitBtnText}>Submit for Verification</Text>
-            </>
-          )}
+          <Text style={styles.submitBtnText}>Continue to Payment</Text>
+          <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

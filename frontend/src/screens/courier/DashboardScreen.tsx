@@ -30,7 +30,7 @@ const hourlyEarnings = [
   { hour: '4PM', amount: 30 },
 ];
 
-export default function CourierDashboardScreen() {
+export default function CourierDashboardScreen({ navigation }: any) {
   const [isOnline, setIsOnline] = useState(true);
   const stats = mockCourierStats;
   const maxEarning = Math.max(...hourlyEarnings.map(h => h.amount));
@@ -177,6 +177,37 @@ export default function CourierDashboardScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        {/* Advanced Tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced Tools</Text>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Performance')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#8b5cf6' + '15' }]}>
+                <Ionicons name="analytics-outline" size={22} color="#8b5cf6" />
+              </View>
+              <Text style={styles.actionLabel}>Performance</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Gamification')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#f59e0b' + '15' }]}>
+                <Ionicons name="trophy-outline" size={22} color="#f59e0b" />
+              </View>
+              <Text style={styles.actionLabel}>Rewards</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Safety')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#ef4444' + '15' }]}>
+                <Ionicons name="shield-checkmark-outline" size={22} color="#ef4444" />
+              </View>
+              <Text style={styles.actionLabel}>Safety</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VehicleManagement')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#3b82f6' + '15' }]}>
+                <Ionicons name="car-outline" size={22} color="#3b82f6" />
+              </View>
+              <Text style={styles.actionLabel}>Vehicle</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Quick Actions */}

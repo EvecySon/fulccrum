@@ -174,6 +174,48 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Advanced Features */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Discover More</Text>
+          <View style={styles.advGrid}>
+            <TouchableOpacity style={styles.advCard} onPress={() => navigation.navigate('AIRecommendations')}>
+              <View style={[styles.advIcon, { backgroundColor: '#8b5cf615' }]}>
+                <Ionicons name="sparkles" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.advLabel}>AI For You</Text>
+              <Text style={styles.advDesc}>Personalized picks</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.advCard} onPress={() => navigation.navigate('VoiceOrdering')}>
+              <View style={[styles.advIcon, { backgroundColor: '#ec489915' }]}>
+                <Ionicons name="mic" size={24} color="#ec4899" />
+              </View>
+              <Text style={styles.advLabel}>Voice Order</Text>
+              <Text style={styles.advDesc}>Order by speaking</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.advCard} onPress={() => navigation.navigate('ARFoodPreview')}>
+              <View style={[styles.advIcon, { backgroundColor: '#f59e0b15' }]}>
+                <Ionicons name="cube" size={24} color="#f59e0b" />
+              </View>
+              <Text style={styles.advLabel}>AR Preview</Text>
+              <Text style={styles.advDesc}>See your food in 3D</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.advCard} onPress={() => navigation.navigate('SocialFeed')}>
+              <View style={[styles.advIcon, { backgroundColor: '#3b82f615' }]}>
+                <Ionicons name="people-circle" size={24} color="#3b82f6" />
+              </View>
+              <Text style={styles.advLabel}>Community</Text>
+              <Text style={styles.advDesc}>Food posts & tips</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.advCard} onPress={() => navigation.navigate('Sustainability')}>
+              <View style={[styles.advIcon, { backgroundColor: '#10b98115' }]}>
+                <Ionicons name="leaf" size={24} color="#10b981" />
+              </View>
+              <Text style={styles.advLabel}>Eco Impact</Text>
+              <Text style={styles.advDesc}>Track your footprint</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Trending Now */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trending Now</Text>
@@ -497,5 +539,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.teal,
+  },
+  advGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  advCard: {
+    width: '31%',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    flexGrow: 1,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  advIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  advLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  advDesc: {
+    fontSize: 10,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginTop: 2,
   },
 });

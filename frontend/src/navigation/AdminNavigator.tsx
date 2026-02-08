@@ -18,6 +18,8 @@ import ReviewModerationScreen from '../screens/admin/ReviewModerationScreen';
 import DeliveryZonesManagementScreen from '../screens/admin/DeliveryZonesManagementScreen';
 import PushNotificationScreen from '../screens/admin/PushNotificationScreen';
 import DisputeResolutionScreen from '../screens/admin/DisputeResolutionScreen';
+import AddMerchantScreen from '../screens/admin/AddMerchantScreen';
+import AddCourierScreen from '../screens/admin/AddCourierScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -95,6 +97,8 @@ export default function AdminNavigator() {
       <Stack.Screen name="DeliveryZones" component={DeliveryZonesManagementScreen} />
       <Stack.Screen name="PushNotifications" component={PushNotificationScreen} />
       <Stack.Screen name="DisputeResolution" component={DisputeResolutionScreen} />
+      <Stack.Screen name="AddMerchant" component={AddMerchantScreen} />
+      <Stack.Screen name="AddCourier" component={AddCourierScreen} />
     </Stack.Navigator>
   );
 }

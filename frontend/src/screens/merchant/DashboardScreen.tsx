@@ -212,6 +212,42 @@ export default function MerchantDashboardScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Advanced Tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced Tools</Text>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('SmartKitchen')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#8b5cf6' + '15' }]}>
+                <Ionicons name="restaurant-outline" size={24} color="#8b5cf6" />
+              </View>
+              <Text style={styles.actionText}>Kitchen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AIInsights')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#ec4899' + '15' }]}>
+                <Ionicons name="sparkles-outline" size={24} color="#ec4899" />
+              </View>
+              <Text style={styles.actionText}>AI Insights</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('CRM')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#3b82f6' + '15' }]}>
+                <Ionicons name="people-outline" size={24} color="#3b82f6" />
+              </View>
+              <Text style={styles.actionText}>CRM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('DynamicPricing')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#10b981' + '15' }]}>
+                <Ionicons name="pricetags-outline" size={24} color="#10b981" />
+              </View>
+              <Text style={styles.actionText}>Pricing</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 8, gap: 4 }} onPress={() => navigation.navigate('MultiChannel')}>
+            <Ionicons name="grid-outline" size={16} color={colors.teal} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.teal }}>Sales Channels & Subscriptions</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.teal} />
+          </TouchableOpacity>
+        </View>
+
         {/* Customer Feedback Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Reviews</Text>

@@ -22,11 +22,14 @@ import NotificationsScreen from '../screens/customer/NotificationsScreen';
 import GroupOrderScreen from '../screens/customer/GroupOrderScreen';
 import FeedbackScreen from '../screens/customer/FeedbackScreen';
 import EditProfileScreen from '../screens/customer/EditProfileScreen';
+import OrderChatScreen from '../screens/shared/ChatScreen';
+import CallScreen from '../screens/shared/CallScreen';
 import AIRecommendationsScreen from '../screens/customer/AIRecommendationsScreen';
 import VoiceOrderingScreen from '../screens/customer/VoiceOrderingScreen';
 import ARFoodPreviewScreen from '../screens/customer/ARFoodPreviewScreen';
 import SocialFeedScreen from '../screens/customer/SocialFeedScreen';
 import SustainabilityScreen from '../screens/customer/SustainabilityScreen';
+import VRRestaurantTourScreen from '../screens/customer/VRRestaurantTourScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -110,6 +113,9 @@ export default function CustomerNavigator() {
       <Stack.Screen name="ARFoodPreview" component={ARFoodPreviewScreen} />
       <Stack.Screen name="SocialFeed" component={SocialFeedScreen} />
       <Stack.Screen name="Sustainability" component={SustainabilityScreen} />
+      <Stack.Screen name="VRRestaurantTour" component={VRRestaurantTourScreen} />
+      <Stack.Screen name="OrderChat" component={OrderChatScreen} />
+      <Stack.Screen name="Call" component={CallScreen} />
     </Stack.Navigator>
   );
 }

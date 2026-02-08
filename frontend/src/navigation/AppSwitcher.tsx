@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useAuth } from '../contexts/AuthContext';
 import CustomerNavigator from './CustomerNavigator';
 import MerchantNavigator from './MerchantNavigator';
 import CourierNavigator from './CourierNavigator';
@@ -15,24 +16,38 @@ import AdminNavigator from './AdminNavigator';
 
 type AppMode = 'customer' | 'merchant' | 'courier' | 'admin';
 
+const roleToMode: Record<string, AppMode> = {
+  customer: 'customer',
+  business_owner: 'merchant',
+  driver: 'courier',
+  admin: 'admin',
+};
+
 export default function AppSwitcher() {
-  const [mode, setMode] = useState<AppMode>('customer');
+  const { user } = useAuth();
+  // In production, use the authenticated user's role. In dev, default to 'customer' with switcher.
+  const productionMode = user?.role ? roleToMode[user.role] || 'customer' : 'customer';
+  const [devMode, setDevMode] = useState<AppMode>('customer');
+  const mode = __DEV__ ? devMode : productionMode;
+  const setMode = setDevMode;
   const [showSwitcher, setShowSwitcher] = useState(false);
 
   return (
     <View style={styles.container}>
       {mode === 'customer' ? <CustomerNavigator /> : mode === 'merchant' ? <MerchantNavigator /> : mode === 'courier' ? <CourierNavigator /> : <AdminNavigator />}
 
-      {/* Floating Mode Switcher Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setShowSwitcher(!showSwitcher)}
-      >
-        <Ionicons name="swap-horizontal" size={22} color={colors.textWhite} />
-      </TouchableOpacity>
+      {/* Floating Mode Switcher Button — DEV ONLY */}
+      {__DEV__ && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowSwitcher(!showSwitcher)}
+        >
+          <Ionicons name="swap-horizontal" size={22} color={colors.textWhite} />
+        </TouchableOpacity>
+      )}
 
-      {/* Mode Switcher Panel */}
-      {showSwitcher && (
+      {/* Mode Switcher Panel — DEV ONLY */}
+      {__DEV__ && showSwitcher && (
         <View style={styles.switcherPanel}>
           <Text style={styles.switcherTitle}>Switch App View</Text>
           <TouchableOpacity
@@ -90,8 +105,8 @@ export default function AppSwitcher() {
         </View>
       )}
 
-      {/* Overlay */}
-      {showSwitcher && (
+      {/* Overlay — DEV ONLY */}
+      {__DEV__ && showSwitcher && (
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}

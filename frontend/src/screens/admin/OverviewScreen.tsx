@@ -27,7 +27,7 @@ const recentActivity = [
   { id: '5', action: 'User complaint resolved', detail: 'Ticket #8821', time: '45 min ago', icon: 'checkmark-circle', color: colors.success },
 ];
 
-export default function OverviewScreen() {
+export default function OverviewScreen({ navigation }: any) {
   const stats = mockAdminStats;
   const maxOrders = Math.max(...stats.dailyOrders.map(d => d.orders));
 
@@ -206,23 +206,34 @@ export default function OverviewScreen() {
           ))}
         </View>
 
-        {/* Quick Actions */}
+        {/* Registration */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Register New</Text>
           <View style={styles.actionsGrid}>
-            {[
-              { icon: 'person-add', label: 'Approve\nMerchants', color: colors.teal },
-              { icon: 'megaphone', label: 'Push\nNotification', color: colors.navy },
-              { icon: 'analytics', label: 'Generate\nReport', color: colors.warning },
-              { icon: 'construct', label: 'System\nConfig', color: colors.error },
-            ].map((action, index) => (
-              <TouchableOpacity key={index} style={styles.actionCard}>
-                <View style={[styles.actionIcon, { backgroundColor: action.color + '15' }]}>
-                  <Ionicons name={action.icon as any} size={24} color={action.color} />
-                </View>
-                <Text style={styles.actionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('AddMerchant')}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.navy + '15' }]}>
+                <Ionicons name="storefront" size={24} color={colors.navy} />
+              </View>
+              <Text style={styles.actionLabel}>{'Add\nMerchant'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('AddCourier')}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.teal + '15' }]}>
+                <Ionicons name="bicycle" size={24} color={colors.teal} />
+              </View>
+              <Text style={styles.actionLabel}>{'Add\nCourier'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Merchants')}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
+                <Ionicons name="checkmark-done" size={24} color={colors.warning} />
+              </View>
+              <Text style={styles.actionLabel}>{'Approve\nPending'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('PushNotifications')}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.error + '15' }]}>
+                <Ionicons name="megaphone" size={24} color={colors.error} />
+              </View>
+              <Text style={styles.actionLabel}>{'Push\nNotification'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
