@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,29 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockMerchantStats, mockMerchantOrders } from '../../data/mockData';
+import { analyticsAPI, ordersAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function MerchantDashboardScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(mockMerchantStats);
+  const [orders, setOrders] = useState(mockMerchantOrders);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [statsRes, ordersRes] = await Promise.all([
+          analyticsAPI.dashboard().catch(() => null),
+          ordersAPI.getMyOrders().catch(() => null),
+        ]);
+        if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
+        if (ordersRes?.data?.length) setOrders(ordersRes.data);
+      } catch {}
+    })();
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return colors.info;
@@ -51,28 +70,28 @@ export default function MerchantDashboardScreen({ navigation }: any) {
             <View style={[styles.statIcon, { backgroundColor: colors.teal + '15' }]}>
               <Ionicons name="cash-outline" size={22} color={colors.teal} />
             </View>
-            <Text style={styles.statValue}>₦{mockMerchantStats.todayEarnings.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₦{stats.todayEarnings.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Today's Earnings</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.navy + '15' }]}>
               <Ionicons name="receipt-outline" size={22} color={colors.navy} />
             </View>
-            <Text style={styles.statValue}>{mockMerchantStats.todayOrders}</Text>
+            <Text style={styles.statValue}>{stats.todayOrders}</Text>
             <Text style={styles.statLabel}>Orders Today</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="trending-up-outline" size={22} color={colors.warning} />
             </View>
-            <Text style={styles.statValue}>₦{mockMerchantStats.avgOrderValue.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₦{stats.avgOrderValue.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Avg Order Value</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
               <Ionicons name="star-outline" size={22} color={colors.success} />
             </View>
-            <Text style={styles.statValue}>{mockMerchantStats.rating}</Text>
+            <Text style={styles.statValue}>{stats.rating}</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
@@ -86,8 +105,8 @@ export default function MerchantDashboardScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <View style={styles.chartBars}>
-            {mockMerchantStats.weeklyEarnings.map((item, index) => {
-              const maxAmount = Math.max(...mockMerchantStats.weeklyEarnings.map(e => e.amount));
+            {stats.weeklyEarnings.map((item, index) => {
+              const maxAmount = Math.max(...stats.weeklyEarnings.map(e => e.amount));
               const barHeight = (item.amount / maxAmount) * 100;
               const isToday = index === 1;
               return (
@@ -149,7 +168,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-          {mockMerchantOrders.map((order) => (
+          {orders.map((order) => (
             <TouchableOpacity key={order.id} style={styles.orderCard}>
               <View style={styles.orderTop}>
                 <View>

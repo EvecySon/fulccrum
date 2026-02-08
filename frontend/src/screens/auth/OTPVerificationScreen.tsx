@@ -55,24 +55,18 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     setLoading(true);
     try {
       if (__DEV__) {
-        // Dev mode: simulate OTP success and route based on role
+        // Dev mode: simulate OTP success
         await new Promise(resolve => setTimeout(resolve, 800));
-        if (mode === 'reset') {
-          navigation.navigate('ResetPassword', { code });
-        } else if (role === 'business_owner') {
-          navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
-        } else if (role === 'driver') {
-          navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
-        } else {
-          navigation.navigate('Login');
-        }
       } else {
-        await authAPI.verifyOTP(code, email, phone);
-        if (mode === 'reset') {
-          navigation.navigate('ResetPassword', { code });
-        } else {
-          navigation.navigate('Login');
-        }
+        await authAPI.verifyOTP(code, email);
+      }
+      // Route based on mode and role
+      if (mode === 'reset') {
+        navigation.navigate('ResetPassword', { email, resetToken: code });
+      } else if (role === 'business_owner' || role === 'driver') {
+        navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
+      } else {
+        navigation.navigate('Login');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid code. Please try again.');
@@ -85,7 +79,7 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     setCountdown(60);
     setOtp(['', '', '', '', '', '']);
     try {
-      await authAPI.resendOTP(email, phone);
+      await authAPI.resendOTP(email);
     } catch (err: any) {
       setError(err.message || 'Failed to resend code.');
     }

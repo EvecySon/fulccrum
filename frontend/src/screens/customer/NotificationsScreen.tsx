@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { notificationsAPI } from '../../services/api';
 
-const notifications = [
+const mockNotifications = [
   { id: '1', type: 'order', title: 'Order Delivered!', message: 'Your order from Burger House has been delivered. Enjoy your meal!', time: '5 min ago', read: false },
   { id: '2', type: 'promo', title: '20% Off This Weekend!', message: 'Use code WEEKEND20 for 20% off all orders this Saturday & Sunday.', time: '1 hr ago', read: false },
   { id: '3', type: 'order', title: 'Order On The Way', message: 'Your courier Mike is heading to you. ETA: 8 minutes.', time: '2 hrs ago', read: true },
@@ -31,6 +32,26 @@ const getNotifIcon = (type: string) => {
 };
 
 export default function NotificationsScreen({ navigation }: any) {
+  const [notifications, setNotifications] = useState(mockNotifications);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await notificationsAPI.getAll();
+        if (res?.data?.length) setNotifications(res.data);
+      } catch {}
+    })();
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationsAPI.markAllRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -40,7 +61,7 @@ export default function NotificationsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={handleMarkAllRead}>
           <Text style={styles.markAll}>Mark all read</Text>
         </TouchableOpacity>
       </View>

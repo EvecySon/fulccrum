@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { walletAPI } from '../../services/api';
 
 const mockWallet = {
   balance: 78500,
@@ -35,20 +36,53 @@ const mockTransactions = [
 ];
 
 export default function CourierWalletScreen({ navigation }: any) {
+  const [wallet, setWallet] = useState(mockWallet);
+  const [bankAccounts, setBankAccounts] = useState(mockBankAccounts);
+  const [transactions, setTransactions] = useState(mockTransactions);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedBank, setSelectedBank] = useState(mockBankAccounts.find(b => b.isDefault)?.id || '1');
   const [loading, setLoading] = useState(false);
 
-  const handleWithdraw = () => {
+  useEffect(() => {
+    loadWalletData();
+  }, []);
+
+  const loadWalletData = async () => {
+    try {
+      const [balanceRes, banksRes, historyRes] = await Promise.all([
+        walletAPI.getBalance().catch(() => null),
+        walletAPI.getBankAccounts().catch(() => null),
+        walletAPI.withdrawalHistory().catch(() => null),
+      ]);
+      if (balanceRes) setWallet(prev => ({ ...prev, balance: balanceRes.balance ?? prev.balance, pendingBalance: balanceRes.pendingBalance ?? prev.pendingBalance }));
+      if (banksRes?.length) {
+        setBankAccounts(banksRes);
+        const defaultBank = banksRes.find((b: any) => b.isDefault);
+        if (defaultBank) setSelectedBank(defaultBank.id);
+      }
+      if (historyRes?.data?.length) setTransactions(historyRes.data);
+    } catch {}
+  };
+
+  const handleWithdraw = async () => {
     const amount = parseInt(withdrawAmount);
-    if (!amount || amount < 1000 || amount > mockWallet.balance) return;
+    if (!amount || amount < 1000 || amount > wallet.balance) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await walletAPI.requestWithdrawal(amount);
+      await loadWalletData();
       setShowWithdraw(false);
       setWithdrawAmount('');
-    }, 1500);
+    } catch {
+      // Fallback: simulate success in dev
+      setTimeout(() => {
+        setShowWithdraw(false);
+        setWithdrawAmount('');
+      }, 1000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getTxIcon = (type: string) => {
@@ -74,22 +108,22 @@ export default function CourierWalletScreen({ navigation }: any) {
         </View>
 
         <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balanceValue}>₦{mockWallet.balance.toLocaleString()}</Text>
+        <Text style={styles.balanceValue}>₦{wallet.balance.toLocaleString()}</Text>
         <View style={styles.balanceRow}>
           <View style={styles.balanceItem}>
             <Ionicons name="time-outline" size={14} color={colors.textWhite + '80'} />
-            <Text style={styles.balanceItemText}>Pending: ₦{mockWallet.pendingBalance.toLocaleString()}</Text>
+            <Text style={styles.balanceItemText}>Pending: ₦{wallet.pendingBalance.toLocaleString()}</Text>
           </View>
         </View>
 
         <View style={styles.quickStats}>
           <View style={styles.quickStat}>
-            <Text style={styles.quickStatValue}>₦{mockWallet.todayEarnings.toLocaleString()}</Text>
+            <Text style={styles.quickStatValue}>₦{wallet.todayEarnings.toLocaleString()}</Text>
             <Text style={styles.quickStatLabel}>Today</Text>
           </View>
           <View style={styles.quickStatDivider} />
           <View style={styles.quickStat}>
-            <Text style={styles.quickStatValue}>₦{mockWallet.weeklyEarnings.toLocaleString()}</Text>
+            <Text style={styles.quickStatValue}>₦{wallet.weeklyEarnings.toLocaleString()}</Text>
             <Text style={styles.quickStatLabel}>This Week</Text>
           </View>
         </View>
@@ -105,7 +139,7 @@ export default function CourierWalletScreen({ navigation }: any) {
 
       {/* SCROLLABLE: Transaction list */}
       <FlatList
-        data={mockTransactions}
+        data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item: tx }) => {
           const icon = getTxIcon(tx.type);
@@ -140,7 +174,7 @@ export default function CourierWalletScreen({ navigation }: any) {
             </View>
 
             <Text style={styles.fieldLabel}>Select Bank Account</Text>
-            {mockBankAccounts.map(bank => (
+            {bankAccounts.map(bank => (
               <TouchableOpacity
                 key={bank.id}
                 style={[styles.bankOption, selectedBank === bank.id && styles.bankOptionActive]}

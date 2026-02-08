@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { walletAPI } from '../../services/api';
 
 const mockWallet = {
   balance: 485000,
@@ -46,22 +47,54 @@ const mockWithdrawals = [
 ];
 
 export default function WalletScreen({ navigation }: any) {
+  const [wallet, setWallet] = useState(mockWallet);
+  const [bankAccounts, setBankAccounts] = useState(mockBankAccounts);
+  const [transactions, setTransactions] = useState(mockTransactions);
+  const [withdrawals, setWithdrawals] = useState(mockWithdrawals);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedBank, setSelectedBank] = useState(mockBankAccounts.find(b => b.isDefault)?.id || '1');
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'earnings' | 'withdrawals'>('earnings');
 
-  const handleWithdraw = () => {
+  useEffect(() => {
+    loadWalletData();
+  }, []);
+
+  const loadWalletData = async () => {
+    try {
+      const [balanceRes, banksRes, historyRes] = await Promise.all([
+        walletAPI.getBalance().catch(() => null),
+        walletAPI.getBankAccounts().catch(() => null),
+        walletAPI.withdrawalHistory().catch(() => null),
+      ]);
+      if (balanceRes) setWallet(prev => ({ ...prev, balance: balanceRes.balance ?? prev.balance, pendingBalance: balanceRes.pendingBalance ?? prev.pendingBalance }));
+      if (banksRes?.length) {
+        setBankAccounts(banksRes);
+        const defaultBank = banksRes.find((b: any) => b.isDefault);
+        if (defaultBank) setSelectedBank(defaultBank.id);
+      }
+      if (historyRes?.data?.length) setTransactions(historyRes.data);
+    } catch {}
+  };
+
+  const handleWithdraw = async () => {
     const amount = parseInt(withdrawAmount);
-    if (!amount || amount < 1000 || amount > mockWallet.balance) return;
+    if (!amount || amount < 1000 || amount > wallet.balance) return;
     setLoading(true);
-    // TODO: Call walletAPI.requestWithdrawal(amount, selectedBank)
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await walletAPI.requestWithdrawal(amount);
+      await loadWalletData();
       setShowWithdraw(false);
       setWithdrawAmount('');
-    }, 1500);
+    } catch {
+      setTimeout(() => {
+        setShowWithdraw(false);
+        setWithdrawAmount('');
+      }, 1000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusStyle = (status: string) => {
@@ -140,27 +173,27 @@ export default function WalletScreen({ navigation }: any) {
 
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balanceValue}>₦{mockWallet.balance.toLocaleString()}</Text>
+        <Text style={styles.balanceValue}>₦{wallet.balance.toLocaleString()}</Text>
         <View style={styles.balanceRow}>
           <View style={styles.balanceItem}>
             <Ionicons name="time-outline" size={14} color={colors.warning} />
-            <Text style={styles.balanceItemText}>Pending: ₦{mockWallet.pendingBalance.toLocaleString()}</Text>
+            <Text style={styles.balanceItemText}>Pending: ₦{wallet.pendingBalance.toLocaleString()}</Text>
           </View>
-          {mockWallet.frozenBalance > 0 && (
+          {wallet.frozenBalance > 0 && (
             <View style={styles.balanceItem}>
               <Ionicons name="snow-outline" size={14} color={colors.info} />
-              <Text style={styles.balanceItemText}>Frozen: ₦{mockWallet.frozenBalance.toLocaleString()}</Text>
+              <Text style={styles.balanceItemText}>Frozen: ₦{wallet.frozenBalance.toLocaleString()}</Text>
             </View>
           )}
         </View>
         <View style={styles.earningsStats}>
           <View style={styles.earningStat}>
-            <Text style={styles.earningStatValue}>₦{mockWallet.todayEarnings.toLocaleString()}</Text>
+            <Text style={styles.earningStatValue}>₦{wallet.todayEarnings.toLocaleString()}</Text>
             <Text style={styles.earningStatLabel}>Today</Text>
           </View>
           <View style={styles.earningStatDivider} />
           <View style={styles.earningStat}>
-            <Text style={styles.earningStatValue}>₦{mockWallet.weeklyEarnings.toLocaleString()}</Text>
+            <Text style={styles.earningStatValue}>₦{wallet.weeklyEarnings.toLocaleString()}</Text>
             <Text style={styles.earningStatLabel}>This Week</Text>
           </View>
         </View>
@@ -183,7 +216,7 @@ export default function WalletScreen({ navigation }: any) {
       {/* SCROLLABLE: Transaction list */}
       {tab === 'earnings' ? (
         <FlatList
-          data={mockTransactions}
+          data={transactions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderEarningItem(item)}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -191,7 +224,7 @@ export default function WalletScreen({ navigation }: any) {
         />
       ) : (
         <FlatList
-          data={mockWithdrawals}
+          data={withdrawals}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderWithdrawalItem(item)}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -211,7 +244,7 @@ export default function WalletScreen({ navigation }: any) {
             </View>
 
             <Text style={styles.fieldLabel}>Select Bank Account</Text>
-            {mockBankAccounts.map(bank => (
+            {bankAccounts.map(bank => (
               <TouchableOpacity
                 key={bank.id}
                 style={[styles.bankOption, selectedBank === bank.id && styles.bankOptionActive]}

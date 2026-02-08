@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { ordersAPI } from '../../services/api';
 
-const allOrders = [
+const mockOrders = [
   {
     id: '#3250', customerName: 'Sarah Johnson', items: ['Gourmet Cheeseburger x2', 'Classic Fries x2', 'Milkshake x1'],
     total: 46.96, status: 'new', timeAgo: '2 mins ago', notes: 'No onions on burgers please',
@@ -49,6 +50,25 @@ type OrderStatus = 'all' | 'new' | 'preparing' | 'ready' | 'picked_up' | 'comple
 
 export default function MerchantOrdersScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = useState<OrderStatus>('all');
+  const [allOrders, setAllOrders] = useState(mockOrders);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadOrders = useCallback(async () => {
+    try {
+      const res = await ordersAPI.getMyOrders();
+      if (res?.data?.length) setAllOrders(res.data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
 
   const filters: { key: OrderStatus; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: allOrders.length },

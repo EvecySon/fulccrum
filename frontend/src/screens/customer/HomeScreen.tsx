@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,26 @@ import {
   mockRestaurants,
   mockTrendingItems,
 } from '../../data/mockData';
+import { searchAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [restaurants, setRestaurants] = useState(mockRestaurants);
+
+  useEffect(() => {
+    loadRestaurants();
+  }, []);
+
+  const loadRestaurants = async () => {
+    try {
+      const res = await searchAPI.searchBusinesses('');
+      if (res?.data?.length) setRestaurants(res.data);
+    } catch {}
+  };
 
   const renderMoodCard = ({ item }: any) => (
     <TouchableOpacity style={styles.moodCard}>
@@ -104,7 +119,7 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.greeting}>Hello, {mockUser.firstName}!</Text>
+            <Text style={styles.greeting}>Hello, {user?.firstName || mockUser.firstName}!</Text>
             <TouchableOpacity style={styles.addressRow}>
               <Ionicons name="location" size={16} color={colors.tealLight} />
               <Text style={styles.addressText}>Delivering to: {mockUser.address}</Text>
@@ -237,7 +252,7 @@ export default function HomeScreen({ navigation }: any) {
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
-          {mockRestaurants.map((restaurant) => (
+          {restaurants.map((restaurant) => (
             <View key={restaurant.id}>
               {renderRestaurant({ item: restaurant })}
             </View>

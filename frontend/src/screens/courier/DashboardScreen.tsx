@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockCourierStats } from '../../data/mockData';
+import { analyticsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -31,8 +33,18 @@ const hourlyEarnings = [
 ];
 
 export default function CourierDashboardScreen({ navigation }: any) {
+  const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
-  const stats = mockCourierStats;
+  const [stats, setStats] = useState(mockCourierStats);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await analyticsAPI.dashboard();
+        if (res) setStats(prev => ({ ...prev, ...res }));
+      } catch {}
+    })();
+  }, []);
   const maxEarning = Math.max(...hourlyEarnings.map(h => h.amount));
 
   return (

@@ -29,7 +29,8 @@ export default function ForgotPasswordScreen({ navigation }: any) {
     setError('');
     setLoading(true);
     try {
-      await authAPI.forgotPassword(method, method === 'phone' ? `+234${value}` : value);
+      const email = method === 'email' ? value : `+234${value}`;
+      await authAPI.forgotPassword(email);
       setSent(true);
     } catch (err: any) {
       setError(err.message || 'Failed to send reset code. Please try again.');

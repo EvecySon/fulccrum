@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,33 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockAvailableDeliveries } from '../../data/mockData';
+import { ordersAPI } from '../../services/api';
 
 const filters = ['All', 'Nearby', 'High Pay', 'Quick'];
 
 export default function DeliveriesScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
+  const [deliveries, setDeliveries] = useState(mockAvailableDeliveries);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filteredDeliveries = mockAvailableDeliveries.filter((d) => {
+  const loadDeliveries = useCallback(async () => {
+    try {
+      const res = await ordersAPI.getAvailableDeliveries();
+      if (res?.data?.length) setDeliveries(res.data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadDeliveries();
+  }, [loadDeliveries]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDeliveries();
+    setRefreshing(false);
+  };
+
+  const filteredDeliveries = deliveries.filter((d) => {
     if (activeFilter === 'Nearby') return d.distance <= 2;
     if (activeFilter === 'High Pay') return d.pay >= 10;
     if (activeFilter === 'Quick') return d.estimatedTime <= 20;
@@ -28,7 +48,7 @@ export default function DeliveriesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Available Deliveries</Text>
         <View style={styles.headerBadge}>
-          <Text style={styles.headerBadgeText}>{mockAvailableDeliveries.length} nearby</Text>
+          <Text style={styles.headerBadgeText}>{deliveries.length} nearby</Text>
         </View>
       </View>
 
@@ -57,7 +77,7 @@ export default function DeliveriesScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={colors.teal} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
       >
         {filteredDeliveries.map((delivery) => (
           <View key={delivery.id} style={styles.deliveryCard}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { favoritesAPI } from '../../services/api';
 
-const favoriteRestaurants = [
+const mockFavoriteRestaurants = [
   { id: '1', name: 'Burger House', cuisine: 'American · Burgers', rating: 4.7, deliveryTime: '20-30 min', image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=300&h=200&fit=crop', lastOrdered: '2 days ago' },
   { id: '2', name: 'Sushi Palace', cuisine: 'Japanese · Sushi', rating: 4.9, deliveryTime: '25-35 min', image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=300&h=200&fit=crop', lastOrdered: '1 week ago' },
   { id: '3', name: 'Pizza Roma', cuisine: 'Italian · Pizza', rating: 4.5, deliveryTime: '15-25 min', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop', lastOrdered: '3 days ago' },
 ];
 
-const favoriteItems = [
+const mockFavoriteItems = [
   { id: '1', name: 'Gourmet Cheeseburger', restaurant: 'Burger House', price: 14.99, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop', orderedCount: 8 },
   { id: '2', name: 'Spicy Tuna Roll', restaurant: 'Sushi Palace', price: 12.99, image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=200&h=200&fit=crop', orderedCount: 5 },
   { id: '3', name: 'Margherita Pizza', restaurant: 'Pizza Roma', price: 16.99, image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&h=200&fit=crop', orderedCount: 12 },
@@ -25,6 +26,18 @@ const favoriteItems = [
 
 export default function FavoritesScreen({ navigation }: any) {
   const [tab, setTab] = useState<'restaurants' | 'items'>('restaurants');
+  const [favoriteRestaurants, setFavoriteRestaurants] = useState(mockFavoriteRestaurants);
+  const [favoriteItems, setFavoriteItems] = useState(mockFavoriteItems);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await favoritesAPI.getAll();
+        if (res?.restaurants?.length) setFavoriteRestaurants(res.restaurants);
+        if (res?.items?.length) setFavoriteItems(res.items);
+      } catch {}
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>

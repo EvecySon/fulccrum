@@ -91,7 +91,7 @@ async function tryRefreshToken(): Promise<boolean> {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
     if (!refreshToken) return false;
-    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+    const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -157,20 +157,20 @@ export const authAPI = {
     role?: string;
   }) => api.post('/auth/register', data),
 
-  forgotPassword: (method: 'email' | 'phone', value: string) =>
-    api.post('/auth/forgot-password', { [method]: value }),
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
 
-  verifyOTP: (code: string, email?: string, phone?: string) =>
-    api.post('/auth/verify-otp', { code, email, phone }),
+  verifyOTP: (otp: string, email: string) =>
+    api.post('/auth/verify-otp', { otp, email }),
 
-  resetPassword: (code: string, newPassword: string) =>
-    api.post('/auth/reset-password', { code, newPassword }),
+  resetPassword: (email: string, resetToken: string, newPassword: string) =>
+    api.post('/auth/reset-password', { email, resetToken, newPassword }),
 
-  resendOTP: (email?: string, phone?: string) =>
-    api.post('/auth/resend-otp', { email, phone }),
+  resendOTP: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
 
   refreshToken: (refreshToken: string) =>
-    api.post('/auth/refresh', { refreshToken }),
+    api.post('/auth/refresh-token', { refreshToken }),
 
   googleLogin: (idToken: string) =>
     api.post('/auth/google', { idToken }),
@@ -269,6 +269,12 @@ export const walletAPI = {
     api.post('/wallet/withdraw/confirm', { requestId, confirmationCode }),
   withdrawalHistory: (page = 1, limit = 20) => api.get(`/wallet/withdraw/history?page=${page}&limit=${limit}`),
   cancelWithdrawal: (requestId: string) => api.post('/wallet/withdraw/cancel', { requestId }),
+  // Bank accounts
+  getBankAccounts: () => api.get('/wallet/bank-accounts'),
+  addBankAccount: (data: { accountName: string; accountNumber: string; bankCode: string; bankName: string }) =>
+    api.post('/wallet/bank-accounts', data),
+  setDefaultBankAccount: (id: string) => api.patch(`/wallet/bank-accounts/${id}/set-default`),
+  deleteBankAccount: (id: string) => api.delete(`/wallet/bank-accounts/${id}`),
 };
 
 // ─── Reviews API ───

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockAdminStats } from '../../data/mockData';
+import { adminAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -28,7 +29,16 @@ const recentActivity = [
 ];
 
 export default function OverviewScreen({ navigation }: any) {
-  const stats = mockAdminStats;
+  const [stats, setStats] = useState(mockAdminStats);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminAPI.getMetrics();
+        if (res) setStats(prev => ({ ...prev, ...res }));
+      } catch {}
+    })();
+  }, []);
   const maxOrders = Math.max(...stats.dailyOrders.map(d => d.orders));
 
   return (

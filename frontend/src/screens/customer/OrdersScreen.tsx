@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,35 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockOrders } from '../../data/mockData';
+import { ordersAPI } from '../../services/api';
 
 export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
+  const [allOrders, setAllOrders] = useState(mockOrders);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const activeOrders = mockOrders.filter(
-    (o) => o.status !== 'delivered' && o.status !== 'cancelled'
+  const loadOrders = useCallback(async () => {
+    try {
+      const res = await ordersAPI.getMyOrders();
+      if (res?.data?.length) setAllOrders(res.data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
+  const activeOrders = allOrders.filter(
+    (o: any) => o.status !== 'delivered' && o.status !== 'cancelled'
   );
-  const pastOrders = mockOrders.filter(
-    (o) => o.status === 'delivered' || o.status === 'cancelled'
+  const pastOrders = allOrders.filter(
+    (o: any) => o.status === 'delivered' || o.status === 'cancelled'
   );
 
   const getStatusColor = (status: string) => {
@@ -91,7 +111,7 @@ export default function OrdersScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={colors.teal} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
       >
         {orders.length === 0 ? (
           <View style={styles.emptyState}>
