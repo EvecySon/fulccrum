@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
+import { usersAPI, menuAPI } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -45,6 +46,22 @@ export default function MerchantSettingsScreen({ navigation }: any) {
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
+  const [businessProfile, setBusinessProfile] = useState<any>(null);
+  const [businessHours, setBusinessHours] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [profileRes, hoursRes] = await Promise.all([
+          usersAPI.getProfile().catch(() => null),
+          menuAPI.getBusinessHours('me').catch(() => null),
+        ]);
+        if (profileRes) setBusinessProfile(profileRes);
+        if (Array.isArray(hoursRes)) setBusinessHours(hoursRes);
+        else if (hoursRes?.data) setBusinessHours(hoursRes.data);
+      } catch {}
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -60,11 +77,11 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             <Ionicons name="storefront" size={28} color={colors.navy} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.storeName}>{user?.firstName || 'My Store'}</Text>
+            <Text style={styles.storeName}>{businessProfile?.businessProfile?.businessName || user?.firstName || 'My Store'}</Text>
             <Text style={styles.storeAddress}>{user?.email || 'No email set'}</Text>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.warning} />
-              <Text style={styles.ratingText}>No reviews yet</Text>
+              <Text style={styles.ratingText}>{businessProfile?.businessProfile?.averageRating ? `${businessProfile.businessProfile.averageRating} rating` : 'No reviews yet'}</Text>
             </View>
           </View>
           <TouchableOpacity>
@@ -80,10 +97,17 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               <Text style={styles.editLink}>Edit</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-            <Ionicons name="time-outline" size={28} color={colors.textLight} />
-            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 6 }}>No store hours set yet</Text>
-          </View>
+          {businessHours.length > 0 ? businessHours.map((h: any, i: number) => (
+            <View key={i} style={styles.scheduleRow}>
+              <Text style={styles.scheduleDay}>{h.dayOfWeek || h.day}</Text>
+              <Text style={styles.scheduleHours}>{h.openTime} - {h.closeTime}</Text>
+            </View>
+          )) : (
+            <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+              <Ionicons name="time-outline" size={28} color={colors.textLight} />
+              <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 6 }}>No store hours set yet</Text>
+            </View>
+          )}
         </View>
 
         {/* Order Settings */}

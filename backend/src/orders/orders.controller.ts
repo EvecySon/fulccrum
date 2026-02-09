@@ -67,11 +67,13 @@ export class OrdersController {
   @Get('business/:businessId')
   async getBusinessOrders(
     @Param('businessId') businessId: string,
+    @Request() req: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    const resolvedId = businessId === 'me' ? req.user.sub : businessId;
     return this.ordersService.getBusinessOrders(
-      businessId,
+      resolvedId,
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 20,
     );

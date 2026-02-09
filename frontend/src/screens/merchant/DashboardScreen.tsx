@@ -28,7 +28,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
       try {
         const [statsRes, ordersRes] = await Promise.all([
           analyticsAPI.dashboard().catch(() => null),
-          ordersAPI.getMyOrders().catch(() => null),
+          ordersAPI.getBusinessOrders('me').catch(() => null),
         ]);
         if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
         if (ordersRes?.data) setOrders(ordersRes.data);

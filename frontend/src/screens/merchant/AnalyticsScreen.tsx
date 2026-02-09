@@ -34,8 +34,16 @@ export default function MerchantAnalyticsScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await analyticsAPI.dashboard();
-        if (res) setRevenueData(prev => ({ ...prev, ...res }));
+        const [dashRes, trendsRes, insightsRes] = await Promise.all([
+          analyticsAPI.dashboard().catch(() => null),
+          analyticsAPI.orderTrends(7).catch(() => null),
+          analyticsAPI.customerInsights().catch(() => null),
+        ]);
+        if (dashRes) setRevenueData(prev => ({ ...prev, ...dashRes }));
+        if (trendsRes?.hourlyOrders) setHourlyOrders(trendsRes.hourlyOrders);
+        if (trendsRes?.topItems) setTopItems(trendsRes.topItems);
+        if (trendsRes?.peakHours) setPeakHours(trendsRes.peakHours);
+        if (insightsRes) setCustomerInsights(prev => ({ ...prev, ...insightsRes }));
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);

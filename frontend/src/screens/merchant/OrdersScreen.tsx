@@ -22,7 +22,7 @@ export default function MerchantOrdersScreen({ navigation }: any) {
 
   const loadOrders = useCallback(async () => {
     try {
-      const res = await ordersAPI.getMyOrders();
+      const res = await ordersAPI.getBusinessOrders('me');
       if (res?.data) setAllOrders(res.data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
