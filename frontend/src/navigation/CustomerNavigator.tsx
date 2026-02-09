@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
@@ -32,7 +32,7 @@ import SustainabilityScreen from '../screens/customer/SustainabilityScreen';
 import VRRestaurantTourScreen from '../screens/customer/VRRestaurantTourScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function HomeTabs() {
   return (
@@ -92,7 +92,7 @@ function HomeTabs() {
 
 export default function CustomerNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
       <Stack.Screen name="HomeTabs" component={HomeTabs} />
       <Stack.Screen name="Restaurant" component={RestaurantScreen} />
       <Stack.Screen name="MenuItem" component={MenuItemScreen} />

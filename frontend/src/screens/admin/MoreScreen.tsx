@@ -5,12 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { useAuth } from '../../contexts/AuthContext';
 
 const menuItems = [
-  { icon: 'storefront-outline', label: 'Merchants', desc: 'Manage restaurants & stores', screen: 'Merchants', color: colors.navy },
+  { icon: 'shield-outline', label: 'Admin Users', desc: 'Create & manage admin accounts', screen: 'AdminUsers', color: colors.navy },
+  { icon: 'storefront-outline', label: 'Merchants', desc: 'Manage restaurants & stores', screen: 'Merchants', color: colors.teal },
   { icon: 'construct-outline', label: 'Settings & Config', desc: 'Platform settings, integrations', screen: 'AdminSettings', color: colors.teal },
   { icon: 'wallet-outline', label: 'Payouts', desc: 'Pay merchants & couriers', screen: 'Payouts', color: colors.success },
   { icon: 'megaphone-outline', label: 'Promotions', desc: 'Manage campaigns & vouchers', screen: null, color: colors.warning },
@@ -22,6 +25,15 @@ const menuItems = [
 ];
 
 export default function MoreScreen({ navigation }: any) {
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -52,10 +64,10 @@ export default function MoreScreen({ navigation }: any) {
             <Ionicons name="shield" size={24} color={colors.navy} />
           </View>
           <View style={styles.adminInfo}>
-            <Text style={styles.adminName}>Lisa Wang</Text>
-            <Text style={styles.adminRole}>Super Admin</Text>
+            <Text style={styles.adminName}>{user?.firstName} {user?.lastName}</Text>
+            <Text style={styles.adminRole}>Admin</Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color={colors.error} />
           </TouchableOpacity>
         </View>
