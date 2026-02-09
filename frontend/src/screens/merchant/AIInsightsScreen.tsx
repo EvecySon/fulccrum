@@ -17,21 +17,6 @@ interface Insight {
   implemented: boolean;
 }
 
-const mockInsights: Insight[] = [
-  { id: '1', type: 'demand_forecast', title: 'Weekend Rush Incoming', description: 'Based on historical data, expect 40% more orders this Saturday between 12-2 PM. Consider pre-prepping popular items.', impact: '+₦45,000 potential revenue', confidence: 0.91, implemented: false },
-  { id: '2', type: 'pricing_optimization', title: 'Underpriced Item Detected', description: 'Your Gourmet Cheeseburger is priced 15% below market average. A ₦500 increase would not affect demand.', impact: '+₦12,000/week', confidence: 0.87, implemented: false },
-  { id: '3', type: 'menu_optimization', title: 'Remove Low Performer', description: 'Veggie Wrap has only 3 orders in 30 days. Consider replacing with a trending item like Chicken Shawarma.', impact: 'Free up kitchen capacity', confidence: 0.84, implemented: false },
-  { id: '4', type: 'demand_forecast', title: 'Rain = More Orders', description: 'Weather forecast shows rain on Thursday. Historically your orders increase 25% on rainy days.', impact: '+30 extra orders expected', confidence: 0.88, implemented: true },
-  { id: '5', type: 'menu_optimization', title: 'Bundle Opportunity', description: 'Customers who order Cheeseburger often add Fries (78%). Create a combo deal to increase average order value.', impact: '+₦8,000/week AOV', confidence: 0.92, implemented: false },
-];
-
-const mockForecast = {
-  todayOrders: 38,
-  tomorrowPredicted: 52,
-  weekRevenue: '₦485,000',
-  topItem: 'Gourmet Cheeseburger',
-  peakHour: '12:30 PM',
-};
 
 export default function AIInsightsScreen({ navigation }: any) {
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -43,9 +28,9 @@ export default function AIInsightsScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const data = await merchantInsightsAPI.getAllInsights();
-      setInsights(Array.isArray(data?.insights || data) ? (data?.insights || data) : mockInsights);
+      setInsights(Array.isArray(data?.insights || data) ? (data?.insights || data) : []);
     } catch {
-      setInsights(mockInsights);
+      // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -87,19 +72,19 @@ export default function AIInsightsScreen({ navigation }: any) {
             <Text style={styles.forecastTitle}>Business Forecast</Text>
             <View style={styles.forecastGrid}>
               <View style={styles.forecastItem}>
-                <Text style={styles.forecastValue}>{mockForecast.todayOrders}</Text>
+                <Text style={styles.forecastValue}>—</Text>
                 <Text style={styles.forecastLabel}>Today's Orders</Text>
               </View>
               <View style={styles.forecastItem}>
-                <Text style={[styles.forecastValue, { color: colors.teal }]}>{mockForecast.tomorrowPredicted}</Text>
+                <Text style={[styles.forecastValue, { color: colors.teal }]}>—</Text>
                 <Text style={styles.forecastLabel}>Tomorrow (Predicted)</Text>
               </View>
               <View style={styles.forecastItem}>
-                <Text style={styles.forecastValue}>{mockForecast.weekRevenue}</Text>
+                <Text style={styles.forecastValue}>—</Text>
                 <Text style={styles.forecastLabel}>This Week</Text>
               </View>
               <View style={styles.forecastItem}>
-                <Text style={styles.forecastValue}>{mockForecast.peakHour}</Text>
+                <Text style={styles.forecastValue}>—</Text>
                 <Text style={styles.forecastLabel}>Peak Hour</Text>
               </View>
             </View>

@@ -8,6 +8,8 @@ import {
   Image,
   Switch,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,59 +17,136 @@ import { colors } from '../../theme/colors';
 import { menuAPI, uploadAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 
-const menuCategories = [
-  {
-    id: '1',
-    name: 'Burgers',
-    items: [
-      { id: '1', name: 'Gourmet Cheeseburger', price: 14.99, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop', available: true, popular: true, orders: 156 },
-      { id: '2', name: 'BBQ Bacon Burger', price: 16.99, image: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=200&h=200&fit=crop', available: true, popular: false, orders: 89 },
-      { id: '3', name: 'Veggie Burger', price: 13.99, image: 'https://images.unsplash.com/photo-1520072959219-c595e6cdc07e?w=200&h=200&fit=crop', available: false, popular: false, orders: 34 },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Sides',
-    items: [
-      { id: '4', name: 'Classic Fries', price: 4.99, image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&h=200&fit=crop', available: true, popular: true, orders: 210 },
-      { id: '5', name: 'Onion Rings', price: 5.99, image: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=200&h=200&fit=crop', available: true, popular: false, orders: 67 },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Starters',
-    items: [
-      { id: '6', name: 'Chicken Wings', price: 12.99, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=200&h=200&fit=crop', available: true, popular: true, orders: 134 },
-      { id: '7', name: 'Mozzarella Sticks', price: 8.99, image: 'https://images.unsplash.com/photo-1531749668029-2db88e4276c7?w=200&h=200&fit=crop', available: true, popular: false, orders: 45 },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Salads',
-    items: [
-      { id: '8', name: 'Caesar Salad', price: 9.99, image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=200&h=200&fit=crop', available: true, popular: false, orders: 78 },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Drinks',
-    items: [
-      { id: '9', name: 'Milkshake', price: 6.99, image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=200&h=200&fit=crop', available: true, popular: false, orders: 92 },
-      { id: '10', name: 'Fresh Lemonade', price: 3.99, image: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=200&h=200&fit=crop', available: true, popular: false, orders: 56 },
-    ],
-  },
-];
 
 export default function MerchantMenuScreen({ navigation }: any) {
-  const [selectedCategory, setSelectedCategory] = useState('1');
-  const [itemAvailability, setItemAvailability] = useState<Record<string, boolean>>(
-    Object.fromEntries(
-      menuCategories.flatMap(c => c.items.map(i => [i.id, i.available]))
-    )
-  );
+  const [menuCategories, setMenuCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [itemAvailability, setItemAvailability] = useState<Record<string, boolean>>({});
 
-  const toggleAvailability = (itemId: string) => {
-    setItemAvailability(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getCategories('me');
+        if (res?.categories?.length) {
+          setMenuCategories(res.categories);
+          setSelectedCategory(res.categories[0].id);
+          setItemAvailability(
+            Object.fromEntries(
+              res.categories.flatMap((c: any) => c.items.map((i: any) => [i.id, i.available]))
+            )
+          );
+        } else if (res?.length) {
+          setMenuCategories(res);
+          setSelectedCategory(res[0].id);
+          setItemAvailability(
+            Object.fromEntries(
+              res.flatMap((c: any) => (c.items || []).map((i: any) => [i.id, i.available !== false]))
+            )
+          );
+        }
+      } catch {}
+    })();
+  }, []);
+
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+
+  const toggleAvailability = async (itemId: string) => {
+    const newVal = !itemAvailability[itemId];
+    setItemAvailability(prev => ({ ...prev, [itemId]: newVal }));
+    try {
+      await menuAPI.toggleAvailability(itemId);
+    } catch (e: any) {
+      setItemAvailability(prev => ({ ...prev, [itemId]: !newVal }));
+      Alert.alert('Error', e?.message || 'Could not toggle availability');
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItemName.trim() || !newItemPrice.trim()) {
+      Alert.alert('Missing Info', 'Please enter item name and price.');
+      return;
+    }
+    try {
+      await menuAPI.createItem({
+        name: newItemName.trim(),
+        price: parseFloat(newItemPrice),
+        categoryId: selectedCategory,
+      });
+      setShowAddItem(false);
+      setNewItemName('');
+      setNewItemPrice('');
+      // Reload menu
+      const res = await menuAPI.getCategories('me');
+      if (res?.length) {
+        setMenuCategories(res);
+      } else if (res?.categories?.length) {
+        setMenuCategories(res.categories);
+      }
+      Alert.alert('Success', 'Item added to menu!');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not add item');
+    }
+  };
+
+  const handleEditItem = (item: any) => {
+    Alert.prompt('Edit Item Price', `Current price: ₦${item.price}`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save',
+        onPress: async (newPrice?: string) => {
+          if (!newPrice) return;
+          try {
+            await menuAPI.updateItem(item.id, { price: parseFloat(newPrice) });
+            const res = await menuAPI.getCategories('me');
+            if (res?.length) setMenuCategories(res);
+            else if (res?.categories?.length) setMenuCategories(res.categories);
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update item'); }
+        },
+      },
+    ], 'plain-text', String(item.price));
+  };
+
+  const handleDuplicateItem = async (item: any) => {
+    try {
+      await menuAPI.createItem({
+        name: `${item.name} (Copy)`,
+        price: item.price,
+        categoryId: selectedCategory,
+      });
+      const res = await menuAPI.getCategories('me');
+      if (res?.length) setMenuCategories(res);
+      else if (res?.categories?.length) setMenuCategories(res.categories);
+      Alert.alert('Duplicated', `"${item.name}" has been duplicated.`);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not duplicate item'); }
+  };
+
+  const handleEditCategory = () => {
+    if (!currentCategory) return;
+    Alert.prompt('Rename Category', `Current name: ${currentCategory.name}`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save',
+        onPress: async (newName?: string) => {
+          if (!newName?.trim()) return;
+          try {
+            await menuAPI.updateCategory(currentCategory.id, { name: newName.trim() });
+            setMenuCategories(prev => prev.map(c => c.id === currentCategory.id ? { ...c, name: newName.trim() } : c));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not rename category'); }
+        },
+      },
+    ], 'plain-text', currentCategory.name);
+  };
+
+  const handleBulkToggle = async (available: boolean) => {
+    if (!currentCategory?.items?.length) return;
+    const newAvail: Record<string, boolean> = {};
+    currentCategory.items.forEach((i: any) => { newAvail[i.id] = available; });
+    setItemAvailability(prev => ({ ...prev, ...newAvail }));
+    for (const item of currentCategory.items) {
+      try { await menuAPI.toggleAvailability(item.id); } catch {}
+    }
   };
 
   const handleBulkCSVUpload = async () => {
@@ -114,7 +193,7 @@ export default function MerchantMenuScreen({ navigation }: any) {
           <TouchableOpacity style={styles.headerBtn} onPress={handleBulkCSVUpload}>
             <Ionicons name="cloud-upload-outline" size={20} color={colors.textWhite} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addBtn}>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddItem(true)}>
             <Ionicons name="add" size={20} color={colors.textWhite} />
             <Text style={styles.addBtnText}>Add Item</Text>
           </TouchableOpacity>
@@ -129,13 +208,13 @@ export default function MerchantMenuScreen({ navigation }: any) {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.filter(i => i.available).length, 0)}</Text>
+          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => i.available).length, 0)}</Text>
           <Text style={styles.statLabel}>Available</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.error }]}>
-            {menuCategories.reduce((sum, c) => sum + c.items.filter(i => !i.available).length, 0)}
+            {menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => !i.available).length, 0)}
           </Text>
           <Text style={styles.statLabel}>Unavailable</Text>
         </View>
@@ -172,16 +251,25 @@ export default function MerchantMenuScreen({ navigation }: any) {
 
       {/* Menu Items */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {menuCategories.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Ionicons name="restaurant-outline" size={48} color={colors.textLight} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>No menu items yet</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 4 }}>Add items to your menu to get started</Text>
+          </View>
+        )}
         {/* Category Header */}
+        {currentCategory && (
         <View style={styles.categoryHeader}>
           <Text style={styles.categoryName}>{currentCategory?.name}</Text>
-          <TouchableOpacity style={styles.editCategoryBtn}>
+          <TouchableOpacity style={styles.editCategoryBtn} onPress={handleEditCategory}>
             <Ionicons name="create-outline" size={16} color={colors.teal} />
             <Text style={styles.editCategoryText}>Edit Category</Text>
           </TouchableOpacity>
         </View>
+        )}
 
-        {currentCategory?.items.map((item) => (
+        {currentCategory?.items?.map((item: any) => (
           <View key={item.id} style={[styles.menuItem, !itemAvailability[item.id] && styles.menuItemDisabled]}>
             <TouchableOpacity onPress={() => handlePickItemPhoto(item.id)}>
               <Image source={{ uri: item.image }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />
@@ -202,11 +290,11 @@ export default function MerchantMenuScreen({ navigation }: any) {
               <Text style={styles.itemPrice}>₦{item.price.toFixed(2)}</Text>
               <Text style={styles.itemOrders}>{item.orders} orders this week</Text>
               <View style={styles.itemActions}>
-                <TouchableOpacity style={styles.editBtn}>
+                <TouchableOpacity style={styles.editBtn} onPress={() => handleEditItem(item)}>
                   <Ionicons name="create-outline" size={16} color={colors.navy} />
                   <Text style={styles.editText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.dupeBtn}>
+                <TouchableOpacity style={styles.dupeBtn} onPress={() => handleDuplicateItem(item)}>
                   <Ionicons name="copy-outline" size={16} color={colors.teal} />
                   <Text style={styles.dupeText}>Duplicate</Text>
                 </TouchableOpacity>
@@ -227,7 +315,7 @@ export default function MerchantMenuScreen({ navigation }: any) {
         ))}
 
         {/* Add Item to Category */}
-        <TouchableOpacity style={styles.addItemCard}>
+        <TouchableOpacity style={styles.addItemCard} onPress={() => setShowAddItem(true)}>
           <Ionicons name="add-circle-outline" size={24} color={colors.teal} />
           <Text style={styles.addItemText}>Add item to {currentCategory?.name}</Text>
         </TouchableOpacity>
@@ -236,15 +324,15 @@ export default function MerchantMenuScreen({ navigation }: any) {
         <View style={styles.bulkSection}>
           <Text style={styles.bulkTitle}>Bulk Actions</Text>
           <View style={styles.bulkRow}>
-            <TouchableOpacity style={styles.bulkBtn}>
+            <TouchableOpacity style={styles.bulkBtn} onPress={() => handleBulkToggle(false)}>
               <Ionicons name="eye-off-outline" size={18} color={colors.warning} />
               <Text style={styles.bulkText}>Hide All</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.bulkBtn}>
+            <TouchableOpacity style={styles.bulkBtn} onPress={() => handleBulkToggle(true)}>
               <Ionicons name="eye-outline" size={18} color={colors.teal} />
               <Text style={styles.bulkText}>Show All</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.bulkBtn}>
+            <TouchableOpacity style={styles.bulkBtn} onPress={() => Alert.alert('Bulk Price', 'Bulk pricing coming soon.')}>
               <Ionicons name="pricetag-outline" size={18} color={colors.navy} />
               <Text style={styles.bulkText}>Bulk Price</Text>
             </TouchableOpacity>
@@ -257,6 +345,38 @@ export default function MerchantMenuScreen({ navigation }: any) {
 
         <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* Add Item Modal */}
+      <Modal visible={showAddItem} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Menu Item</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Item name"
+              placeholderTextColor={colors.textLight}
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Price (₦)"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={newItemPrice}
+              onChangeText={setNewItemPrice}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => { setShowAddItem(false); setNewItemName(''); setNewItemPrice(''); }}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={handleAddItem}>
+                <Text style={styles.modalSaveText}>Add Item</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -560,5 +680,63 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  modalCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalSave: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.teal,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textWhite,
   },
 });

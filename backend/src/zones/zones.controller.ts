@@ -24,8 +24,9 @@ export class ZonesController {
   }
 
   @Get('business/:businessId')
-  async getBusinessZones(@Param('businessId') businessId: string) {
-    return this.zonesService.getBusinessZones(businessId);
+  async getBusinessZones(@Param('businessId') businessId: string, @Request() req: any) {
+    const resolvedId = businessId === 'me' ? req.user.sub : businessId;
+    return this.zonesService.getBusinessZones(resolvedId);
   }
 
   @Get(':id')

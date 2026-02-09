@@ -114,10 +114,10 @@ export class AdminController {
   //   return this.adminService.verifyMerchant(id);
   // }
 
-  // @Post('invite/merchant')
-  // async inviteMerchant(@Body() dto: InviteMerchantDto) {
-  //   return this.adminService.inviteMerchant(dto.email, dto.businessName);
-  // }
+  @Post('invite/merchant')
+  async inviteMerchant(@Body() dto: InviteMerchantDto) {
+    return this.adminService.inviteMerchant(dto.email, dto.businessName, dto.ownerName, dto.phone, dto.commission);
+  }
 
   // @Post('invite/courier')
   // async inviteCourier(@Body() dto: InviteCourierDto) {

@@ -13,42 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { reviewsAPI } from '../../services/api';
 
-const mockReviews = [
-  {
-    id: '1', customerName: 'Adaeze O.', avatar: 'https://i.pravatar.cc/100?img=1',
-    rating: 5, foodQuality: 5, serviceQuality: 5, deliverySpeed: 4, valueForMoney: 5,
-    comment: 'Best burger in Lagos! The patty was juicy and perfectly seasoned. Will definitely order again.',
-    date: '2 hours ago', orderId: '#3242', helpful: 12, responded: false,
-  },
-  {
-    id: '2', customerName: 'Chidi K.', avatar: 'https://i.pravatar.cc/100?img=3',
-    rating: 4, foodQuality: 4, serviceQuality: 4, deliverySpeed: 3, valueForMoney: 4,
-    comment: 'Food was great but delivery took a bit longer than expected. The fries were still crispy though!',
-    date: '1 day ago', orderId: '#3238', helpful: 5, responded: true,
-    businessResponse: 'Thank you for your feedback! We\'re working on improving delivery times.',
-  },
-  {
-    id: '3', customerName: 'Funke A.', avatar: 'https://i.pravatar.cc/100?img=5',
-    rating: 3, foodQuality: 3, serviceQuality: 3, deliverySpeed: 2, valueForMoney: 3,
-    comment: 'The chicken wings were cold when they arrived. Sauce was good though.',
-    date: '3 days ago', orderId: '#3229', helpful: 2, responded: false,
-  },
-  {
-    id: '4', customerName: 'Emeka N.', avatar: 'https://i.pravatar.cc/100?img=8',
-    rating: 5, foodQuality: 5, serviceQuality: 5, deliverySpeed: 5, valueForMoney: 4,
-    comment: 'Absolutely amazing! The BBQ Bacon Burger is a must-try. Packaging was also top-notch.',
-    date: '5 days ago', orderId: '#3215', helpful: 18, responded: false,
-  },
-];
-
-const ratingStats = { avg: 4.3, total: 342, distribution: [180, 95, 42, 18, 7] };
 
 export default function ReviewsScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | number>('all');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
-  const [reviews, setReviews] = useState(mockReviews);
-  const [stats, setStats] = useState(ratingStats);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState({ avg: 0, total: 0, distribution: [0, 0, 0, 0, 0] });
 
   useEffect(() => {
     (async () => {
@@ -84,10 +55,14 @@ export default function ReviewsScreen({ navigation }: any) {
   );
 
   const handleReply = (reviewId: string) => {
-    if (!replyText.trim()) return;
-    // TODO: Call reviewsAPI.respond(reviewId, replyText)
-    setReplyingTo(null);
-    setReplyText('');
+    handleRespond(reviewId);
+  };
+
+  const handleHelpful = async (reviewId: string) => {
+    try {
+      await reviewsAPI.markHelpful(reviewId);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, helpful: (r.helpful || 0) + 1 } : r));
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not mark helpful'); }
   };
 
   return (
@@ -104,9 +79,9 @@ export default function ReviewsScreen({ navigation }: any) {
         {/* Rating Summary */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryLeft}>
-            <Text style={styles.avgRating}>{ratingStats.avg}</Text>
-            {renderStars(Math.round(ratingStats.avg), 18)}
-            <Text style={styles.totalReviews}>{ratingStats.total} reviews</Text>
+            <Text style={styles.avgRating}>{stats.avg}</Text>
+            {renderStars(Math.round(stats.avg), 18)}
+            <Text style={styles.totalReviews}>{stats.total} reviews</Text>
           </View>
           <View style={styles.summaryRight}>
             {[5, 4, 3, 2, 1].map((star, idx) => (
@@ -114,9 +89,9 @@ export default function ReviewsScreen({ navigation }: any) {
                 <Text style={styles.distStar}>{star}</Text>
                 <Ionicons name="star" size={10} color={colors.warning} />
                 <View style={styles.distBarBg}>
-                  <View style={[styles.distBarFill, { width: `${(ratingStats.distribution[idx] / ratingStats.total) * 100}%` }]} />
+                  <View style={[styles.distBarFill, { width: `${(stats.distribution[idx] / stats.total) * 100}%` }]} />
                 </View>
-                <Text style={styles.distCount}>{ratingStats.distribution[idx]}</Text>
+                <Text style={styles.distCount}>{stats.distribution[idx]}</Text>
               </View>
             ))}
           </View>
@@ -184,7 +159,7 @@ export default function ReviewsScreen({ navigation }: any) {
 
               {/* Actions */}
               <View style={styles.reviewActions}>
-                <TouchableOpacity style={styles.helpfulBtn}>
+                <TouchableOpacity style={styles.helpfulBtn} onPress={() => handleHelpful(review.id)}>
                   <Ionicons name="thumbs-up-outline" size={16} color={colors.textLight} />
                   <Text style={styles.helpfulText}>{review.helpful}</Text>
                 </TouchableOpacity>

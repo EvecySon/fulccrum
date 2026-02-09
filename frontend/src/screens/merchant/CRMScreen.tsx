@@ -28,18 +28,6 @@ interface Campaign {
   effectiveness: number;
 }
 
-const mockCustomers: CustomerProfile[] = [
-  { id: '1', name: 'Adebayo Johnson', avatar: 'https://i.pravatar.cc/100?img=12', totalOrders: 34, totalSpent: 156000, favoriteItems: ['Cheeseburger', 'Fries'], frequency: 'weekly', loyaltyScore: 92, lastVisit: '2 days ago' },
-  { id: '2', name: 'Chioma Okafor', avatar: 'https://i.pravatar.cc/100?img=25', totalOrders: 21, totalSpent: 89000, favoriteItems: ['Caesar Salad', 'Lemonade'], frequency: 'weekly', loyaltyScore: 78, lastVisit: '5 days ago' },
-  { id: '3', name: 'Emeka Nwosu', avatar: 'https://i.pravatar.cc/100?img=33', totalOrders: 12, totalSpent: 54000, favoriteItems: ['Chicken Wings'], frequency: 'monthly', loyaltyScore: 55, lastVisit: '2 weeks ago' },
-  { id: '4', name: 'Fatima Bello', avatar: 'https://i.pravatar.cc/100?img=44', totalOrders: 48, totalSpent: 210000, favoriteItems: ['BBQ Burger', 'Milkshake', 'Onion Rings'], frequency: 'daily', loyaltyScore: 98, lastVisit: 'Today' },
-];
-
-const mockCampaigns: Campaign[] = [
-  { id: 'c1', name: 'Welcome Back', type: 'discount', targetCount: 15, status: 'active', effectiveness: 0.72 },
-  { id: 'c2', name: 'VIP Appreciation', type: 'free_item', targetCount: 8, status: 'active', effectiveness: 0.89 },
-  { id: 'c3', name: 'Weekend Special', type: 'bonus_points', targetCount: 45, status: 'draft', effectiveness: 0 },
-];
 
 export default function CRMScreen({ navigation }: any) {
   const [customers, setCustomers] = useState<CustomerProfile[]>([]);
@@ -54,11 +42,10 @@ export default function CRMScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const [cust, camp] = await Promise.all([merchantCrmAPI.getCustomerProfiles(), merchantCrmAPI.getCampaigns()]);
-      setCustomers(Array.isArray(cust?.data || cust) ? (cust?.data || cust) : mockCustomers);
-      setCampaigns(Array.isArray(camp?.data || camp) ? (camp?.data || camp) : mockCampaigns);
+      setCustomers(Array.isArray(cust?.data || cust) ? (cust?.data || cust) : []);
+      setCampaigns(Array.isArray(camp?.data || camp) ? (camp?.data || camp) : []);
     } catch {
-      setCustomers(mockCustomers);
-      setCampaigns(mockCampaigns);
+      // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
   };
 

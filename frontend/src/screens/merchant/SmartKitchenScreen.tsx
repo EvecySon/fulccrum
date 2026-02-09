@@ -27,26 +27,6 @@ interface InventoryItem {
   autoReorder: boolean;
 }
 
-const mockOrders: KitchenOrder[] = [
-  { id: 'k1', orderId: '#3250', items: ['Cheeseburger x2', 'Fries x2'], station: 'Grill', status: 'prepping', estimatedTime: 12, actualTime: 8, priority: 'rush' },
-  { id: 'k2', orderId: '#3251', items: ['Caesar Salad', 'Lemonade'], station: 'Cold', status: 'queued', estimatedTime: 5, priority: 'normal' },
-  { id: 'k3', orderId: '#3252', items: ['Chicken Wings x3', 'Onion Rings'], station: 'Fryer', status: 'prepping', estimatedTime: 15, actualTime: 10, priority: 'normal' },
-  { id: 'k4', orderId: '#3249', items: ['Milkshake x2'], station: 'Drinks', status: 'ready', estimatedTime: 3, actualTime: 2, priority: 'normal' },
-];
-
-const mockInventory: InventoryItem[] = [
-  { id: 'i1', name: 'Beef Patties', stock: 24, reorderPoint: 20, unit: 'pcs', autoReorder: true },
-  { id: 'i2', name: 'Burger Buns', stock: 18, reorderPoint: 25, unit: 'pcs', autoReorder: true },
-  { id: 'i3', name: 'Lettuce', stock: 5, reorderPoint: 10, unit: 'heads', autoReorder: false },
-  { id: 'i4', name: 'Frying Oil', stock: 8, reorderPoint: 5, unit: 'liters', autoReorder: true },
-];
-
-const mockPredictions = {
-  peakHour: '12:00 PM - 1:30 PM',
-  expectedOrders: 45,
-  avgPrepTime: '14 min',
-  staffRecommendation: '3 cooks needed',
-};
 
 export default function SmartKitchenScreen({ navigation }: any) {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
@@ -61,12 +41,9 @@ export default function SmartKitchenScreen({ navigation }: any) {
     try {
       const [ops, inv] = await Promise.all([kitchenAPI.getOperations(), kitchenAPI.getInventory()]);
       if (Array.isArray(ops)) setOrders(ops);
-      else setOrders(mockOrders);
       if (Array.isArray(inv)) setInventory(inv);
-      else setInventory(mockInventory);
     } catch {
-      setOrders(mockOrders);
-      setInventory(mockInventory);
+      // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -183,22 +160,22 @@ export default function SmartKitchenScreen({ navigation }: any) {
               <View style={styles.predCard}>
                 <Ionicons name="time" size={28} color={colors.warning} />
                 <Text style={styles.predTitle}>Peak Hour</Text>
-                <Text style={styles.predValue}>{mockPredictions.peakHour}</Text>
+                <Text style={styles.predValue}>—</Text>
               </View>
               <View style={styles.predCard}>
                 <Ionicons name="receipt" size={28} color={colors.teal} />
                 <Text style={styles.predTitle}>Expected Orders</Text>
-                <Text style={styles.predValue}>{mockPredictions.expectedOrders}</Text>
+                <Text style={styles.predValue}>—</Text>
               </View>
               <View style={styles.predCard}>
                 <Ionicons name="timer" size={28} color={colors.navy} />
                 <Text style={styles.predTitle}>Avg Prep Time</Text>
-                <Text style={styles.predValue}>{mockPredictions.avgPrepTime}</Text>
+                <Text style={styles.predValue}>—</Text>
               </View>
               <View style={styles.predCard}>
                 <Ionicons name="people" size={28} color={colors.success} />
                 <Text style={styles.predTitle}>Staff Needed</Text>
-                <Text style={styles.predValue}>{mockPredictions.staffRecommendation}</Text>
+                <Text style={styles.predValue}>—</Text>
               </View>
             </View>
           )}

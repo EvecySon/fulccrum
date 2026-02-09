@@ -32,12 +32,14 @@ export class ReviewsController {
   @Get('business/:businessId')
   async getBusinessReviews(
     @Param('businessId') businessId: string,
+    @Request() req: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('minRating') minRating?: string,
   ) {
+    const resolvedId = businessId === 'me' ? req.user.sub : businessId;
     return this.reviewsService.getBusinessReviews(
-      businessId,
+      resolvedId,
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 20,
       minRating ? parseInt(minRating) : undefined,
@@ -85,8 +87,9 @@ export class ReviewsController {
   }
 
   @Get('business/:businessId/stats')
-  async getBusinessStats(@Param('businessId') businessId: string) {
-    return this.reviewsService.getBusinessRatingStats(businessId);
+  async getBusinessStats(@Param('businessId') businessId: string, @Request() req: any) {
+    const resolvedId = businessId === 'me' ? req.user.sub : businessId;
+    return this.reviewsService.getBusinessRatingStats(resolvedId);
   }
 
   @Patch(':id/hide')

@@ -8,20 +8,15 @@ import {
   Switch,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { zonesAPI } from '../../services/api';
 
-const mockZones = [
-  { id: '1', name: 'Lekki Phase 1', description: 'Primary delivery zone', deliveryFee: 500, minimumOrder: 3000, estimatedDeliveryTime: 20, maxOrders: 50, isActive: true, orderCount: 34 },
-  { id: '2', name: 'Victoria Island', description: 'Business district area', deliveryFee: 700, minimumOrder: 4000, estimatedDeliveryTime: 30, maxOrders: 30, isActive: true, orderCount: 22 },
-  { id: '3', name: 'Ikoyi', description: 'Residential area', deliveryFee: 600, minimumOrder: 3500, estimatedDeliveryTime: 25, maxOrders: 25, isActive: true, orderCount: 15 },
-  { id: '4', name: 'Ajah', description: 'Extended delivery zone', deliveryFee: 1200, minimumOrder: 5000, estimatedDeliveryTime: 45, maxOrders: 15, isActive: false, orderCount: 0 },
-];
 
 export default function DeliveryZonesScreen({ navigation }: any) {
-  const [zones, setZones] = useState(mockZones);
+  const [zones, setZones] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -32,9 +27,73 @@ export default function DeliveryZonesScreen({ navigation }: any) {
     })();
   }, []);
   const [expandedZone, setExpandedZone] = useState<string | null>(null);
+  const [showAddZone, setShowAddZone] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [newZoneFee, setNewZoneFee] = useState('');
+  const [editedZones, setEditedZones] = useState<Record<string, any>>({});
 
-  const toggleZone = (id: string) => {
+  const toggleZone = async (id: string) => {
+    const zone = zones.find(z => z.id === id);
+    if (!zone) return;
     setZones(prev => prev.map(z => z.id === id ? { ...z, isActive: !z.isActive } : z));
+    try {
+      await zonesAPI.update(id, { isActive: !zone.isActive });
+    } catch (e: any) {
+      setZones(prev => prev.map(z => z.id === id ? { ...z, isActive: zone.isActive } : z));
+      Alert.alert('Error', e?.message || 'Could not toggle zone');
+    }
+  };
+
+  const handleAddZone = async () => {
+    if (!newZoneName.trim()) { Alert.alert('Missing Info', 'Enter a zone name.'); return; }
+    try {
+      const created = await zonesAPI.create({
+        name: newZoneName.trim(),
+        deliveryFee: parseFloat(newZoneFee) || 500,
+        isActive: true,
+        estimatedDeliveryTime: 30,
+        maxOrders: 10,
+        minimumOrder: 1000,
+      });
+      setZones(prev => [...prev, { ...created, orderCount: 0 }]);
+      setShowAddZone(false);
+      setNewZoneName(''); setNewZoneFee('');
+      Alert.alert('Success', 'Delivery zone created!');
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not create zone'); }
+  };
+
+  const handleSaveZone = async (zone: any) => {
+    const edits = editedZones[zone.id];
+    if (!edits) { Alert.alert('No Changes', 'No changes to save.'); return; }
+    try {
+      await zonesAPI.update(zone.id, edits);
+      setZones(prev => prev.map(z => z.id === zone.id ? { ...z, ...edits } : z));
+      setEditedZones(prev => { const n = { ...prev }; delete n[zone.id]; return n; });
+      Alert.alert('Saved', 'Zone updated successfully.');
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not save zone'); }
+  };
+
+  const handleDeleteZone = (id: string, name: string) => {
+    Alert.alert('Delete Zone', `Delete "${name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await zonesAPI.delete(id);
+            setZones(prev => prev.filter(z => z.id !== id));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete zone'); }
+        },
+      },
+    ]);
+  };
+
+  const updateZoneField = (zoneId: string, field: string, value: any) => {
+    setEditedZones(prev => ({
+      ...prev,
+      [zoneId]: { ...(prev[zoneId] || {}), [field]: value },
+    }));
   };
 
   const activeZones = zones.filter(z => z.isActive).length;
@@ -47,7 +106,7 @@ export default function DeliveryZonesScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Delivery Zones</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowAddZone(true)}>
           <Ionicons name="add-circle-outline" size={24} color={colors.teal} />
         </TouchableOpacity>
       </View>
@@ -126,8 +185,9 @@ export default function DeliveryZonesScreen({ navigation }: any) {
                     <Text style={styles.detailPrefix}>₦</Text>
                     <TextInput
                       style={styles.detailValue}
-                      value={zone.deliveryFee.toString()}
+                      defaultValue={zone.deliveryFee.toString()}
                       keyboardType="numeric"
+                      onChangeText={(v) => updateZoneField(zone.id, 'deliveryFee', parseFloat(v) || 0)}
                     />
                   </View>
                 </View>
@@ -137,8 +197,9 @@ export default function DeliveryZonesScreen({ navigation }: any) {
                     <Text style={styles.detailPrefix}>₦</Text>
                     <TextInput
                       style={styles.detailValue}
-                      value={zone.minimumOrder.toString()}
+                      defaultValue={zone.minimumOrder.toString()}
                       keyboardType="numeric"
+                      onChangeText={(v) => updateZoneField(zone.id, 'minimumOrder', parseFloat(v) || 0)}
                     />
                   </View>
                 </View>
@@ -147,8 +208,9 @@ export default function DeliveryZonesScreen({ navigation }: any) {
                   <View style={styles.detailInput}>
                     <TextInput
                       style={styles.detailValue}
-                      value={zone.estimatedDeliveryTime.toString()}
+                      defaultValue={zone.estimatedDeliveryTime.toString()}
                       keyboardType="numeric"
+                      onChangeText={(v) => updateZoneField(zone.id, 'estimatedDeliveryTime', parseInt(v) || 0)}
                     />
                     <Text style={styles.detailSuffix}>min</Text>
                   </View>
@@ -158,16 +220,17 @@ export default function DeliveryZonesScreen({ navigation }: any) {
                   <View style={styles.detailInput}>
                     <TextInput
                       style={styles.detailValue}
-                      value={zone.maxOrders.toString()}
+                      defaultValue={zone.maxOrders.toString()}
                       keyboardType="numeric"
+                      onChangeText={(v) => updateZoneField(zone.id, 'maxOrders', parseInt(v) || 0)}
                     />
                   </View>
                 </View>
                 <View style={styles.detailActions}>
-                  <TouchableOpacity style={styles.saveZoneBtn}>
+                  <TouchableOpacity style={styles.saveZoneBtn} onPress={() => handleSaveZone(zone)}>
                     <Text style={styles.saveZoneBtnText}>Save Changes</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteZoneBtn}>
+                  <TouchableOpacity style={styles.deleteZoneBtn} onPress={() => handleDeleteZone(zone.id, zone.name)}>
                     <Ionicons name="trash-outline" size={16} color={colors.error} />
                     <Text style={styles.deleteZoneBtnText}>Delete</Text>
                   </TouchableOpacity>
@@ -179,6 +242,38 @@ export default function DeliveryZonesScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Add Zone Modal */}
+      <Modal visible={showAddZone} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>Add Delivery Zone</Text>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 12 }}
+              placeholder="Zone name (e.g. Downtown)"
+              placeholderTextColor={colors.textLight}
+              value={newZoneName}
+              onChangeText={setNewZoneName}
+            />
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 16 }}
+              placeholder="Delivery fee (₦)"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={newZoneFee}
+              onChangeText={setNewZoneFee}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowAddZone(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={handleAddZone}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Add Zone</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

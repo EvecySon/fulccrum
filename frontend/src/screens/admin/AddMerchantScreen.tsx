@@ -18,6 +18,7 @@ const commissionOptions = [8, 10, 12, 15, 20];
 export default function AddMerchantScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +40,7 @@ export default function AddMerchantScreen({ navigation }: any) {
   ];
 
   const handleInvite = async () => {
+    setSuccess('');
     if (!ownerName.trim()) { setError('Owner name is required'); return; }
     if (!email.trim()) { setError('Email is required'); return; }
     if (!businessName.trim()) { setError('Business name is required'); return; }
@@ -46,11 +48,21 @@ export default function AddMerchantScreen({ navigation }: any) {
     setLoading(true);
     try {
       await adminAPI.inviteMerchant({ email, businessName, ownerName, phone: phone || undefined, commission });
-      Alert.alert(
-        'Invitation Sent!',
-        `An invite has been sent to ${email}. ${ownerName} will receive an email with instructions to complete registration${waiveFee ? ' (registration fee waived)' : ''}.`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      const sentEmail = email;
+      // Clear all fields
+      setOwnerName('');
+      setEmail('');
+      setPhone('');
+      setBusinessName('');
+      setBusinessType('restaurant');
+      setCommission(10);
+      setAddress('');
+      setCity('');
+      setState('');
+      setNotes('');
+      setWaiveFee(false);
+      setError('');
+      setSuccess(`Invitation sent to ${sentEmail}!`);
     } catch (err: any) {
       setError(err.message || 'Failed to send invitation');
     } finally {
@@ -81,6 +93,13 @@ export default function AddMerchantScreen({ navigation }: any) {
           <View style={styles.errorBanner}>
             <Ionicons name="alert-circle" size={18} color={colors.error} />
             <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {success ? (
+          <View style={styles.successBanner}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            <Text style={styles.successText}>{success}</Text>
           </View>
         ) : null}
 
@@ -303,6 +322,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error + '10', borderRadius: 12, padding: 12, marginBottom: 12,
   },
   errorText: { fontSize: 14, color: colors.error, flex: 1 },
+  successBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20,
+    backgroundColor: colors.success + '15', borderRadius: 12, padding: 12, marginBottom: 12,
+  },
+  successText: { fontSize: 14, color: colors.success, flex: 1, fontWeight: '600' },
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 14 },
   inputGroup: { marginBottom: 14 },
