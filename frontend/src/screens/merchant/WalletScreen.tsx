@@ -14,47 +14,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { walletAPI } from '../../services/api';
 
-const mockWallet = {
-  balance: 485000,
-  pendingBalance: 67500,
-  frozenBalance: 0,
-  todayEarnings: 45200,
-  weeklyEarnings: 312000,
-  currency: 'NGN',
-};
-
-const mockBankAccounts = [
-  { id: '1', bankName: 'GTBank', accountNumber: '****4521', accountName: 'Chukwu Foods Ltd', isDefault: true },
-  { id: '2', bankName: 'Access Bank', accountNumber: '****8903', accountName: 'Chukwu Emmanuel', isDefault: false },
-];
-
-const mockTransactions = [
-  { id: 't1', type: 'order_earning', desc: 'Order #FUL-3242', amount: 8500, commission: 850, date: 'Today, 3:15 PM' },
-  { id: 't2', type: 'order_earning', desc: 'Order #FUL-3240', amount: 12300, commission: 1230, date: 'Today, 1:45 PM' },
-  { id: 't3', type: 'order_earning', desc: 'Order #FUL-3238', amount: 6700, commission: 670, date: 'Today, 11:20 AM' },
-  { id: 't4', type: 'withdrawal', desc: 'Bank withdrawal → GTBank', amount: -150000, commission: 0, date: 'Feb 5, 2026' },
-  { id: 't5', type: 'order_earning', desc: 'Order #FUL-3235', amount: 15400, commission: 1540, date: 'Feb 5, 2026' },
-  { id: 't6', type: 'refund', desc: 'Refund — Order #FUL-3220', amount: -4500, commission: 0, date: 'Feb 4, 2026' },
-  { id: 't7', type: 'order_earning', desc: 'Order #FUL-3218', amount: 9800, commission: 980, date: 'Feb 4, 2026' },
-  { id: 't8', type: 'bonus', desc: 'Weekend promo bonus', amount: 5000, commission: 0, date: 'Feb 3, 2026' },
-];
-
-const mockWithdrawals = [
-  { id: '1', amount: 150000, status: 'completed', requestedAt: 'Feb 5, 2026', processedAt: 'Feb 6, 2026', bank: 'GTBank ****4521' },
-  { id: '2', amount: 200000, status: 'processing', requestedAt: 'Feb 7, 2026', processedAt: null, bank: 'GTBank ****4521' },
-  { id: '3', amount: 100000, status: 'completed', requestedAt: 'Jan 28, 2026', processedAt: 'Jan 29, 2026', bank: 'Access ****8903' },
-  { id: '4', amount: 75000, status: 'failed', requestedAt: 'Jan 20, 2026', processedAt: null, bank: 'GTBank ****4521', failedReason: 'Insufficient balance' },
-  { id: '5', amount: 300000, status: 'completed', requestedAt: 'Jan 15, 2026', processedAt: 'Jan 16, 2026', bank: 'GTBank ****4521' },
-];
 
 export default function WalletScreen({ navigation }: any) {
-  const [wallet, setWallet] = useState(mockWallet);
-  const [bankAccounts, setBankAccounts] = useState(mockBankAccounts);
-  const [transactions, setTransactions] = useState(mockTransactions);
-  const [withdrawals, setWithdrawals] = useState(mockWithdrawals);
+  const [wallet, setWallet] = useState({ balance: 0, pendingBalance: 0, frozenBalance: 0, todayEarnings: 0, weeklyEarnings: 0, currency: 'NGN' });
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [selectedBank, setSelectedBank] = useState(mockBankAccounts.find(b => b.isDefault)?.id || '1');
+  const [selectedBank, setSelectedBank] = useState('');
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'earnings' | 'withdrawals'>('earnings');
 
@@ -118,7 +86,7 @@ export default function WalletScreen({ navigation }: any) {
     }
   };
 
-  const renderEarningItem = (tx: typeof mockTransactions[0]) => {
+  const renderEarningItem = (tx: any) => {
     const icon = getTxIcon(tx.type);
     return (
       <View style={styles.txCard}>
@@ -138,7 +106,7 @@ export default function WalletScreen({ navigation }: any) {
     );
   };
 
-  const renderWithdrawalItem = (withdrawal: typeof mockWithdrawals[0]) => {
+  const renderWithdrawalItem = (withdrawal: any) => {
     const statusStyle = getStatusStyle(withdrawal.status);
     return (
       <View style={styles.txCard}>

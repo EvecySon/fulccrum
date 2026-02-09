@@ -12,52 +12,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { ordersAPI } from '../../services/api';
 
-const mockOrders = [
-  {
-    id: '#3250', customerName: 'Sarah Johnson', items: ['Gourmet Cheeseburger x2', 'Classic Fries x2', 'Milkshake x1'],
-    total: 46.96, status: 'new', timeAgo: '2 mins ago', notes: 'No onions on burgers please',
-  },
-  {
-    id: '#3249', customerName: 'David Kim', items: ['BBQ Bacon Burger x1', 'Caesar Salad x1'],
-    total: 26.98, status: 'new', timeAgo: '5 mins ago', notes: '',
-  },
-  {
-    id: '#3248', customerName: 'Emily Chen', items: ['Chicken Wings x2', 'Classic Fries x1'],
-    total: 30.97, status: 'preparing', timeAgo: '12 mins ago', prepProgress: 65, notes: 'Extra ranch dip',
-  },
-  {
-    id: '#3247', customerName: 'Tom Wilson', items: ['Gourmet Cheeseburger x1'],
-    total: 14.99, status: 'preparing', timeAgo: '18 mins ago', prepProgress: 90, notes: '',
-  },
-  {
-    id: '#3246', customerName: 'Lisa Park', items: ['Caesar Salad x2', 'Milkshake x2'],
-    total: 33.96, status: 'ready', timeAgo: '22 mins ago', notes: '',
-  },
-  {
-    id: '#3245', customerName: 'James Brown', items: ['BBQ Bacon Burger x1', 'Classic Fries x1', 'Milkshake x1'],
-    total: 28.97, status: 'picked_up', timeAgo: '30 mins ago', notes: '',
-  },
-  {
-    id: '#3242', customerName: 'Anna Davis', items: ['Gourmet Cheeseburger x1', 'Classic Fries x1'],
-    total: 19.98, status: 'completed', timeAgo: '45 mins ago', notes: '',
-  },
-  {
-    id: '#3240', customerName: 'Michael Lee', items: ['Chicken Wings x1', 'Caesar Salad x1'],
-    total: 22.98, status: 'completed', timeAgo: '1 hr ago', notes: '',
-  },
-];
 
 type OrderStatus = 'all' | 'new' | 'preparing' | 'ready' | 'picked_up' | 'completed';
 
 export default function MerchantOrdersScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = useState<OrderStatus>('all');
-  const [allOrders, setAllOrders] = useState(mockOrders);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadOrders = useCallback(async () => {
     try {
       const res = await ordersAPI.getMyOrders();
-      if (res?.data?.length) setAllOrders(res.data);
+      if (res?.data) setAllOrders(res.data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
 
@@ -153,8 +119,15 @@ export default function MerchantOrdersScreen({ navigation }: any) {
 
       {/* Orders List */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={colors.teal} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
       >
+        {filteredOrders.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>No orders yet</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 4 }}>Orders will appear here when customers place them</Text>
+          </View>
+        )}
         {filteredOrders.map((order) => {
           const action = getActionButton(order.status);
           return (
@@ -175,7 +148,7 @@ export default function MerchantOrdersScreen({ navigation }: any) {
 
               {/* Items */}
               <View style={styles.orderItems}>
-                {order.items.map((item, idx) => (
+                {order.items.map((item: any, idx: number) => (
                   <Text key={idx} style={styles.orderItemText}>• {item}</Text>
                 ))}
               </View>

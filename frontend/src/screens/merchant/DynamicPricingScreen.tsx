@@ -16,13 +16,6 @@ interface PricingRule {
   type: 'surge' | 'discount' | 'happy_hour';
 }
 
-const mockRules: PricingRule[] = [
-  { id: '1', name: 'Rainy Day Surge', conditions: 'Weather: Rain', adjustment: 10, active: true, type: 'surge' },
-  { id: '2', name: 'Happy Hour', conditions: '2 PM - 4 PM weekdays', adjustment: -15, active: true, type: 'happy_hour' },
-  { id: '3', name: 'Weekend Peak', conditions: 'Sat-Sun 12 PM - 2 PM', adjustment: 8, active: false, type: 'surge' },
-  { id: '4', name: 'Late Night Discount', conditions: 'After 9 PM', adjustment: -20, active: true, type: 'discount' },
-  { id: '5', name: 'High Demand', conditions: 'Order queue > 10', adjustment: 12, active: false, type: 'surge' },
-];
 
 export default function DynamicPricingScreen({ navigation }: any) {
   const [rules, setRules] = useState<PricingRule[]>([]);
@@ -34,9 +27,9 @@ export default function DynamicPricingScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const data = await dynamicPricingAPI.getRules();
-      setRules(Array.isArray(data?.rules || data) ? (data?.rules || data) : mockRules);
+      setRules(Array.isArray(data?.rules || data) ? (data?.rules || data) : []);
     } catch {
-      setRules(mockRules);
+      // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
   };
 

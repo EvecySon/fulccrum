@@ -15,56 +15,36 @@ import { colors } from '../../theme/colors';
 import { menuAPI, uploadAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 
-const menuCategories = [
-  {
-    id: '1',
-    name: 'Burgers',
-    items: [
-      { id: '1', name: 'Gourmet Cheeseburger', price: 14.99, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop', available: true, popular: true, orders: 156 },
-      { id: '2', name: 'BBQ Bacon Burger', price: 16.99, image: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=200&h=200&fit=crop', available: true, popular: false, orders: 89 },
-      { id: '3', name: 'Veggie Burger', price: 13.99, image: 'https://images.unsplash.com/photo-1520072959219-c595e6cdc07e?w=200&h=200&fit=crop', available: false, popular: false, orders: 34 },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Sides',
-    items: [
-      { id: '4', name: 'Classic Fries', price: 4.99, image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&h=200&fit=crop', available: true, popular: true, orders: 210 },
-      { id: '5', name: 'Onion Rings', price: 5.99, image: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=200&h=200&fit=crop', available: true, popular: false, orders: 67 },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Starters',
-    items: [
-      { id: '6', name: 'Chicken Wings', price: 12.99, image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=200&h=200&fit=crop', available: true, popular: true, orders: 134 },
-      { id: '7', name: 'Mozzarella Sticks', price: 8.99, image: 'https://images.unsplash.com/photo-1531749668029-2db88e4276c7?w=200&h=200&fit=crop', available: true, popular: false, orders: 45 },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Salads',
-    items: [
-      { id: '8', name: 'Caesar Salad', price: 9.99, image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=200&h=200&fit=crop', available: true, popular: false, orders: 78 },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Drinks',
-    items: [
-      { id: '9', name: 'Milkshake', price: 6.99, image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=200&h=200&fit=crop', available: true, popular: false, orders: 92 },
-      { id: '10', name: 'Fresh Lemonade', price: 3.99, image: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=200&h=200&fit=crop', available: true, popular: false, orders: 56 },
-    ],
-  },
-];
 
 export default function MerchantMenuScreen({ navigation }: any) {
-  const [selectedCategory, setSelectedCategory] = useState('1');
-  const [itemAvailability, setItemAvailability] = useState<Record<string, boolean>>(
-    Object.fromEntries(
-      menuCategories.flatMap(c => c.items.map(i => [i.id, i.available]))
-    )
-  );
+  const [menuCategories, setMenuCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [itemAvailability, setItemAvailability] = useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await menuAPI.getCategories('me');
+        if (res?.categories?.length) {
+          setMenuCategories(res.categories);
+          setSelectedCategory(res.categories[0].id);
+          setItemAvailability(
+            Object.fromEntries(
+              res.categories.flatMap((c: any) => c.items.map((i: any) => [i.id, i.available]))
+            )
+          );
+        } else if (res?.length) {
+          setMenuCategories(res);
+          setSelectedCategory(res[0].id);
+          setItemAvailability(
+            Object.fromEntries(
+              res.flatMap((c: any) => (c.items || []).map((i: any) => [i.id, i.available !== false]))
+            )
+          );
+        }
+      } catch {}
+    })();
+  }, []);
 
   const toggleAvailability = (itemId: string) => {
     setItemAvailability(prev => ({ ...prev, [itemId]: !prev[itemId] }));
@@ -129,13 +109,13 @@ export default function MerchantMenuScreen({ navigation }: any) {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.filter(i => i.available).length, 0)}</Text>
+          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => i.available).length, 0)}</Text>
           <Text style={styles.statLabel}>Available</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.error }]}>
-            {menuCategories.reduce((sum, c) => sum + c.items.filter(i => !i.available).length, 0)}
+            {menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => !i.available).length, 0)}
           </Text>
           <Text style={styles.statLabel}>Unavailable</Text>
         </View>
@@ -172,7 +152,15 @@ export default function MerchantMenuScreen({ navigation }: any) {
 
       {/* Menu Items */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {menuCategories.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Ionicons name="restaurant-outline" size={48} color={colors.textLight} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>No menu items yet</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 4 }}>Add items to your menu to get started</Text>
+          </View>
+        )}
         {/* Category Header */}
+        {currentCategory && (
         <View style={styles.categoryHeader}>
           <Text style={styles.categoryName}>{currentCategory?.name}</Text>
           <TouchableOpacity style={styles.editCategoryBtn}>
@@ -180,8 +168,9 @@ export default function MerchantMenuScreen({ navigation }: any) {
             <Text style={styles.editCategoryText}>Edit Category</Text>
           </TouchableOpacity>
         </View>
+        )}
 
-        {currentCategory?.items.map((item) => (
+        {currentCategory?.items?.map((item: any) => (
           <View key={item.id} style={[styles.menuItem, !itemAvailability[item.id] && styles.menuItemDisabled]}>
             <TouchableOpacity onPress={() => handlePickItemPhoto(item.id)}>
               <Image source={{ uri: item.image }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />

@@ -13,15 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { zonesAPI } from '../../services/api';
 
-const mockZones = [
-  { id: '1', name: 'Lekki Phase 1', description: 'Primary delivery zone', deliveryFee: 500, minimumOrder: 3000, estimatedDeliveryTime: 20, maxOrders: 50, isActive: true, orderCount: 34 },
-  { id: '2', name: 'Victoria Island', description: 'Business district area', deliveryFee: 700, minimumOrder: 4000, estimatedDeliveryTime: 30, maxOrders: 30, isActive: true, orderCount: 22 },
-  { id: '3', name: 'Ikoyi', description: 'Residential area', deliveryFee: 600, minimumOrder: 3500, estimatedDeliveryTime: 25, maxOrders: 25, isActive: true, orderCount: 15 },
-  { id: '4', name: 'Ajah', description: 'Extended delivery zone', deliveryFee: 1200, minimumOrder: 5000, estimatedDeliveryTime: 45, maxOrders: 15, isActive: false, orderCount: 0 },
-];
 
 export default function DeliveryZonesScreen({ navigation }: any) {
-  const [zones, setZones] = useState(mockZones);
+  const [zones, setZones] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {

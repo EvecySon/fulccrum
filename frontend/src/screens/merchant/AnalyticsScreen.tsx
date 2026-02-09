@@ -16,47 +16,20 @@ const { width } = Dimensions.get('window');
 
 const periods = ['Today', 'This Week', 'This Month', 'This Year'];
 
-const mockRevenueData = {
-  today: { total: 1890.75, change: '+12.5%', positive: true },
-  orders: { total: 47, change: '+8.2%', positive: true },
-  avgOrder: { total: 40.23, change: '-2.1%', positive: false },
-  cancelRate: { total: 3.2, change: '-0.5%', positive: true },
+const emptyRevenueData = {
+  today: { total: 0, change: '0%', positive: true },
+  orders: { total: 0, change: '0%', positive: true },
+  avgOrder: { total: 0, change: '0%', positive: true },
+  cancelRate: { total: 0, change: '0%', positive: true },
 };
-
-const hourlyOrders = [
-  { hour: '8AM', orders: 3 }, { hour: '9AM', orders: 5 }, { hour: '10AM', orders: 8 },
-  { hour: '11AM', orders: 15 }, { hour: '12PM', orders: 28 }, { hour: '1PM', orders: 22 },
-  { hour: '2PM', orders: 14 }, { hour: '3PM', orders: 9 }, { hour: '4PM', orders: 12 },
-  { hour: '5PM', orders: 18 }, { hour: '6PM', orders: 32 }, { hour: '7PM', orders: 27 },
-  { hour: '8PM', orders: 20 }, { hour: '9PM', orders: 15 }, { hour: '10PM', orders: 8 },
-];
-
-const topItems = [
-  { name: 'Classic Fries', orders: 210, revenue: 1047.90, change: '+15%' },
-  { name: 'Gourmet Cheeseburger', orders: 156, revenue: 2338.44, change: '+8%' },
-  { name: 'Chicken Wings', orders: 134, revenue: 1740.66, change: '+22%' },
-  { name: 'Milkshake', orders: 92, revenue: 643.08, change: '-3%' },
-  { name: 'Caesar Salad', orders: 78, revenue: 779.22, change: '+5%' },
-];
-
-const customerInsights = {
-  newCustomers: 23,
-  returning: 68,
-  avgRating: 4.7,
-  totalReviews: 342,
-  responseRate: 94,
-  avgResponseTime: '12 min',
-};
-
-const peakHours = [
-  { time: '12:00 - 1:00 PM', label: 'Lunch Rush', intensity: 95 },
-  { time: '6:00 - 7:00 PM', label: 'Dinner Rush', intensity: 100 },
-  { time: '7:00 - 8:00 PM', label: 'Late Dinner', intensity: 80 },
-];
 
 export default function MerchantAnalyticsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('Today');
-  const [revenueData, setRevenueData] = useState(mockRevenueData);
+  const [revenueData, setRevenueData] = useState(emptyRevenueData);
+  const [hourlyOrders, setHourlyOrders] = useState<{hour: string; orders: number}[]>([]);
+  const [topItems, setTopItems] = useState<any[]>([]);
+  const [customerInsights, setCustomerInsights] = useState({ newCustomers: 0, returning: 0, avgRating: 0, totalReviews: 0, responseRate: 0, avgResponseTime: '—' });
+  const [peakHours, setPeakHours] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {

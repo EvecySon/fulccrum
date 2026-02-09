@@ -27,19 +27,6 @@ interface Subscription {
   schedule: string;
 }
 
-const mockChannels: Channel[] = [
-  { id: '1', type: 'delivery', label: 'Delivery', icon: 'bicycle', active: true, orders: 245, revenue: 890000 },
-  { id: '2', type: 'pickup', label: 'Pickup', icon: 'storefront', active: true, orders: 89, revenue: 310000 },
-  { id: '3', type: 'catering', label: 'Catering', icon: 'people', active: false, orders: 12, revenue: 450000 },
-  { id: '4', type: 'subscription', label: 'Subscriptions', icon: 'repeat', active: true, orders: 34, revenue: 170000 },
-  { id: '5', type: 'events', label: 'Events', icon: 'calendar', active: false, orders: 0, revenue: 0 },
-];
-
-const mockSubscriptions: Subscription[] = [
-  { id: 's1', name: 'Weekly Lunch Box', type: 'weekly_meal', price: 15000, subscribers: 18, schedule: 'Mon-Fri, 12 PM' },
-  { id: 's2', name: 'Monthly Gourmet Box', type: 'monthly_box', price: 45000, subscribers: 7, schedule: '1st of every month' },
-  { id: 's3', name: 'Daily Coffee', type: 'coffee_subscription', price: 2500, subscribers: 9, schedule: 'Daily, 8 AM' },
-];
 
 export default function MultiChannelScreen({ navigation }: any) {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -52,11 +39,10 @@ export default function MultiChannelScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const [ch, sub] = await Promise.all([channelsAPI.getChannels(), channelsAPI.getSubscriptions()]);
-      setChannels(Array.isArray(ch) ? ch : mockChannels);
-      setSubscriptions(Array.isArray(sub) ? sub : mockSubscriptions);
+      setChannels(Array.isArray(ch) ? ch : []);
+      setSubscriptions(Array.isArray(sub) ? sub : []);
     } catch {
-      setChannels(mockChannels);
-      setSubscriptions(mockSubscriptions);
+      // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
   };
 

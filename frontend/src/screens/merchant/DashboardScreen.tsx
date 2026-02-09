@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockMerchantStats, mockMerchantOrders } from '../../data/mockData';
 import { analyticsAPI, ordersAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,8 +17,11 @@ const { width } = Dimensions.get('window');
 
 export default function MerchantDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
-  const [stats, setStats] = useState(mockMerchantStats);
-  const [orders, setOrders] = useState(mockMerchantOrders);
+  const [stats, setStats] = useState({
+    todayEarnings: 0, todayOrders: 0, avgOrderValue: 0, rating: 0,
+    weeklyEarnings: [{ day: 'Mon', amount: 0 }, { day: 'Tue', amount: 0 }, { day: 'Wed', amount: 0 }, { day: 'Thu', amount: 0 }, { day: 'Fri', amount: 0 }, { day: 'Sat', amount: 0 }, { day: 'Sun', amount: 0 }],
+  });
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -29,7 +31,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
           ordersAPI.getMyOrders().catch(() => null),
         ]);
         if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
-        if (ordersRes?.data?.length) setOrders(ordersRes.data);
+        if (ordersRes?.data) setOrders(ordersRes.data);
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
@@ -49,8 +51,8 @@ export default function MerchantDashboardScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Good Afternoon!</Text>
-          <Text style={styles.storeName}>Burger House</Text>
+          <Text style={styles.greeting}>Welcome back!</Text>
+          <Text style={styles.storeName}>{user?.firstName || 'My Store'}</Text>
         </View>
         <View style={styles.headerRight}>
           <View style={styles.statusBadge}>
@@ -169,6 +171,12 @@ export default function MerchantDashboardScreen({ navigation }: any) {
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
+          {orders.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+              <Ionicons name="receipt-outline" size={40} color={colors.textLight} />
+              <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>No orders yet</Text>
+            </View>
+          )}
           {orders.map((order) => (
             <TouchableOpacity key={order.id} style={styles.orderCard}>
               <View style={styles.orderTop}>
@@ -184,7 +192,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
                 </View>
               </View>
               <View style={styles.orderItems}>
-                {order.items.map((item, idx) => (
+                {order.items.map((item: any, idx: number) => (
                   <Text key={idx} style={styles.orderItemText}>• {item}</Text>
                 ))}
               </View>
@@ -214,22 +222,10 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         {/* Popular Items Today */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Sellers Today</Text>
-          {[
-            { name: 'Gourmet Cheeseburger', orders: 18, revenue: 269.82 },
-            { name: 'Classic Fries', orders: 24, revenue: 119.76 },
-            { name: 'BBQ Bacon Burger', orders: 12, revenue: 203.88 },
-          ].map((item, index) => (
-            <View key={index} style={styles.topSellerRow}>
-              <View style={styles.topSellerRank}>
-                <Text style={styles.rankText}>#{index + 1}</Text>
-              </View>
-              <View style={styles.topSellerInfo}>
-                <Text style={styles.topSellerName}>{item.name}</Text>
-                <Text style={styles.topSellerMeta}>{item.orders} orders · ₦{item.revenue.toFixed(2)}</Text>
-              </View>
-              <Ionicons name="trending-up" size={18} color={colors.success} />
-            </View>
-          ))}
+          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            <Ionicons name="trophy-outline" size={36} color={colors.textLight} />
+            <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>Top sellers will appear here</Text>
+          </View>
         </View>
 
         {/* Advanced Tools */}
@@ -271,32 +267,10 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         {/* Customer Feedback Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Reviews</Text>
-          {[
-            { name: 'Anna D.', rating: 5, text: 'Best burgers in town! Always fresh and hot.', time: '2h ago' },
-            { name: 'Mike R.', rating: 4, text: 'Great food, delivery was a bit slow.', time: '5h ago' },
-          ].map((review, index) => (
-            <View key={index} style={styles.reviewCard}>
-              <View style={styles.reviewHeader}>
-                <Text style={styles.reviewName}>{review.name}</Text>
-                <View style={styles.reviewStars}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name={star <= review.rating ? 'star' : 'star-outline'}
-                      size={14}
-                      color={colors.warning}
-                    />
-                  ))}
-                </View>
-                <Text style={styles.reviewTime}>{review.time}</Text>
-              </View>
-              <Text style={styles.reviewText}>{review.text}</Text>
-              <TouchableOpacity style={styles.replyBtn}>
-                <Ionicons name="chatbubble-outline" size={14} color={colors.teal} />
-                <Text style={styles.replyText}>Reply</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            <Ionicons name="chatbubbles-outline" size={36} color={colors.textLight} />
+            <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>No reviews yet</Text>
+          </View>
         </View>
 
         <View style={{ height: 110 }} />

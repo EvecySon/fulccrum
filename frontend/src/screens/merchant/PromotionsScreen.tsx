@@ -12,15 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { promosAPI } from '../../services/api';
 
-const mockPromos = [
-  { id: '1', code: 'WELCOME20', discountType: 'percentage', discountValue: 20, maxDiscount: 3000, minimumOrder: 5000, usedCount: 145, usageLimit: 500, validFrom: 'Jan 1', validUntil: 'Mar 31', isActive: true, applicableTo: 'first_order' },
-  { id: '2', code: 'FREEDELIVERY', discountType: 'fixed', discountValue: 700, maxDiscount: null, minimumOrder: 3000, usedCount: 89, usageLimit: 200, validFrom: 'Feb 1', validUntil: 'Feb 28', isActive: true, applicableTo: 'all' },
-  { id: '3', code: 'WEEKEND15', discountType: 'percentage', discountValue: 15, maxDiscount: 2000, minimumOrder: 4000, usedCount: 56, usageLimit: 300, validFrom: 'Feb 1', validUntil: 'Apr 1', isActive: true, applicableTo: 'all' },
-  { id: '4', code: 'LOYALTY500', discountType: 'fixed', discountValue: 500, maxDiscount: null, minimumOrder: 2000, usedCount: 200, usageLimit: 200, validFrom: 'Jan 15', validUntil: 'Feb 15', isActive: false, applicableTo: 'all' },
-];
 
 export default function PromotionsScreen({ navigation }: any) {
-  const [promos, setPromos] = useState(mockPromos);
+  const [promos, setPromos] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'expired'>('active');
 
   useEffect(() => {
