@@ -393,9 +393,9 @@ export const adminAPI = {
   getCouriers: (page = 1, limit = 50) => api.get(`/admin/couriers?page=${page}&limit=${limit}`),
   // Admin-initiated registration (invite)
   inviteMerchant: (data: { email: string; businessName: string; ownerName: string; phone?: string; commission?: number }) =>
-    api.post('/admin/merchants/invite', data),
+    api.post('/admin/invite/merchant', data),
   inviteCourier: (data: { email: string; fullName: string; phone?: string; vehicleType?: string }) =>
-    api.post('/admin/couriers/invite', data),
+    api.post('/admin/invite/courier', data),
   resendInvite: (userId: string) => api.post(`/admin/users/${userId}/resend-invite`),
   // Registration fee management
   getRegistrationFees: () => api.get('/admin/registration-fees'),
