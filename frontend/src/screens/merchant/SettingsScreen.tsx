@@ -14,7 +14,7 @@ import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -56,16 +56,15 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Store Profile */}
         <View style={styles.profileCard}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=200&fit=crop' }}
-            style={styles.storeImage}
-          />
+          <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
+            <Ionicons name="storefront" size={28} color={colors.navy} />
+          </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.storeName}>Burger House</Text>
-            <Text style={styles.storeAddress}>456 Restaurant Ave, Downtown</Text>
+            <Text style={styles.storeName}>{user?.firstName || 'My Store'}</Text>
+            <Text style={styles.storeAddress}>{user?.email || 'No email set'}</Text>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.warning} />
-              <Text style={styles.ratingText}>4.7 (342 reviews)</Text>
+              <Text style={styles.ratingText}>No reviews yet</Text>
             </View>
           </View>
           <TouchableOpacity>
@@ -81,16 +80,10 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               <Text style={styles.editLink}>Edit</Text>
             </TouchableOpacity>
           </View>
-          {[
-            { day: 'Monday - Friday', hours: '8:00 AM - 10:00 PM' },
-            { day: 'Saturday', hours: '9:00 AM - 11:00 PM' },
-            { day: 'Sunday', hours: '10:00 AM - 9:00 PM' },
-          ].map((schedule, index) => (
-            <View key={index} style={styles.scheduleRow}>
-              <Text style={styles.scheduleDay}>{schedule.day}</Text>
-              <Text style={styles.scheduleHours}>{schedule.hours}</Text>
-            </View>
-          ))}
+          <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+            <Ionicons name="time-outline" size={28} color={colors.textLight} />
+            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 6 }}>No store hours set yet</Text>
+          </View>
         </View>
 
         {/* Order Settings */}
