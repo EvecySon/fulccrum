@@ -139,7 +139,8 @@ export const api = {
   patch: <T = any>(endpoint: string, body?: any) =>
     request<T>(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
 
-  delete: <T = any>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
+  delete: <T = any>(endpoint: string, body?: any) =>
+    request<T>(endpoint, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 
   // File upload (multipart)
   upload: async <T = any>(endpoint: string, formData: FormData) => {
@@ -186,7 +187,10 @@ export const authAPI = {
     api.post('/auth/reset-password', { email, resetToken, newPassword }),
 
   resendOTP: (email: string) =>
-    api.post('/auth/forgot-password', { email }),
+    api.post('/auth/resend-otp', { email }),
+
+  verifyRegistration: (email: string, otp: string) =>
+    api.post('/auth/verify-registration', { email, otp }),
 
   refreshToken: (refreshToken: string) =>
     api.post('/auth/refresh-token', { refreshToken }),
@@ -209,6 +213,8 @@ export const usersAPI = {
   updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string }) =>
     api.patch('/users/profile', data),
   updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),
+  deleteAccount: (password: string) => api.delete('/users/account', { password }),
+  exportData: () => api.get('/users/data-export'),
 };
 
 // ─── Search API ───
@@ -403,6 +409,11 @@ export const adminAPI = {
     api.put(`/admin/registration-fees/${role}`, data),
   getRegistrationPayments: (page = 1) => api.get(`/admin/registration-payments?page=${page}`),
   waiveRegistrationFee: (userId: string) => api.post(`/admin/users/${userId}/waive-fee`),
+  // Admin user management
+  getAdmins: () => api.get('/admin/admins'),
+  createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
+    api.post('/admin/admins', data),
+  removeAdmin: (userId: string) => api.delete(`/admin/admins/${userId}`),
 };
 
 // ─── Support API ───
