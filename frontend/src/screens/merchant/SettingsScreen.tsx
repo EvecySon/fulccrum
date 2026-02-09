@@ -93,7 +93,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Store Hours</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('BusinessHours')}>
               <Text style={styles.editLink}>Edit</Text>
             </TouchableOpacity>
           </View>

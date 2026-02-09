@@ -55,10 +55,14 @@ export default function ReviewsScreen({ navigation }: any) {
   );
 
   const handleReply = (reviewId: string) => {
-    if (!replyText.trim()) return;
-    // TODO: Call reviewsAPI.respond(reviewId, replyText)
-    setReplyingTo(null);
-    setReplyText('');
+    handleRespond(reviewId);
+  };
+
+  const handleHelpful = async (reviewId: string) => {
+    try {
+      await reviewsAPI.markHelpful(reviewId);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, helpful: (r.helpful || 0) + 1 } : r));
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not mark helpful'); }
   };
 
   return (
@@ -155,7 +159,7 @@ export default function ReviewsScreen({ navigation }: any) {
 
               {/* Actions */}
               <View style={styles.reviewActions}>
-                <TouchableOpacity style={styles.helpfulBtn}>
+                <TouchableOpacity style={styles.helpfulBtn} onPress={() => handleHelpful(review.id)}>
                   <Ionicons name="thumbs-up-outline" size={16} color={colors.textLight} />
                   <Text style={styles.helpfulText}>{review.helpful}</Text>
                 </TouchableOpacity>

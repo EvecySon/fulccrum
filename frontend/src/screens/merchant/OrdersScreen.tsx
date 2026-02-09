@@ -74,11 +74,34 @@ export default function MerchantOrdersScreen({ navigation }: any) {
 
   const getActionButton = (status: string) => {
     switch (status) {
-      case 'new': return { label: 'Accept Order', color: colors.teal };
-      case 'preparing': return { label: 'Mark Ready', color: colors.warning };
-      case 'ready': return { label: 'Awaiting Courier', color: colors.navy };
+      case 'new': return { label: 'Accept Order', color: colors.teal, nextStatus: 'preparing' };
+      case 'preparing': return { label: 'Mark Ready', color: colors.warning, nextStatus: 'ready' };
+      case 'ready': return { label: 'Awaiting Courier', color: colors.navy, nextStatus: null };
       default: return null;
     }
+  };
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await ordersAPI.updateStatus(orderId, newStatus);
+      setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update order'); }
+  };
+
+  const handleRejectOrder = (orderId: string) => {
+    Alert.alert('Reject Order', 'Are you sure you want to reject this order?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await ordersAPI.updateStatus(orderId, 'cancelled');
+            setAllOrders(prev => prev.filter(o => o.id !== orderId));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not reject order'); }
+        },
+      },
+    ]);
   };
 
   return (
@@ -176,14 +199,19 @@ export default function MerchantOrdersScreen({ navigation }: any) {
                 <Text style={styles.orderTotal}>₦{order.total.toFixed(2)}</Text>
                 <View style={styles.orderActions}>
                   {order.status === 'new' && (
-                    <TouchableOpacity style={styles.rejectBtn}>
+                    <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectOrder(order.id)}>
                       <Ionicons name="close" size={16} color={colors.error} />
                     </TouchableOpacity>
                   )}
-                  {action && (
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: action.color }]}>
+                  {action && action.nextStatus && (
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: action.color }]} onPress={() => handleUpdateStatus(order.id, action.nextStatus!)}>
                       <Text style={styles.actionText}>{action.label}</Text>
                     </TouchableOpacity>
+                  )}
+                  {action && !action.nextStatus && (
+                    <View style={[styles.actionBtn, { backgroundColor: action.color + '20' }]}>
+                      <Text style={[styles.actionText, { color: action.color }]}>{action.label}</Text>
+                    </View>
                   )}
                   <TouchableOpacity style={styles.printBtn}>
                     <Ionicons name="print-outline" size={18} color={colors.navy} />

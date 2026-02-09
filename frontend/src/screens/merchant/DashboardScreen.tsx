@@ -36,6 +36,29 @@ export default function MerchantDashboardScreen({ navigation }: any) {
     })();
   }, []);
 
+  const handleAcceptOrder = async (orderId: string) => {
+    try {
+      await ordersAPI.updateStatus(orderId, 'preparing');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'preparing' } : o));
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not accept order'); }
+  };
+
+  const handleRejectOrder = (orderId: string) => {
+    Alert.alert('Reject Order', 'Are you sure you want to reject this order?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await ordersAPI.updateStatus(orderId, 'cancelled');
+            setOrders(prev => prev.filter(o => o.id !== orderId));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not reject order'); }
+        },
+      },
+    ]);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return colors.info;
@@ -200,10 +223,10 @@ export default function MerchantDashboardScreen({ navigation }: any) {
                 <Text style={styles.orderTotal}>₦{order.total.toFixed(2)}</Text>
                 {order.status === 'new' && (
                   <View style={styles.orderActions}>
-                    <TouchableOpacity style={styles.rejectBtn}>
+                    <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectOrder(order.id)}>
                       <Text style={styles.rejectText}>Reject</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.acceptBtn}>
+                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptOrder(order.id)}>
                       <Text style={styles.acceptText}>Accept</Text>
                     </TouchableOpacity>
                   </View>

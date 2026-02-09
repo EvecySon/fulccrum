@@ -8,6 +8,7 @@ import {
   TextInput,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -40,6 +41,43 @@ export default function InventoryScreen({ navigation }: any) {
   const outOfStockCount = inventory.filter(i => i.currentStock === 0).length;
   const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.costPerUnit, 0);
 
+  const [showRestock, setShowRestock] = useState<any>(null);
+  const [restockQty, setRestockQty] = useState('');
+
+  const handleRestock = async () => {
+    if (!showRestock || !restockQty) return;
+    const qty = parseInt(restockQty);
+    if (isNaN(qty) || qty <= 0) { Alert.alert('Invalid', 'Enter a valid quantity.'); return; }
+    try {
+      await menuAPI.updateInventory(showRestock.id, { currentStock: showRestock.currentStock + qty });
+      setInventory(prev => prev.map(i => i.id === showRestock.id ? { ...i, currentStock: i.currentStock + qty } : i));
+      setShowRestock(null);
+      setRestockQty('');
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not restock'); }
+  };
+
+  const handleEditStock = (item: any) => {
+    Alert.prompt('Edit Stock', `Current stock: ${item.currentStock} ${item.unit}`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save',
+        onPress: async (val?: string) => {
+          if (!val) return;
+          const newStock = parseInt(val);
+          if (isNaN(newStock)) return;
+          try {
+            await menuAPI.updateInventory(item.id, { currentStock: newStock });
+            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, currentStock: newStock } : i));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update stock'); }
+        },
+      },
+    ], 'plain-text', String(item.currentStock));
+  };
+
+  const handleAddInventory = () => {
+    Alert.alert('Add Inventory', 'To add inventory items, first add menu items from the Menu screen. Inventory is automatically tracked for all menu items.');
+  };
+
   const getStockStatus = (item: any) => {
     if (item.currentStock === 0) return { label: 'Out of Stock', color: colors.error };
     if (item.currentStock <= item.minimumStock) return { label: 'Low Stock', color: colors.warning };
@@ -53,7 +91,7 @@ export default function InventoryScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Inventory</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={handleAddInventory}>
           <Ionicons name="add-circle-outline" size={24} color={colors.teal} />
         </TouchableOpacity>
       </View>
@@ -138,11 +176,11 @@ export default function InventoryScreen({ navigation }: any) {
                   <Text style={styles.restockedText}>Restocked {item.lastRestocked}</Text>
                 </View>
                 <View style={styles.itemActions}>
-                  <TouchableOpacity style={styles.restockBtn}>
+                  <TouchableOpacity style={styles.restockBtn} onPress={() => { setShowRestock(item); setRestockQty(''); }}>
                     <Ionicons name="add" size={16} color={colors.textWhite} />
                     <Text style={styles.restockBtnText}>Restock</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.editBtn}>
+                  <TouchableOpacity style={styles.editBtn} onPress={() => handleEditStock(item)}>
                     <Ionicons name="create-outline" size={16} color={colors.navy} />
                     <Text style={styles.editBtnText}>Edit</Text>
                   </TouchableOpacity>
@@ -154,6 +192,33 @@ export default function InventoryScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Restock Modal */}
+      <Modal visible={!!showRestock} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 }}>Restock {showRestock?.name}</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginBottom: 16 }}>Current: {showRestock?.currentStock} {showRestock?.unit}</Text>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 16 }}
+              placeholder="Quantity to add"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={restockQty}
+              onChangeText={setRestockQty}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowRestock(null)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={handleRestock}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Restock</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
