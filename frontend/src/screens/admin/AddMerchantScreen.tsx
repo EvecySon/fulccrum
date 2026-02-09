@@ -46,10 +46,23 @@ export default function AddMerchantScreen({ navigation }: any) {
     setLoading(true);
     try {
       await adminAPI.inviteMerchant({ email, businessName, ownerName, phone: phone || undefined, commission });
+      const sentEmail = email;
+      // Clear all fields
+      setOwnerName('');
+      setEmail('');
+      setPhone('');
+      setBusinessName('');
+      setBusinessType('restaurant');
+      setCommission(10);
+      setAddress('');
+      setCity('');
+      setState('');
+      setNotes('');
+      setWaiveFee(false);
+      setError('');
       Alert.alert(
         'Invitation Sent!',
-        `An invite has been sent to ${email}. ${ownerName} will receive an email with instructions to complete registration${waiveFee ? ' (registration fee waived)' : ''}.`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
+        `An invite has been sent to ${sentEmail}. They will receive an email with instructions to complete registration.`,
       );
     } catch (err: any) {
       setError(err.message || 'Failed to send invitation');
