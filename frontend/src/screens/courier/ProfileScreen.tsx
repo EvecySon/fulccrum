@@ -24,9 +24,35 @@ const achievements = [
 ];
 
 export default function CourierProfileScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [pushNotifs, setPushNotifs] = useState(true);
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your courier account and all your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Account Deleted', 'Your account has been deleted.', [
+              { text: 'OK', onPress: () => logout() },
+            ]);
+          },
+        },
+      ],
+    );
+  };
 
   useEffect(() => {
     (async () => {
@@ -241,9 +267,15 @@ export default function CourierProfileScreen({ navigation }: any) {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
           <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account */}
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={20} color={colors.textLight} />
+          <Text style={styles.deleteText}>Delete Account</Text>
         </TouchableOpacity>
 
         <Text style={styles.versionText}>Fulccrum Courier v1.0.0</Text>
@@ -319,5 +351,10 @@ const styles = StyleSheet.create({
     marginTop: 20, paddingVertical: 14, gap: 8,
   },
   logoutText: { fontSize: 16, fontWeight: '600', color: colors.error },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginTop: 8, paddingVertical: 12,
+  },
+  deleteText: { fontSize: 14, color: colors.textLight },
   versionText: { textAlign: 'center', fontSize: 12, color: colors.textLight, marginTop: 8 },
 });
