@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   ActivityIndicator,
@@ -86,15 +85,10 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      contentContainerStyle={styles.scrollContent}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
         {/* Logo / Brand */}
         <View style={styles.brandSection}>
           <View style={styles.logoContainer}>
@@ -203,15 +197,14 @@ export default function LoginScreen({ navigation }: any) {
             <Text style={styles.footerLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24 },
-  brandSection: { alignItems: 'center', marginTop: 80, marginBottom: 40 },
+  scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
+  brandSection: { alignItems: 'center', marginTop: 48, marginBottom: 32 },
   logoContainer: { marginBottom: 16 },
   logoIcon: {
     width: 64, height: 64, borderRadius: 20, backgroundColor: colors.navy,
@@ -220,7 +213,7 @@ const styles = StyleSheet.create({
   },
   brandName: { fontSize: 28, fontWeight: '800', color: colors.navy, letterSpacing: -0.5 },
   brandTagline: { fontSize: 14, color: colors.textLight, marginTop: 4 },
-  formSection: { flex: 1 },
+  formSection: {},
   formTitle: { fontSize: 24, fontWeight: '700', color: colors.textPrimary },
   formSubtitle: { fontSize: 15, color: colors.textLight, marginTop: 4, marginBottom: 24 },
   errorBanner: {

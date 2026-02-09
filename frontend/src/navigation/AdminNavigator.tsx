@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
@@ -22,7 +22,7 @@ import AddMerchantScreen from '../screens/admin/AddMerchantScreen';
 import AddCourierScreen from '../screens/admin/AddCourierScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function AdminTabs() {
   return (
@@ -86,7 +86,7 @@ function AdminTabs() {
 
 export default function AdminNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
       <Stack.Screen name="AdminTabs" component={AdminTabs} />
       <Stack.Screen name="Merchants" component={MerchantsScreen} />
       <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} />

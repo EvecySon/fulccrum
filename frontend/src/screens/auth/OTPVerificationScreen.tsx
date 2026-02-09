@@ -58,8 +58,10 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
       // Route based on mode and role
       if (mode === 'reset') {
         navigation.navigate('ResetPassword', { email, resetToken: code });
-      } else if (role === 'business_owner' || role === 'driver') {
-        navigation.reset({ index: 0, routes: [{ name: 'VerificationPending', params: { role, email } }] });
+      } else if (role === 'business_owner') {
+        navigation.navigate('MerchantBusinessSetup', { role, email });
+      } else if (role === 'driver') {
+        navigation.navigate('CourierDocumentSetup', { role, email });
       } else {
         navigation.navigate('Login');
       }

@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://localhost:3001';
+import { Platform } from 'react-native';
+
+const getBaseUrl = () => {
+  if (Platform.OS !== 'web') return 'http://192.168.0.102:3001';
+  // On web, check if we're running on localhost or a LAN IP
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return host === 'localhost' || host === '127.0.0.1'
+    ? 'http://localhost:3001'
+    : `http://${host}:3001`;
+};
+const BASE_URL = getBaseUrl();
 
 // Token management
 let accessToken: string | null = null;

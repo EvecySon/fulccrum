@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,8 @@ export default function AppSwitcher() {
   const { user } = useAuth();
   // In production, use the authenticated user's role. In dev, default to 'customer' with switcher.
   const productionMode = user?.role ? roleToMode[user.role] || 'customer' : 'customer';
-  const [devMode, setDevMode] = useState<AppMode>('customer');
+  const [devMode, setDevMode] = useState<AppMode>(productionMode);
+  useEffect(() => { setDevMode(productionMode); }, [productionMode]);
   const mode = __DEV__ ? devMode : productionMode;
   const setMode = setDevMode;
   const [showSwitcher, setShowSwitcher] = useState(false);

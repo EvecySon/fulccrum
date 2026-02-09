@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppSwitcher from './src/navigation/AppSwitcher';
 
+
 // Set to false to require login before accessing the app
 const DEV_SKIP_AUTH = false;
 
@@ -34,7 +35,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     if (this.state.hasError) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#e11d48', marginBottom: 8 }}>Something went wrong</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#e11d48', marginBottom: 8 }}>Something went wrong</Text>
           <Text style={{ fontSize: 13, color: '#666', textAlign: 'center' }}>{this.state.error}</Text>
         </View>
       );

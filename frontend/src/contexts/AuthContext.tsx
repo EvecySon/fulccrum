@@ -128,8 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role?: string;
   }) => {
     const response = await authAPI.register(data);
+    // Save tokens but do NOT set user — keep isAuthenticated false
+    // so the user stays in the auth flow for OTP and onboarding
     await saveTokens(response.access_token, response.refresh_token);
-    setUser(response.user);
   };
 
   const logout = async () => {

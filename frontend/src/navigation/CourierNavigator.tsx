@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
@@ -20,7 +20,7 @@ import OrderChatScreen from '../screens/shared/ChatScreen';
 import CallScreen from '../screens/shared/CallScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function CourierTabs() {
   return (
@@ -84,7 +84,7 @@ function CourierTabs() {
 
 export default function CourierNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
       <Stack.Screen name="CourierTabs" component={CourierTabs} />
       <Stack.Screen name="Wallet" component={CourierWalletScreen} />
       <Stack.Screen name="DocumentVerification" component={DocumentVerificationScreen} />
