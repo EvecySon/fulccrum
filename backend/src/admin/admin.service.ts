@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../messaging/email.service';
 import { randomBytes } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -301,5 +302,91 @@ export class AdminService {
     ]);
 
     return { data: merchants, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async createAdmin(userRole: string, data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) {
+    this.verifyAdmin(userRole);
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.email },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 12);
+
+    const admin = await this.prisma.user.create({
+      data: {
+        email: data.email,
+        passwordHash,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        role: 'admin',
+        status: 'active',
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    return { message: 'Admin user created successfully', user: admin };
+  }
+
+  async getAdminUsers(userRole: string) {
+    this.verifyAdmin(userRole);
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: 'admin' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        status: true,
+        createdAt: true,
+        lastLogin: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { data: admins };
+  }
+
+  async removeAdmin(userRole: string, adminId: string, requesterId: string) {
+    this.verifyAdmin(userRole);
+
+    if (adminId === requesterId) {
+      throw new BadRequestException('You cannot remove yourself as admin');
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: adminId },
+      select: { id: true, role: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (target.role !== 'admin') {
+      throw new BadRequestException('User is not an admin');
+    }
+
+    await this.prisma.user.update({
+      where: { id: adminId },
+      data: { role: 'customer', status: 'suspended' },
+    });
+
+    return { message: 'Admin access removed' };
   }
 }

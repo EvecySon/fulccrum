@@ -35,6 +35,29 @@ export class EmailService {
     return this.sendEmail(email, subject, body);
   }
 
+  async sendVerificationEmail(email: string, firstName: string, otp: string) {
+    const subject = 'Verify Your Fulccrum Account';
+    const body = `
+      Hi ${firstName},
+      
+      Welcome to Fulccrum! Please verify your email address using the code below:
+      
+      Verification Code: ${otp}
+      
+      This code will expire in 10 minutes.
+      
+      If you didn't create this account, please ignore this email.
+      
+      Best regards,
+      Fulccrum Team
+    `;
+
+    console.log(`[EMAIL] Verification email to ${email}`);
+    console.log(`[EMAIL] OTP: ${otp}`);
+
+    return this.sendEmail(email, subject, body);
+  }
+
   async sendWelcomeEmail(email: string, firstName: string) {
     const subject = 'Welcome to Fulccrum!';
     const body = `

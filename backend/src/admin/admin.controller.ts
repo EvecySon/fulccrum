@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { InviteMerchantDto } from './dto/invite-merchant.dto';
 import { InviteCourierDto } from './dto/invite-courier.dto';
 import { ApproveCourierDto } from './dto/approve-courier.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -127,5 +128,20 @@ export class AdminController {
   @Patch('couriers/:id/approve')
   async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
     return this.adminService.approveCourier(id, dto.approved, dto.notes);
+  }
+
+  @Post('admins')
+  async createAdmin(@Request() req: any, @Body() dto: CreateAdminDto) {
+    return this.adminService.createAdmin(req.user.role, dto);
+  }
+
+  @Get('admins')
+  async getAdminUsers(@Request() req: any) {
+    return this.adminService.getAdminUsers(req.user.role);
+  }
+
+  @Patch('admins/:adminId/remove')
+  async removeAdmin(@Request() req: any, @Param('adminId') adminId: string) {
+    return this.adminService.removeAdmin(req.user.role, adminId, req.user.id);
   }
 }

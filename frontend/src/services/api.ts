@@ -394,6 +394,11 @@ export const adminAPI = {
     api.put(`/admin/registration-fees/${role}`, data),
   getRegistrationPayments: (page = 1) => api.get(`/admin/registration-payments?page=${page}`),
   waiveRegistrationFee: (userId: string) => api.post(`/admin/users/${userId}/waive-fee`),
+  // Admin user management
+  getAdmins: () => api.get('/admin/admins'),
+  createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
+    api.post('/admin/admins', data),
+  removeAdmin: (adminId: string) => api.patch(`/admin/admins/${adminId}/remove`),
 };
 
 // ─── Support API ───

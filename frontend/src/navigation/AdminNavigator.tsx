@@ -20,6 +20,7 @@ import PushNotificationScreen from '../screens/admin/PushNotificationScreen';
 import DisputeResolutionScreen from '../screens/admin/DisputeResolutionScreen';
 import AddMerchantScreen from '../screens/admin/AddMerchantScreen';
 import AddCourierScreen from '../screens/admin/AddCourierScreen';
+import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -99,6 +100,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="DisputeResolution" component={DisputeResolutionScreen} />
       <Stack.Screen name="AddMerchant" component={AddMerchantScreen} />
       <Stack.Screen name="AddCourier" component={AddCourierScreen} />
+      <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
     </Stack.Navigator>
   );
 }

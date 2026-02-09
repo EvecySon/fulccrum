@@ -60,6 +60,31 @@ export class AuthService {
       },
     });
 
+    // Generate OTP for email verification
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        otp,
+        resetToken,
+        expiresAt,
+      },
+    });
+
+    console.log(`[REGISTER] OTP for ${user.email}: ${otp}`);
+
+    await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+
+    if (dto.phone) {
+      await this.termiiService.sendSMS(
+        dto.phone,
+        `Your Fulccrum verification code is: ${otp}. Valid for 10 minutes.`,
+      );
+    }
+
     const accessToken = await this.signAccessToken(user.id, user.role);
     const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
 
