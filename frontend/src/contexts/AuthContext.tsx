@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authAPI.login(email, password);
-    await saveTokens(response.access_token, response.refresh_token);
+    await saveTokens(response.accessToken, response.refreshToken);
     setUser(response.user);
     registerPushToken();
   };
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authAPI.register(data);
     // Save tokens but do NOT set user — keep isAuthenticated false
     // so the user stays in the auth flow for OTP and onboarding
-    await saveTokens(response.access_token, response.refresh_token);
+    await saveTokens(response.accessToken, response.refreshToken);
   };
 
   const logout = async () => {

@@ -108,7 +108,7 @@ async function tryRefreshToken(): Promise<boolean> {
     });
     if (!response.ok) return false;
     const data = await response.json();
-    await saveTokens(data.access_token, data.refresh_token);
+    await saveTokens(data.accessToken, data.refreshToken);
     return true;
   } catch {
     return false;
