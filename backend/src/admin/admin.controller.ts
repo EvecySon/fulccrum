@@ -109,23 +109,23 @@ export class AdminController {
     return this.adminService.rejectMerchant(req.user.role, merchantId);
   }
 
-  @Patch('merchants/:id/verify')
-  async verifyMerchant(@Param('id') id: string) {
-    return this.adminService.verifyMerchant(id);
-  }
+  // @Patch('merchants/:id/verify')
+  // async verifyMerchant(@Param('id') id: string) {
+  //   return this.adminService.verifyMerchant(id);
+  // }
 
-  @Post('invite/merchant')
-  async inviteMerchant(@Body() dto: InviteMerchantDto) {
-    return this.adminService.inviteMerchant(dto.email, dto.businessName);
-  }
+  // @Post('invite/merchant')
+  // async inviteMerchant(@Body() dto: InviteMerchantDto) {
+  //   return this.adminService.inviteMerchant(dto.email, dto.businessName);
+  // }
 
-  @Post('invite/courier')
-  async inviteCourier(@Body() dto: InviteCourierDto) {
-    return this.adminService.inviteCourier(dto.email, dto.firstName, dto.lastName);
-  }
+  // @Post('invite/courier')
+  // async inviteCourier(@Body() dto: InviteCourierDto) {
+  //   return this.adminService.inviteCourier(dto.email, dto.firstName, dto.lastName);
+  // }
 
-  @Patch('couriers/:id/approve')
-  async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
-    return this.adminService.approveCourier(id, dto.approved, dto.notes);
-  }
+  // @Patch('couriers/:id/approve')
+  // async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
+  //   return this.adminService.approveCourier(id, dto.approved, dto.notes);
+  // }
 }

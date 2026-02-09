@@ -14,6 +14,21 @@ export class TermiiService {
   }
 
   async sendSMS(to: string, message: string) {
+    // Development mode: Log SMS instead of sending if API key not configured
+    if (!this.apiKey || this.apiKey === 'your_termii_api_key') {
+      console.log('='.repeat(60));
+      console.log('[TERMII SMS - DEV MODE] SMS would be sent:');
+      console.log(`To: ${to}`);
+      console.log(`From: ${this.senderId}`);
+      console.log(`Message: ${message}`);
+      console.log('='.repeat(60));
+      return {
+        success: true,
+        messageId: 'dev_mode_' + Date.now(),
+        message: 'SMS logged (dev mode - Termii not configured)',
+      };
+    }
+
     try {
       const response = await axios.post(`${this.baseUrl}/sms/send`, {
         to,

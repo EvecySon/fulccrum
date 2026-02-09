@@ -15,6 +15,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
+import { VerifyRegistrationDto } from './dto/verify-registration.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { AppleLoginDto } from './dto/apple-login.dto';
 
@@ -32,38 +34,92 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { id: true },
+      select: { id: true, emailVerified: true },
     });
 
     if (existing) {
+      if (!existing.emailVerified) {
+        throw new ConflictException('Email already registered but not verified. Please check your email for the verification code or request a new one.');
+      }
       throw new ConflictException('Email already in use');
+    }
+
+    // Check if phone number is already in use
+    if (dto.phone) {
+      const phoneExists = await this.prisma.user.findUnique({
+        where: { phone: dto.phone },
+        select: { id: true },
+      });
+
+      if (phoneExists) {
+        throw new ConflictException('Phone number already in use');
+      }
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        phone: dto.phone,
-        passwordHash,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        role: dto.role || 'customer',
-        status: 'active',
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          phone: dto.phone,
+          passwordHash,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          role: dto.role || 'customer',
+          status: 'inactive',
+          emailVerified: false,
+          phoneVerified: false,
+        },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
 
-    const accessToken = await this.signAccessToken(user.id, user.role);
-    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
-    return { user, accessToken, refreshToken };
+      // Store OTP in password_resets table (reusing for verification)
+      await this.prisma.passwordReset.create({
+        data: {
+          userId: user.id,
+          otp,
+          resetToken: `verify_${Date.now()}`,
+          expiresAt,
+        },
+      });
+
+      // Send verification email
+      await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+
+      // Send verification SMS if phone provided
+      if (user.phone) {
+        await this.termiiService.sendSMS(
+          user.phone,
+          `Welcome to Fulccrum! Your verification code is: ${otp}. Valid for 10 minutes.`,
+        );
+      }
+
+      return {
+        message: 'Registration successful! Please check your email/SMS for the verification code.',
+        email: user.email,
+        phone: user.phone,
+        userId: user.id,
+      };
+    } catch (error) {
+      console.error('[REGISTER ERROR]', error);
+      if (error.code === 'P2002') {
+        throw new ConflictException('Email or phone number already in use');
+      }
+      throw error;
+    }
   }
 
   async login(dto: LoginDto) {
@@ -178,6 +234,122 @@ export class AuthService {
       success: true,
       resetToken: resetRequest.resetToken,
       message: 'OTP verified successfully',
+    };
+  }
+
+  async verifyRegistration(dto: VerifyRegistrationDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, firstName: true, email: true, phone: true, role: true, emailVerified: true, status: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Account already verified');
+    }
+
+    const verificationRequest = await this.prisma.passwordReset.findFirst({
+      where: {
+        userId: user.id,
+        otp: dto.otp,
+        isUsed: false,
+        expiresAt: { gte: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verificationRequest) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Mark OTP as used
+    await this.prisma.passwordReset.update({
+      where: { id: verificationRequest.id },
+      data: { isUsed: true },
+    });
+
+    // Activate account
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        phoneVerified: user.phone ? true : false,
+        status: 'active',
+      },
+    });
+
+    // Send welcome message
+    await this.emailService.sendWelcomeEmail(user.email, user.firstName);
+
+    if (user.phone) {
+      await this.termiiService.sendSMS(
+        user.phone,
+        `Welcome to Fulccrum, ${user.firstName}! Your account is now active. Start ordering delicious meals today! 🎉`,
+      );
+    }
+
+    // Generate tokens for automatic login
+    const accessToken = await this.signAccessToken(user.id, user.role);
+    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+
+    return {
+      message: 'Account verified successfully! Welcome to Fulccrum!',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        role: user.role,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async resendVerificationOtp(dto: ResendOtpDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, firstName: true, email: true, phone: true, emailVerified: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Account already verified');
+    }
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    // Store new OTP
+    await this.prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        otp,
+        resetToken: `verify_${Date.now()}`,
+        expiresAt,
+      },
+    });
+
+    // Resend verification email
+    await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+
+    // Resend SMS if phone provided
+    if (user.phone) {
+      await this.termiiService.sendSMS(
+        user.phone,
+        `Your new Fulccrum verification code is: ${otp}. Valid for 10 minutes.`,
+      );
+    }
+
+    return {
+      message: 'Verification code resent successfully. Please check your email/SMS.',
     };
   }
 

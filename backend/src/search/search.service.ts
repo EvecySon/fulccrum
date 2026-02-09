@@ -15,6 +15,7 @@ export class SearchService {
             { businessName: { contains: query, mode: 'insensitive' } },
             { description: { contains: query, mode: 'insensitive' } },
           ],
+          verificationStatus: 'approved',
         },
         take: 20,
         select: {
@@ -61,6 +62,7 @@ export class SearchService {
           { businessName: { contains: query, mode: 'insensitive' } },
           { description: { contains: query, mode: 'insensitive' } },
         ],
+        verificationStatus: 'approved',
       },
       take: 50,
       select: {

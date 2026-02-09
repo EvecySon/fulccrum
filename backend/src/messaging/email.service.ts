@@ -11,6 +11,29 @@ export class EmailService {
     this.sendGridApiKey = this.config.get('SENDGRID_API_KEY') || '';
   }
 
+  async sendVerificationEmail(email: string, firstName: string, otp: string) {
+    const subject = 'Verify Your Fulccrum Account';
+    const body = `
+      Hi ${firstName},
+      
+      Thank you for registering with Fulccrum! Please verify your account using the code below:
+      
+      Verification Code: ${otp}
+      
+      This code will expire in 10 minutes.
+      
+      If you didn't create this account, please ignore this email.
+      
+      Best regards,
+      Fulccrum Team
+    `;
+
+    console.log(`[EMAIL] Verification email to ${email}`);
+    console.log(`[EMAIL] OTP: ${otp}`);
+
+    return this.sendEmail(email, subject, body);
+  }
+
   async sendPasswordResetEmail(email: string, firstName: string, otp: string, resetToken: string) {
     const subject = 'Reset Your Fulccrum Password';
     const body = `

@@ -7,6 +7,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
+import { VerifyRegistrationDto } from './dto/verify-registration.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { AppleLoginDto } from './dto/apple-login.dto';
 
@@ -17,6 +19,16 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
+  }
+
+  @Post('verify-registration')
+  verifyRegistration(@Body() dto: VerifyRegistrationDto) {
+    return this.auth.verifyRegistration(dto);
+  }
+
+  @Post('resend-otp')
+  resendOtp(@Body() dto: ResendOtpDto) {
+    return this.auth.resendVerificationOtp(dto);
   }
 
   @Post('login')

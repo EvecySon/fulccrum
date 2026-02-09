@@ -1,6 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const BASE_URL = 'http://localhost:3001';
+// Automatically detect the correct base URL based on platform
+const getBaseUrl = () => {
+  // In production, use your production API URL
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://api.fulccrum.com'; // Replace with your actual production URL
+  }
+  
+  // For development:
+  // - Web: use localhost
+  // - Mobile (iOS/Android): use your computer's local IP
+  if (Platform.OS === 'web') {
+    return 'http://localhost:3001';
+  } else {
+    // Replace this IP with your computer's current local IP address
+    return 'http://192.168.18.8:3001';
+  }
+};
+
+const BASE_URL = getBaseUrl();
 
 // Token management
 let accessToken: string | null = null;
