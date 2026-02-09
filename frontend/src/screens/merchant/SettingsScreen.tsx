@@ -8,12 +8,16 @@ import {
   Switch,
   Image,
   Alert,
+  Linking,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, menuAPI } from '../../services/api';
-import { Platform } from 'react-native';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -25,6 +29,10 @@ export default function MerchantSettingsScreen({ navigation }: any) {
     ]);
   };
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -35,28 +43,31 @@ export default function MerchantSettingsScreen({ navigation }: any) {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            Alert.prompt('Confirm Password', 'Enter your password to confirm deletion:', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete Forever',
-                style: 'destructive',
-                onPress: async (password?: string) => {
-                  if (!password) return;
-                  try {
-                    await usersAPI.deleteAccount(password);
-                    Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
-                      { text: 'OK', onPress: () => logout() },
-                    ]);
-                  } catch (e: any) {
-                    Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
-                  }
-                },
-              },
-            ], 'secure-text');
+            setDeletePassword('');
+            setShowDeleteModal(true);
           },
         },
       ],
     );
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword) {
+      Alert.alert('Error', 'Please enter your password.');
+      return;
+    }
+    setDeleting(true);
+    try {
+      await usersAPI.deleteAccount(deletePassword);
+      setShowDeleteModal(false);
+      Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+        { text: 'OK', onPress: () => logout() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleExportData = async () => {
@@ -400,20 +411,34 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         {/* Support & Legal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
-          {[
-            { icon: 'help-circle-outline', label: 'Help Center', color: colors.navy },
-            { icon: 'chatbubbles-outline', label: 'Contact Support', color: colors.teal },
-            { icon: 'document-outline', label: 'Terms of Service', color: colors.textSecondary },
-            { icon: 'shield-outline', label: 'Privacy Policy', color: colors.textSecondary },
-          ].map((item, index) => (
-            <TouchableOpacity key={index} style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <Ionicons name={item.icon as any} size={20} color={item.color} />
-                <Text style={styles.settingLabel}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/help')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="help-circle-outline" size={20} color={colors.navy} />
+              <Text style={styles.settingLabel}>Help Center</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('mailto:support@fulccrum.com?subject=Merchant%20Support%20Request')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="chatbubbles-outline" size={20} color={colors.teal} />
+              <Text style={styles.settingLabel}>Contact Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/terms')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="document-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Terms of Service</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/privacy')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="shield-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}
@@ -437,6 +462,44 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         <Text style={styles.version}>Fulccrum Merchant v1.0.0</Text>
         <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* Delete Account Password Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Deletion</Text>
+            <Text style={styles.modalSubtitle}>Enter your password to permanently delete your account.</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textLight}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={confirmDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Delete Forever</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -603,5 +666,72 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLight,
     marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.error,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalInput: {
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalDeleteBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+  },
+  modalDeleteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textWhite,
   },
 });
