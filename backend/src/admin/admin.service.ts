@@ -224,16 +224,21 @@ export class AdminService {
     });
   }
 
-  async inviteMerchant(email: string, businessName: string) {
+  async inviteMerchant(email: string, businessName: string, ownerName: string, phone?: string, commission?: number) {
     const tempPassword = randomBytes(8).toString('hex');
+    const nameParts = ownerName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     const user = await this.prisma.user.create({
       data: {
         email,
         passwordHash: tempPassword,
         role: 'business_owner',
         status: 'active',
-        firstName: businessName,
-        lastName: '',
+        firstName,
+        lastName,
+        phone: phone || undefined,
       },
     });
     await this.prisma.businessProfile.create({

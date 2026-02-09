@@ -1,4 +1,4 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsNumber } from 'class-validator';
 
 export class InviteMerchantDto {
   @IsEmail()
@@ -6,4 +6,15 @@ export class InviteMerchantDto {
 
   @IsString()
   businessName!: string;
+
+  @IsString()
+  ownerName!: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsNumber()
+  commission?: number;
 }

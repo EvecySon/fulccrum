@@ -117,7 +117,7 @@ export class AdminController {
 
   @Post('invite/merchant')
   async inviteMerchant(@Body() dto: InviteMerchantDto) {
-    return this.adminService.inviteMerchant(dto.email, dto.businessName);
+    return this.adminService.inviteMerchant(dto.email, dto.businessName, dto.ownerName, dto.phone, dto.commission);
   }
 
   @Post('invite/courier')
