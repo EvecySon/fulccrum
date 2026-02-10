@@ -54,7 +54,7 @@ export default function MultiChannelScreen({ navigation }: any) {
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
-  const totalRevenue = channels.reduce((sum, c) => sum + c.revenue, 0);
+  const totalRevenue = channels.reduce((sum, c) => sum + (c.revenue || 0), 0);
   const activeChannels = channels.filter(c => c.active).length;
 
   return (
@@ -82,7 +82,7 @@ export default function MultiChannelScreen({ navigation }: any) {
               <Text style={styles.summaryLabel}>Total Revenue</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{subscriptions.reduce((s, sub) => s + sub.subscribers, 0)}</Text>
+              <Text style={styles.summaryValue}>{subscriptions.reduce((s, sub) => s + (sub.subscribers || 0), 0)}</Text>
               <Text style={styles.summaryLabel}>Subscribers</Text>
             </View>
           </View>
@@ -96,7 +96,7 @@ export default function MultiChannelScreen({ navigation }: any) {
               </View>
               <View style={styles.channelInfo}>
                 <Text style={styles.channelLabel}>{ch.label}</Text>
-                <Text style={styles.channelMeta}>{ch.orders} orders · ₦{ch.revenue.toLocaleString()}</Text>
+                <Text style={styles.channelMeta}>{ch.orders || 0} orders · ₦{(ch.revenue || 0).toLocaleString()}</Text>
               </View>
               <Switch
                 value={ch.active}
@@ -119,16 +119,16 @@ export default function MultiChannelScreen({ navigation }: any) {
             <View key={sub.id} style={styles.subCard}>
               <View style={styles.subTop}>
                 <Text style={styles.subName}>{sub.name}</Text>
-                <Text style={styles.subPrice}>₦{sub.price.toLocaleString()}</Text>
+                <Text style={styles.subPrice}>₦{(sub.price || 0).toLocaleString()}</Text>
               </View>
-              <Text style={styles.subMeta}>{sub.schedule}</Text>
+              <Text style={styles.subMeta}>{sub.schedule || 'No schedule'}</Text>
               <View style={styles.subBottom}>
                 <View style={styles.subStat}>
                   <Ionicons name="people-outline" size={14} color={colors.textLight} />
-                  <Text style={styles.subStatText}>{sub.subscribers} subscribers</Text>
+                  <Text style={styles.subStatText}>{sub.subscribers || 0} subscribers</Text>
                 </View>
                 <View style={styles.subTypeBadge}>
-                  <Text style={styles.subTypeText}>{sub.type.replace(/_/g, ' ')}</Text>
+                  <Text style={styles.subTypeText}>{(sub.type || 'plan').replace(/_/g, ' ')}</Text>
                 </View>
               </View>
             </View>

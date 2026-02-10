@@ -183,7 +183,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
             <View style={[styles.onlineDot, { backgroundColor: isOpen ? colors.success : colors.error }]} />
             <Text style={styles.statusText}>{isOpen ? 'Open' : 'Closed'}</Text>
           </View>
-          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('MerchantOrders')}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
             <Ionicons name="notifications-outline" size={22} color={colors.textWhite} />
             {pendingOrders > 0 && <View style={styles.notifDot} />}
           </TouchableOpacity>
@@ -201,7 +201,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
 
         {/* Pending Orders Alert */}
         {pendingOrders > 0 && (
-          <TouchableOpacity style={styles.pendingAlert} onPress={() => navigation.navigate('MerchantOrders')}>
+          <TouchableOpacity style={styles.pendingAlert} onPress={() => navigation.navigate('Orders')}>
             <View style={styles.pendingIcon}>
               <Ionicons name="alert-circle" size={22} color={colors.white} />
             </View>
@@ -249,7 +249,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Weekly Earnings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MerchantAnalytics')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Analytics')}>
               <Text style={styles.chartLink}>View Report</Text>
             </TouchableOpacity>
           </View>
@@ -286,25 +286,25 @@ export default function MerchantDashboardScreen({ navigation }: any) {
 
         {/* Quick Actions */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantOrders')}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Orders')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.teal + '15' }]}>
               <Ionicons name="receipt-outline" size={24} color={colors.teal} />
             </View>
             <Text style={styles.actionText}>Orders</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantMenu')}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Menu')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.navy + '15' }]}>
               <Ionicons name="restaurant-outline" size={24} color={colors.navy} />
             </View>
             <Text style={styles.actionText}>Menu</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantAnalytics')}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Analytics')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="bar-chart-outline" size={24} color={colors.warning} />
             </View>
             <Text style={styles.actionText}>Analytics</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantSettings')}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Settings')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.error + '15' }]}>
               <Ionicons name="settings-outline" size={24} color={colors.error} />
             </View>
@@ -316,7 +316,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Orders</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MerchantOrders')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Orders')}>
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -335,7 +335,7 @@ export default function MerchantDashboardScreen({ navigation }: any) {
             );
             const total = Number(order.totalAmount || 0);
             return (
-            <TouchableOpacity key={order.id} style={styles.orderCard} onPress={() => navigation.navigate('MerchantOrders')}>
+            <TouchableOpacity key={order.id} style={styles.orderCard} onPress={() => navigation.navigate('Orders')}>
               <View style={styles.orderTop}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.orderCustomer}>{customerName}</Text>
