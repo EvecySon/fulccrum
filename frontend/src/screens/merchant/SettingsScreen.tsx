@@ -22,60 +22,48 @@ import { usersAPI, menuAPI } from '../../services/api';
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
-
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const handleLogout = () => setShowLogoutModal(true);
+
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your merchant account and all your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setDeletePassword('');
-            setShowDeleteModal(true);
-          },
-        },
-      ],
-    );
+    setDeletePassword('');
+    setShowDeleteModal(true);
   };
 
   const confirmDeleteAccount = async () => {
-    if (!deletePassword) {
-      Alert.alert('Error', 'Please enter your password.');
-      return;
-    }
+    if (!deletePassword) return;
     setDeleting(true);
     try {
       await usersAPI.deleteAccount(deletePassword);
       setShowDeleteModal(false);
-      Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
-        { text: 'OK', onPress: () => logout() },
-      ]);
+      logout();
     } catch (e: any) {
+      setShowDeleteModal(false);
       Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleExportData = async () => {
+  const handleExportData = () => setShowExportModal(true);
+
+  const confirmExportData = async () => {
+    setExporting(true);
     try {
-      const data = await usersAPI.exportData();
-      Alert.alert('Data Export', 'Your data export has been prepared. Check your email for the download link.');
+      await usersAPI.exportData();
+      setShowExportModal(false);
+      Alert.alert('Success', 'Your data export has been prepared. Check your email.');
     } catch (e: any) {
+      setShowExportModal(false);
       Alert.alert('Error', e?.message || 'Could not export data.');
+    } finally {
+      setExporting(false);
     }
   };
   const [autoAccept, setAutoAccept] = useState(false);
@@ -441,34 +429,110 @@ export default function MerchantSettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
-        {/* Export Data */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleExportData}>
-          <Ionicons name="download-outline" size={20} color={colors.navy} />
-          <Text style={[styles.logoutText, { color: colors.navy }]}>Export My Data</Text>
-        </TouchableOpacity>
-
-        {/* Delete Account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-          <Ionicons name="trash-outline" size={20} color={colors.textLight} />
-          <Text style={styles.deleteText}>Delete Account</Text>
-        </TouchableOpacity>
+        {/* Account Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <TouchableOpacity activeOpacity={0.6} style={styles.actionBtn} onPress={handleExportData}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.navy + '15' }]}>
+                <Ionicons name="download-outline" size={18} color={colors.navy} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Export My Data</Text>
+                <Text style={styles.settingDesc}>Download a copy of your data</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.6} style={styles.actionBtn} onPress={handleLogout}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.error + '15' }]}>
+                <Ionicons name="log-out-outline" size={18} color={colors.error} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.error }]}>Log Out</Text>
+                <Text style={styles.settingDesc}>Sign out of your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.6} style={[styles.actionBtn, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.textLight + '20' }]}>
+                <Ionicons name="trash-outline" size={18} color={colors.textLight} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.textLight }]}>Delete Account</Text>
+                <Text style={styles.settingDesc}>Permanently delete your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.version}>Fulccrum Merchant v1.0.0</Text>
-        <View style={{ height: 110 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutModal} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLogoutModal(false)}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="log-out-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalSubtitle}>Are you sure you want to log out of your merchant account?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLogoutModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalDeleteBtn} onPress={() => { setShowLogoutModal(false); logout(); }}>
+                <Text style={styles.modalDeleteText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Export Data Confirmation Modal */}
+      <Modal visible={showExportModal} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => !exporting && setShowExportModal(false)}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.navy + '15' }]}>
+              <Ionicons name="download-outline" size={28} color={colors.navy} />
+            </View>
+            <Text style={[styles.modalTitle, { color: colors.navy }]}>Export My Data</Text>
+            <Text style={styles.modalSubtitle}>We'll prepare a copy of your data and send a download link to your email.</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowExportModal(false)} disabled={exporting}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, exporting && { opacity: 0.6 }]}
+                onPress={confirmExportData}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Export</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Delete Account Password Modal */}
       <Modal visible={showDeleteModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirm Deletion</Text>
-            <Text style={styles.modalSubtitle}>Enter your password to permanently delete your account.</Text>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => !deleting && setShowDeleteModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="trash-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalSubtitle}>This will permanently delete your merchant account and all data. Enter your password to confirm.</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="Enter your password"
@@ -476,13 +540,9 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               secureTextEntry
               value={deletePassword}
               onChangeText={setDeletePassword}
-              autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setShowDeleteModal(false)}
-              >
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deleting}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -497,8 +557,8 @@ export default function MerchantSettingsScreen({ navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -636,30 +696,13 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginTop: 2,
   },
-  logoutBtn: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
+    justifyContent: 'space-between',
     paddingVertical: 14,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.error,
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-    paddingVertical: 12,
-  },
-  deleteText: {
-    fontSize: 14,
-    color: colors.textLight,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   version: {
     textAlign: 'center',
@@ -680,6 +723,22 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 360,
+  },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
