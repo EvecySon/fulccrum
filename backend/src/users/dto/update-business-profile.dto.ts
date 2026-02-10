@@ -37,6 +37,22 @@ export class UpdateBusinessProfileDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(1)
+  @Max(100)
+  maxConcurrentOrders?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  deliveryRadius?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoAcceptOrders?: boolean;
+
+  @IsOptional()
+  @IsNumber()
   @Min(0)
   minimumOrder?: number;
 

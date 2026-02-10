@@ -13,8 +13,11 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { id } });
+  async findById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: { businessProfile: true, driverProfile: true },
+    });
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -71,9 +74,22 @@ export class UsersService {
       throw new NotFoundException('Business profile not found');
     }
 
+    const data: any = {};
+    if (dto.businessName !== undefined) data.businessName = dto.businessName;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.preparationTime !== undefined) data.averagePreparationTime = dto.preparationTime;
+    if (dto.maxConcurrentOrders !== undefined) data.maxConcurrentOrders = dto.maxConcurrentOrders;
+    if (dto.deliveryRadius !== undefined) data.deliveryRadius = dto.deliveryRadius;
+    if (dto.autoAcceptOrders !== undefined) data.autoAcceptOrders = dto.autoAcceptOrders;
+    if (dto.minimumOrder !== undefined) data.minimumOrderAmount = dto.minimumOrder;
+    if (dto.deliveryFee !== undefined) data.deliveryFee = dto.deliveryFee;
+    if (dto.logo !== undefined) data.logoUrl = dto.logo;
+    if (dto.coverImage !== undefined) data.coverImageUrl = dto.coverImage;
+
     return this.prisma.businessProfile.update({
       where: { userId },
-      data: dto,
+      data,
     });
   }
 

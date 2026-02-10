@@ -134,6 +134,14 @@ export default function MerchantSettingsScreen({ navigation }: any) {
     setShowOrderEdit(true);
   };
 
+  // Map frontend keys to backend API field names
+  const orderKeyToApi: Record<string, string> = {
+    prepTime: 'preparationTime',
+    maxOrders: 'maxConcurrentOrders',
+    deliveryRadius: 'deliveryRadius',
+    minOrderAmount: 'minimumOrder',
+  };
+
   const saveOrderEdit = () => {
     const num = parseFloat(orderEditValue);
     if (isNaN(num) || num < 0) return;
@@ -144,17 +152,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       minOrderAmount: setMinOrderAmount,
     };
     setters[orderEditKey]?.(num);
-    AsyncStorage.getItem('order_settings').then(raw => {
-      const s = raw ? JSON.parse(raw) : {};
-      s[orderEditKey] = num;
-      AsyncStorage.setItem('order_settings', JSON.stringify(s));
-    }).catch(() => {});
+    // Save to backend
+    const apiKey = orderKeyToApi[orderEditKey];
+    if (apiKey) {
+      usersAPI.updateBusinessProfile({ [apiKey]: num }).catch(() => {});
+    }
     setShowOrderEdit(false);
   };
 
-  // Load all prefs from AsyncStorage on mount
+  // Load prefs on mount
   useEffect(() => {
     (async () => {
+      // Load notification prefs from AsyncStorage (device-specific)
       try {
         const prefs = await AsyncStorage.getItem('notif_prefs');
         if (prefs) {
@@ -162,25 +171,25 @@ export default function MerchantSettingsScreen({ navigation }: any) {
           if (p.soundAlerts !== undefined) setSoundAlerts(p.soundAlerts);
           if (p.pushNotifs !== undefined) setPushNotifs(p.pushNotifs);
           if (p.emailNotifs !== undefined) setEmailNotifs(p.emailNotifs);
-          if (p.autoAccept !== undefined) setAutoAccept(p.autoAccept);
         }
       } catch {}
-      try {
-        const os = await AsyncStorage.getItem('order_settings');
-        if (os) {
-          const s = JSON.parse(os);
-          if (s.prepTime !== undefined) setPrepTime(s.prepTime);
-          if (s.maxOrders !== undefined) setMaxOrders(s.maxOrders);
-          if (s.deliveryRadius !== undefined) setDeliveryRadius(s.deliveryRadius);
-          if (s.minOrderAmount !== undefined) setMinOrderAmount(s.minOrderAmount);
-        }
-      } catch {}
+      // Load order settings + profile from backend
       try {
         const [profileRes, hoursRes] = await Promise.all([
           usersAPI.getProfile().catch(() => null),
           menuAPI.getBusinessHours('me').catch(() => null),
         ]);
-        if (profileRes) setBusinessProfile(profileRes);
+        if (profileRes) {
+          setBusinessProfile(profileRes);
+          const bp = profileRes.businessProfile;
+          if (bp) {
+            if (bp.averagePreparationTime != null) setPrepTime(bp.averagePreparationTime);
+            if (bp.maxConcurrentOrders != null) setMaxOrders(bp.maxConcurrentOrders);
+            if (bp.deliveryRadius != null) setDeliveryRadius(Number(bp.deliveryRadius));
+            if (bp.autoAcceptOrders != null) setAutoAccept(bp.autoAcceptOrders);
+            if (bp.minimumOrderAmount != null) setMinOrderAmount(Number(bp.minimumOrderAmount));
+          }
+        }
         if (Array.isArray(hoursRes)) setBusinessHours(hoursRes);
         else if (hoursRes?.data) setBusinessHours(hoursRes.data);
       } catch {}
@@ -195,11 +204,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       autoAccept: setAutoAccept,
     };
     setters[key]?.(value);
-    AsyncStorage.getItem('notif_prefs').then(raw => {
-      const prefs = raw ? JSON.parse(raw) : {};
-      prefs[key] = value;
-      AsyncStorage.setItem('notif_prefs', JSON.stringify(prefs));
-    }).catch(() => {});
+    // Sound/push/email are device-specific → AsyncStorage
+    if (key !== 'autoAccept') {
+      AsyncStorage.getItem('notif_prefs').then(raw => {
+        const prefs = raw ? JSON.parse(raw) : {};
+        prefs[key] = value;
+        AsyncStorage.setItem('notif_prefs', JSON.stringify(prefs));
+      }).catch(() => {});
+    }
+    // autoAccept affects all apps → save to backend
+    if (key === 'autoAccept') {
+      usersAPI.updateBusinessProfile({ autoAcceptOrders: value }).catch(() => {});
+    }
   };
 
   return (
