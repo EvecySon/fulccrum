@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
@@ -27,29 +28,33 @@ export default function MerchantSettingsScreen({ navigation }: any) {
   const [flashCount, setFlashCount] = useState({ active: 0, total: 0 });
   const [bankAccount, setBankAccount] = useState<any>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await promosAPI.getAll(1, false);
-        const all = res?.data || [];
-        const active = all.filter((p: any) => p.isActive).length;
-        setPromoCount({ active, total: all.length });
-      } catch {}
-      try {
-        const res = await flashSalesAPI.getAll();
-        const all = Array.isArray(res?.data) ? res.data : [];
-        const active = all.filter((s: any) => s.isActive && new Date(s.endsAt) > new Date()).length;
-        setFlashCount({ active, total: all.length });
-      } catch {}
-      try {
-        const banks = await walletAPI.getBankAccounts();
-        if (banks?.length) {
-          const defaultBank = banks.find((b: any) => b.isDefault) || banks[0];
-          setBankAccount(defaultBank);
-        }
-      } catch {}
-    })();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const res = await promosAPI.getAll(1, false);
+          const all = res?.data || [];
+          const active = all.filter((p: any) => p.isActive).length;
+          setPromoCount({ active, total: all.length });
+        } catch {}
+        try {
+          const res = await flashSalesAPI.getAll();
+          const all = Array.isArray(res?.data) ? res.data : [];
+          const active = all.filter((s: any) => s.isActive && new Date(s.endsAt) > new Date()).length;
+          setFlashCount({ active, total: all.length });
+        } catch {}
+        try {
+          const banks = await walletAPI.getBankAccounts();
+          if (banks?.length) {
+            const defaultBank = banks.find((b: any) => b.isDefault) || banks[0];
+            setBankAccount(defaultBank);
+          } else {
+            setBankAccount(null);
+          }
+        } catch {}
+      })();
+    }, [])
+  );
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
