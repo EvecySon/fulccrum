@@ -23,6 +23,7 @@ import CRMScreen from '../screens/merchant/CRMScreen';
 import MultiChannelScreen from '../screens/merchant/MultiChannelScreen';
 import DynamicPricingScreen from '../screens/merchant/DynamicPricingScreen';
 import FlashSalesScreen from '../screens/merchant/FlashSalesScreen';
+import BankAccountsScreen from '../screens/merchant/BankAccountsScreen';
 import OrderChatScreen from '../screens/shared/ChatScreen';
 import CallScreen from '../screens/shared/CallScreen';
 
@@ -99,6 +100,7 @@ export default function MerchantNavigator() {
       <Stack.Screen name="DeliveryZones" component={DeliveryZonesScreen} />
       <Stack.Screen name="Promotions" component={PromotionsScreen} />
       <Stack.Screen name="FlashSales" component={FlashSalesScreen} />
+      <Stack.Screen name="BankAccounts" component={BankAccountsScreen} />
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="BusinessVerification" component={BusinessVerificationScreen} />
       <Stack.Screen name="MerchantPayment" component={MerchantPaymentScreen} />

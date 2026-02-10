@@ -18,13 +18,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
-import { usersAPI, menuAPI, promosAPI, flashSalesAPI } from '../../services/api';
+import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
 
   const [promoCount, setPromoCount] = useState({ active: 0, total: 0 });
   const [flashCount, setFlashCount] = useState({ active: 0, total: 0 });
+  const [bankAccount, setBankAccount] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -39,6 +40,13 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         const all = Array.isArray(res?.data) ? res.data : [];
         const active = all.filter((s: any) => s.isActive && new Date(s.endsAt) > new Date()).length;
         setFlashCount({ active, total: all.length });
+      } catch {}
+      try {
+        const banks = await walletAPI.getBankAccounts();
+        if (banks?.length) {
+          const defaultBank = banks.find((b: any) => b.isDefault) || banks[0];
+          setBankAccount(defaultBank);
+        }
       } catch {}
     })();
   }, []);
@@ -256,14 +264,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('BankAccounts')}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: colors.navy + '15' }]}>
                 <Ionicons name="card-outline" size={18} color={colors.navy} />
               </View>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Bank Account</Text>
-                <Text style={styles.settingDesc}>****4521 · GTBank</Text>
+                <Text style={styles.settingDesc}>
+                  {bankAccount
+                    ? `****${bankAccount.accountNumber.slice(-4)} · ${bankAccount.bankName}`
+                    : 'No bank account added'}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />

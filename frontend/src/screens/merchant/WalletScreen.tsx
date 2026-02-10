@@ -202,8 +202,9 @@ export default function WalletScreen({ navigation }: any) {
       )}
 
       {/* Withdraw Modal */}
-      {showWithdraw && <Modal visible={showWithdraw} animationType="slide" transparent>
+      {showWithdraw && <Modal visible={showWithdraw} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !loading && setShowWithdraw(false)} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.withdrawTitle}>Withdraw to Bank</Text>
