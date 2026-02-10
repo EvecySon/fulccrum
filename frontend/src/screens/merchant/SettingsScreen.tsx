@@ -113,7 +113,46 @@ export default function MerchantSettingsScreen({ navigation }: any) {
   const [businessProfile, setBusinessProfile] = useState<any>(null);
   const [businessHours, setBusinessHours] = useState<any[]>([]);
 
-  // Load notification prefs from AsyncStorage on mount
+  // Order settings
+  const [prepTime, setPrepTime] = useState(15);
+  const [maxOrders, setMaxOrders] = useState(10);
+  const [deliveryRadius, setDeliveryRadius] = useState(5);
+  const [minOrderAmount, setMinOrderAmount] = useState(3000);
+
+  // Edit modal for order settings
+  const [showOrderEdit, setShowOrderEdit] = useState(false);
+  const [orderEditLabel, setOrderEditLabel] = useState('');
+  const [orderEditKey, setOrderEditKey] = useState('');
+  const [orderEditValue, setOrderEditValue] = useState('');
+  const [orderEditSuffix, setOrderEditSuffix] = useState('');
+
+  const openOrderEdit = (label: string, key: string, value: number, suffix: string) => {
+    setOrderEditLabel(label);
+    setOrderEditKey(key);
+    setOrderEditValue(String(value));
+    setOrderEditSuffix(suffix);
+    setShowOrderEdit(true);
+  };
+
+  const saveOrderEdit = () => {
+    const num = parseFloat(orderEditValue);
+    if (isNaN(num) || num < 0) return;
+    const setters: Record<string, (v: number) => void> = {
+      prepTime: setPrepTime,
+      maxOrders: setMaxOrders,
+      deliveryRadius: setDeliveryRadius,
+      minOrderAmount: setMinOrderAmount,
+    };
+    setters[orderEditKey]?.(num);
+    AsyncStorage.getItem('order_settings').then(raw => {
+      const s = raw ? JSON.parse(raw) : {};
+      s[orderEditKey] = num;
+      AsyncStorage.setItem('order_settings', JSON.stringify(s));
+    }).catch(() => {});
+    setShowOrderEdit(false);
+  };
+
+  // Load all prefs from AsyncStorage on mount
   useEffect(() => {
     (async () => {
       try {
@@ -124,6 +163,16 @@ export default function MerchantSettingsScreen({ navigation }: any) {
           if (p.pushNotifs !== undefined) setPushNotifs(p.pushNotifs);
           if (p.emailNotifs !== undefined) setEmailNotifs(p.emailNotifs);
           if (p.autoAccept !== undefined) setAutoAccept(p.autoAccept);
+        }
+      } catch {}
+      try {
+        const os = await AsyncStorage.getItem('order_settings');
+        if (os) {
+          const s = JSON.parse(os);
+          if (s.prepTime !== undefined) setPrepTime(s.prepTime);
+          if (s.maxOrders !== undefined) setMaxOrders(s.maxOrders);
+          if (s.deliveryRadius !== undefined) setDeliveryRadius(s.deliveryRadius);
+          if (s.minOrderAmount !== undefined) setMinOrderAmount(s.minOrderAmount);
         }
       } catch {}
       try {
@@ -215,31 +264,31 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               thumbColor={autoAccept ? colors.teal : colors.darkGray}
             />
           </View>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Default Prep Time', 'prepTime', prepTime, 'minutes')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Default Prep Time</Text>
-              <Text style={styles.settingDesc}>15 minutes</Text>
+              <Text style={styles.settingDesc}>{prepTime} minutes</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Max Concurrent Orders', 'maxOrders', maxOrders, 'orders')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Max Concurrent Orders</Text>
-              <Text style={styles.settingDesc}>10 orders</Text>
+              <Text style={styles.settingDesc}>{maxOrders} orders</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Delivery Radius', 'deliveryRadius', deliveryRadius, 'km')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Delivery Radius</Text>
-              <Text style={styles.settingDesc}>5 km</Text>
+              <Text style={styles.settingDesc}>{deliveryRadius} km</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Minimum Order Amount', 'minOrderAmount', minOrderAmount, '₦')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Minimum Order Amount</Text>
-              <Text style={styles.settingDesc}>₦3,000</Text>
+              <Text style={styles.settingDesc}>₦{minOrderAmount.toLocaleString()}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
@@ -543,6 +592,35 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         <Text style={styles.version}>Fulccrum Merchant v1.0.0</Text>
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Order Settings Edit Modal */}
+      <Modal visible={showOrderEdit} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowOrderEdit(false)} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{orderEditLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16 }}>
+              {orderEditSuffix === '₦' && <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginRight: 4 }}>₦</Text>}
+              <TextInput
+                style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.textPrimary, paddingVertical: 14 }}
+                value={orderEditValue}
+                onChangeText={setOrderEditValue}
+                keyboardType="numeric"
+                selectTextOnFocus
+              />
+              {orderEditSuffix !== '₦' && <Text style={{ fontSize: 14, color: colors.textLight, marginLeft: 8 }}>{orderEditSuffix}</Text>}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowOrderEdit(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={saveOrderEdit}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
