@@ -318,7 +318,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('FlashSales')}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: colors.teal + '15' }]}>
                 <Ionicons name="flash-outline" size={18} color={colors.teal} />

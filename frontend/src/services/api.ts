@@ -344,6 +344,15 @@ export const promosAPI = {
   myUsage: (page = 1) => api.get(`/promos/my-usage?page=${page}`),
 };
 
+// ─── Flash Sales API ───
+export const flashSalesAPI = {
+  getAll: () => api.get('/merchant/flash-sales'),
+  create: (data: any) => api.post('/merchant/flash-sales', data),
+  update: (id: string, data: any) => api.patch(`/merchant/flash-sales/${id}`, data),
+  toggle: (id: string) => api.patch(`/merchant/flash-sales/${id}/toggle`),
+  delete: (id: string) => api.delete(`/merchant/flash-sales/${id}`),
+};
+
 // ─── Notifications API ───
 export const notificationsAPI = {
   getAll: (unreadOnly = false, page = 1) =>

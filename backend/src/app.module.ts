@@ -34,6 +34,7 @@ import { SustainabilityModule } from './sustainability/sustainability.module';
 import { MerchantKitchenModule } from './merchant-kitchen/merchant-kitchen.module';
 import { MerchantInsightsModule } from './merchant-insights/merchant-insights.module';
 import { MerchantCrmModule } from './merchant-crm/merchant-crm.module';
+import { FlashSalesModule } from './flash-sales/flash-sales.module';
 import { MerchantChannelsModule } from './merchant-channels/merchant-channels.module';
 import { MerchantPricingModule } from './merchant-pricing/merchant-pricing.module';
 import { CourierFleetModule } from './courier-fleet/courier-fleet.module';
@@ -80,6 +81,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     MerchantKitchenModule,
     MerchantInsightsModule,
     MerchantCrmModule,
+    FlashSalesModule,
     MerchantChannelsModule,
     MerchantPricingModule,
     CourierFleetModule,

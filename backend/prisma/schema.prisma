@@ -181,6 +181,7 @@ model BusinessProfile {
   favorites      Favorite[]
   crmCampaigns   CrmCampaign[]
   crmCustomerNotes CrmCustomerNote[]
+  flashSales     FlashSale[]
 
   @@map("business_profiles")
 }
@@ -926,4 +927,26 @@ model CrmCustomerNote {
   @@index([merchantId])
   @@index([customerId])
   @@map("crm_customer_notes")
+}
+
+model FlashSale {
+  id            String   @id @default(uuid()) @db.Uuid
+  merchantId    String   @map("merchant_id") @db.Uuid
+  title         String   @db.VarChar(255)
+  description   String?  @db.Text
+  discountType  String   @default("percentage") @map("discount_type") @db.VarChar(20)
+  discountValue Float    @map("discount_value")
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  isActive      Boolean  @default(true) @map("is_active")
+  itemsSold     Int      @default(0) @map("items_sold")
+  maxQuantity   Int?     @map("max_quantity")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([startsAt, endsAt])
+  @@map("flash_sales")
 }
