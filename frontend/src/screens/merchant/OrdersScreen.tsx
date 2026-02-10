@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,29 +7,47 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  TextInput,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import { ordersAPI } from '../../services/api';
 
+type OrderStatus = 'all' | 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
 
-type OrderStatus = 'all' | 'new' | 'preparing' | 'ready' | 'picked_up' | 'completed';
+const timeAgo = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+};
 
 export default function MerchantOrdersScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = useState<OrderStatus>('all');
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadOrders = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await ordersAPI.getBusinessOrders('me');
       if (res?.data) setAllOrders(res.data);
+      else if (Array.isArray(res)) setAllOrders(res);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+    finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+  useFocusEffect(useCallback(() => { loadOrders(); }, [loadOrders]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -39,43 +57,63 @@ export default function MerchantOrdersScreen({ navigation }: any) {
 
   const filters: { key: OrderStatus; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: allOrders.length },
-    { key: 'new', label: 'New', count: allOrders.filter(o => o.status === 'new').length },
+    { key: 'pending', label: 'New', count: allOrders.filter(o => o.status === 'pending').length },
+    { key: 'accepted', label: 'Accepted', count: allOrders.filter(o => o.status === 'accepted').length },
     { key: 'preparing', label: 'Preparing', count: allOrders.filter(o => o.status === 'preparing').length },
     { key: 'ready', label: 'Ready', count: allOrders.filter(o => o.status === 'ready').length },
     { key: 'picked_up', label: 'Picked Up', count: allOrders.filter(o => o.status === 'picked_up').length },
-    { key: 'completed', label: 'Done', count: allOrders.filter(o => o.status === 'completed').length },
+    { key: 'delivered', label: 'Done', count: allOrders.filter(o => o.status === 'delivered').length },
+    { key: 'cancelled', label: 'Cancelled', count: allOrders.filter(o => o.status === 'cancelled').length },
   ];
 
   const filteredOrders = activeFilter === 'all'
     ? allOrders
     : allOrders.filter(o => o.status === activeFilter);
 
+  const displayOrders = searchQuery
+    ? filteredOrders.filter(o => {
+        const q = searchQuery.toLowerCase();
+        const name = `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.toLowerCase();
+        const num = (o.orderNumber || '').toLowerCase();
+        return name.includes(q) || num.includes(q);
+      })
+    : filteredOrders;
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new': return colors.info;
+      case 'pending': return colors.info;
+      case 'accepted': return colors.teal;
       case 'preparing': return colors.warning;
-      case 'ready': return colors.teal;
+      case 'ready': return '#22c55e';
       case 'picked_up': return colors.navy;
-      case 'completed': return colors.success;
+      case 'in_transit': return colors.navy;
+      case 'delivered': return colors.success;
+      case 'cancelled': return colors.error;
+      case 'rejected': return colors.error;
       default: return colors.textLight;
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'new': return 'New Order';
+      case 'pending': return 'New Order';
+      case 'accepted': return 'Accepted';
       case 'preparing': return 'Preparing';
       case 'ready': return 'Ready for Pickup';
       case 'picked_up': return 'Picked Up';
-      case 'completed': return 'Completed';
+      case 'in_transit': return 'In Transit';
+      case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      case 'rejected': return 'Rejected';
       default: return status;
     }
   };
 
   const getActionButton = (status: string) => {
     switch (status) {
-      case 'new': return { label: 'Accept Order', color: colors.teal, nextStatus: 'preparing' };
-      case 'preparing': return { label: 'Mark Ready', color: colors.warning, nextStatus: 'ready' };
+      case 'pending': return { label: 'Accept Order', color: colors.teal, nextStatus: 'accepted' };
+      case 'accepted': return { label: 'Start Preparing', color: colors.warning, nextStatus: 'preparing' };
+      case 'preparing': return { label: 'Mark Ready', color: '#22c55e', nextStatus: 'ready' };
       case 'ready': return { label: 'Awaiting Courier', color: colors.navy, nextStatus: null };
       default: return null;
     }
@@ -96,8 +134,8 @@ export default function MerchantOrdersScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await ordersAPI.updateStatus(orderId, 'cancelled');
-            setAllOrders(prev => prev.filter(o => o.id !== orderId));
+            await ordersAPI.updateStatus(orderId, 'rejected');
+            setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'rejected' } : o));
           } catch (e: any) { Alert.alert('Error', e?.message || 'Could not reject order'); }
         },
       },
@@ -109,10 +147,30 @@ export default function MerchantOrdersScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Orders</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Ionicons name="search" size={20} color={colors.textWhite} />
+        <TouchableOpacity style={[styles.searchBtn, showSearch && { backgroundColor: colors.teal }]} onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); }}>
+          <Ionicons name={showSearch ? 'close' : 'search'} size={20} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={colors.textLight} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by customer or order #..."
+            placeholderTextColor={colors.textLight}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textLight} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* Filter Tabs */}
       <View style={styles.filterWrapper}>
@@ -144,22 +202,38 @@ export default function MerchantOrdersScreen({ navigation }: any) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
       >
-        {filteredOrders.length === 0 && (
-          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>No orders yet</Text>
-            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 4 }}>Orders will appear here when customers place them</Text>
+        {loading && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color={colors.navy} />
           </View>
         )}
-        {filteredOrders.map((order) => {
+        {!loading && displayOrders.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>
+              {searchQuery ? 'No matching orders' : 'No orders yet'}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 4 }}>
+              {searchQuery ? 'Try a different search' : 'Orders will appear here when customers place them'}
+            </Text>
+          </View>
+        )}
+        {displayOrders.map((order) => {
           const action = getActionButton(order.status);
+          const customerName = order.customer
+            ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim()
+            : 'Customer';
+          const orderItems = (order.items || []).map((oi: any) =>
+            `${oi.quantity > 1 ? oi.quantity + 'x ' : ''}${oi.menuItem?.name || 'Item'}`
+          );
+          const total = Number(order.totalAmount || 0);
           return (
             <View key={order.id} style={styles.orderCard}>
               {/* Order Header */}
               <View style={styles.orderTop}>
-                <View>
-                  <Text style={styles.orderCustomer}>{order.customerName}</Text>
-                  <Text style={styles.orderId}>{order.id} · {order.timeAgo}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderCustomer}>{customerName}</Text>
+                  <Text style={styles.orderId}>#{order.orderNumber} · {timeAgo(order.placedAt || order.createdAt)}</Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '15' }]}>
                   <View style={[styles.statusDot, { backgroundColor: getStatusColor(order.status) }]} />
@@ -170,35 +244,34 @@ export default function MerchantOrdersScreen({ navigation }: any) {
               </View>
 
               {/* Items */}
+              {orderItems.length > 0 && (
               <View style={styles.orderItems}>
-                {order.items.map((item: any, idx: number) => (
+                {orderItems.map((item: string, idx: number) => (
                   <Text key={idx} style={styles.orderItemText}>• {item}</Text>
                 ))}
               </View>
+              )}
 
               {/* Special Notes */}
-              {order.notes ? (
+              {order.specialInstructions ? (
                 <View style={styles.notesBar}>
                   <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.warning} />
-                  <Text style={styles.notesText}>{order.notes}</Text>
+                  <Text style={styles.notesText}>{order.specialInstructions}</Text>
                 </View>
               ) : null}
 
-              {/* Prep Progress */}
-              {order.status === 'preparing' && (order as any).prepProgress && (
-                <View style={styles.prepBar}>
-                  <View style={styles.prepTrack}>
-                    <View style={[styles.prepFill, { width: `${(order as any).prepProgress}%` }]} />
-                  </View>
-                  <Text style={styles.prepText}>{(order as any).prepProgress}% done</Text>
-                </View>
-              )}
-
               {/* Footer */}
               <View style={styles.orderBottom}>
-                <Text style={styles.orderTotal}>₦{order.total.toFixed(2)}</Text>
+                <View>
+                  <Text style={styles.orderTotal}>₦{total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                  {order.paymentStatus && (
+                    <Text style={{ fontSize: 11, color: order.paymentStatus === 'completed' ? colors.success : colors.warning, fontWeight: '600', marginTop: 2 }}>
+                      {order.paymentStatus === 'completed' ? 'Paid' : order.paymentStatus}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.orderActions}>
-                  {order.status === 'new' && (
+                  {order.status === 'pending' && (
                     <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectOrder(order.id)}>
                       <Ionicons name="close" size={16} color={colors.error} />
                     </TouchableOpacity>
@@ -213,9 +286,6 @@ export default function MerchantOrdersScreen({ navigation }: any) {
                       <Text style={[styles.actionText, { color: action.color }]}>{action.label}</Text>
                     </View>
                   )}
-                  <TouchableOpacity style={styles.printBtn}>
-                    <Ionicons name="print-outline" size={18} color={colors.navy} />
-                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -256,6 +326,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    marginHorizontal: 10,
+    marginTop: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textPrimary,
+    paddingVertical: 10,
   },
   filterWrapper: {
     height: 50,
