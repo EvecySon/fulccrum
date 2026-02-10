@@ -50,34 +50,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const { access } = await loadTokens();
-      if (!access) return;
+      const { access, refresh } = await loadTokens();
+      if (!access) {
+        console.log('[Auth] No stored token found');
+        return;
+      }
+      console.log('[Auth] Token loaded, restoring session...');
 
-      // Check if biometric is enabled for this device
-      const bioEnabled = await AsyncStorage.getItem(BIOMETRIC_KEY);
-      setBiometricEnabled(bioEnabled === 'true');
+      // Check if biometric is enabled (skip on web — no hardware)
+      if (Platform.OS !== 'web') {
+        try {
+          const bioEnabled = await AsyncStorage.getItem(BIOMETRIC_KEY);
+          setBiometricEnabled(bioEnabled === 'true');
 
-      if (bioEnabled === 'true') {
-        const compatible = await LocalAuthentication.hasHardwareAsync();
-        const enrolled = await LocalAuthentication.isEnrolledAsync();
-        if (compatible && enrolled) {
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: 'Authenticate to continue',
-            fallbackLabel: 'Use password',
-            disableDeviceFallback: false,
-          });
-          if (!result.success) {
-            // User cancelled biometric — don't auto-login but don't clear tokens
-            return;
+          if (bioEnabled === 'true') {
+            const compatible = await LocalAuthentication.hasHardwareAsync();
+            const enrolled = await LocalAuthentication.isEnrolledAsync();
+            if (compatible && enrolled) {
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Authenticate to continue',
+                fallbackLabel: 'Use password',
+                disableDeviceFallback: false,
+              });
+              if (!result.success) {
+                return;
+              }
+            }
           }
+        } catch (bioErr) {
+          console.log('[Auth] Biometric check skipped:', bioErr);
         }
       }
 
-      const profile = await usersAPI.getProfile();
-      setUser(profile);
+      try {
+        const profile = await usersAPI.getProfile();
+        setUser(profile);
+        console.log('[Auth] Session restored for', profile?.email);
+      } catch (profileErr: any) {
+        console.log('[Auth] getProfile failed, status:', profileErr?.status);
+        // If 401, the request() wrapper already tried refresh token.
+        // Only clear tokens if we truly can't recover.
+        if (profileErr?.status === 401) {
+          console.log('[Auth] Token expired and refresh failed, clearing');
+          await clearTokens();
+        }
+        // For other errors (network, 500, etc.) don't clear — keep tokens for retry
+      }
     } catch (error) {
-      console.log('Auth check failed:', error);
-      await clearTokens();
+      console.log('[Auth] checkAuth error:', error);
     } finally {
       setIsLoading(false);
     }

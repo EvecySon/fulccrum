@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -51,6 +53,18 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
       ttl: 60000, // 1 minute
       limit: 100, // 100 requests per minute per user/IP
     }]),
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      global: true,
+      useFactory: async (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
+        signOptions: {
+          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '1h') as JwtSignOptions['expiresIn'],
+          issuer: config.get<string>('JWT_ISSUER') ?? 'delivery-platform',
+          audience: config.get<string>('JWT_AUDIENCE') ?? 'delivery-platform-app',
+        } satisfies JwtSignOptions,
+      }),
+    }),
     PrismaModule,
     UsersModule,
     AuthModule,
