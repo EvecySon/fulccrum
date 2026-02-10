@@ -42,19 +42,57 @@ export class MerchantCrmService {
       take,
     });
 
+    // Aggregate order stats per customer
+    const orderStats = customerIds.length > 0
+      ? await this.prisma.order.groupBy({
+          by: ['customerId'],
+          where: { businessId: merchantId, customerId: { in: customerIds } },
+          _count: true,
+          _sum: { totalAmount: true },
+        })
+      : [];
+
+    const statsMap: Record<string, { count: number; spent: number }> = {};
+    orderStats.forEach((s: any) => {
+      statsMap[s.customerId] = {
+        count: s._count,
+        spent: Number(s._sum?.totalAmount || 0),
+      };
+    });
+
+    // Get last order date per customer
+    const lastOrders = customerIds.length > 0
+      ? await this.prisma.order.findMany({
+          where: { businessId: merchantId, customerId: { in: customerIds } },
+          orderBy: { createdAt: 'desc' },
+          distinct: ['customerId'],
+          select: { customerId: true, createdAt: true },
+        })
+      : [];
+
+    const lastOrderMap: Record<string, Date> = {};
+    lastOrders.forEach((o: any) => { lastOrderMap[o.customerId] = o.createdAt; });
+
     const combined = [
-      ...customers.map((c) => ({
-        id: c.id,
-        name: `${c.firstName} ${c.lastName}`.trim(),
-        avatar: c.avatarUrl || '',
-        totalOrders: 0,
-        totalSpent: 0,
-        favoriteItems: [],
-        frequency: 'Regular',
-        loyaltyScore: 50,
-        lastVisit: c.createdAt.toISOString().split('T')[0],
-        source: 'order',
-      })),
+      ...customers.map((c) => {
+        const st = statsMap[c.id] || { count: 0, spent: 0 };
+        const freq = st.count >= 10 ? 'VIP' : st.count >= 5 ? 'Regular' : st.count >= 2 ? 'Returning' : 'New';
+        const loyaltyScore = Math.min(100, st.count * 10);
+        return {
+          id: c.id,
+          name: `${c.firstName} ${c.lastName}`.trim(),
+          avatar: c.avatarUrl || '',
+          totalOrders: st.count,
+          totalSpent: Math.round(st.spent * 100) / 100,
+          favoriteItems: [],
+          frequency: freq,
+          loyaltyScore,
+          lastVisit: lastOrderMap[c.id]
+            ? lastOrderMap[c.id].toISOString().split('T')[0]
+            : c.createdAt.toISOString().split('T')[0],
+          source: 'order',
+        };
+      }),
       ...crmCustomers.map((c) => ({
         id: c.id,
         name: c.name,

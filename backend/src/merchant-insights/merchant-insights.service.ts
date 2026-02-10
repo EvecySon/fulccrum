@@ -6,11 +6,22 @@ export class MerchantInsightsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllInsights(merchantId: string) {
-    return [
+    const allInsights = [
       ...(await this.getDemandForecast(merchantId)),
       ...(await this.getPricingOptimization(merchantId)),
       ...(await this.getMenuOptimization(merchantId)),
     ];
+
+    // Filter out dismissed/implemented insights
+    const actions = await this.prisma.merchantInsightAction.findMany({
+      where: { merchantId },
+    });
+    const actionMap: Record<string, string> = {};
+    actions.forEach((a) => { actionMap[a.insightId] = a.action; });
+
+    return allInsights
+      .filter((i) => actionMap[i.id] !== 'dismissed')
+      .map((i) => ({ ...i, implemented: actionMap[i.id] === 'implemented' }));
   }
 
   async getDemandForecast(merchantId: string) {
@@ -57,10 +68,20 @@ export class MerchantInsightsService {
   }
 
   async implementInsight(merchantId: string, insightId: string) {
+    await this.prisma.merchantInsightAction.upsert({
+      where: { merchantId_insightId: { merchantId, insightId } },
+      create: { merchantId, insightId, action: 'implemented' },
+      update: { action: 'implemented' },
+    });
     return { message: 'Insight implemented', id: insightId };
   }
 
   async dismissInsight(merchantId: string, insightId: string) {
+    await this.prisma.merchantInsightAction.upsert({
+      where: { merchantId_insightId: { merchantId, insightId } },
+      create: { merchantId, insightId, action: 'dismissed' },
+      update: { action: 'dismissed' },
+    });
     return { message: 'Insight dismissed', id: insightId };
   }
 }

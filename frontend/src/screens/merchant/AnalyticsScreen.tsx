@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -63,7 +64,10 @@ export default function MerchantAnalyticsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <TouchableOpacity style={styles.exportBtn}>
+        <TouchableOpacity style={styles.exportBtn} onPress={() => {
+          const report = `Analytics Report (${selectedPeriod})\n\nRevenue: ₦${kpis.revenue.total.toLocaleString()} (${kpis.revenue.change})\nOrders: ${kpis.orders.total} (${kpis.orders.change})\nAvg Order: ₦${kpis.avgOrder.total.toLocaleString()} (${kpis.avgOrder.change})\nCancel Rate: ${kpis.cancelRate.total}% (${kpis.cancelRate.change})\n\nTop Items:\n${topItems.map((i, idx) => `${idx + 1}. ${i.name} - ${i.orders} orders`).join('\n')}\n\nCustomers: ${customerInsights.newCustomers} | Returning: ${customerInsights.returning}% | Rating: ${customerInsights.avgRating}`;
+          Share.share({ message: report, title: 'Analytics Report' }).catch(() => {});
+        }}>
           <Ionicons name="download-outline" size={18} color={colors.textWhite} />
           <Text style={styles.exportText}>Export</Text>
         </TouchableOpacity>

@@ -36,6 +36,7 @@ export default function MerchantOrdersScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -228,7 +229,7 @@ export default function MerchantOrdersScreen({ navigation }: any) {
           );
           const total = Number(order.totalAmount || 0);
           return (
-            <View key={order.id} style={styles.orderCard}>
+            <TouchableOpacity key={order.id} style={styles.orderCard} onPress={() => setSelectedOrder(order)} activeOpacity={0.7}>
               {/* Order Header */}
               <View style={styles.orderTop}>
                 <View style={{ flex: 1 }}>
@@ -288,11 +289,78 @@ export default function MerchantOrdersScreen({ navigation }: any) {
                   )}
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
         <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* Order Detail Modal */}
+      <Modal visible={!!selectedOrder} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '80%' }}>
+            {selectedOrder && (() => {
+              const o = selectedOrder;
+              const customerName = o.customer ? `${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() : 'Customer';
+              const items = (o.items || []).map((oi: any) => `${oi.quantity > 1 ? oi.quantity + 'x ' : ''}${oi.menuItem?.name || 'Item'}`);
+              const total = Number(o.totalAmount || 0);
+              const action = getActionButton(o.status);
+              return (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>Order #{o.orderNumber}</Text>
+                    <TouchableOpacity onPress={() => setSelectedOrder(null)}>
+                      <Ionicons name="close-circle" size={28} color={colors.textLight} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(o.status) + '15', alignSelf: 'flex-start', marginBottom: 16 }]}>
+                    <View style={[styles.statusDot, { backgroundColor: getStatusColor(o.status) }]} />
+                    <Text style={[styles.statusLabel, { color: getStatusColor(o.status) }]}>{getStatusLabel(o.status)}</Text>
+                  </View>
+                  <View style={{ backgroundColor: colors.lightGray, borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 }}>Customer</Text>
+                    <Text style={{ fontSize: 15, color: colors.textSecondary }}>{customerName}</Text>
+                  </View>
+                  <View style={{ backgroundColor: colors.lightGray, borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 }}>Items</Text>
+                    {items.map((item: string, idx: number) => (
+                      <Text key={idx} style={{ fontSize: 14, color: colors.textSecondary, paddingVertical: 2 }}>• {item}</Text>
+                    ))}
+                  </View>
+                  {o.specialInstructions ? (
+                    <View style={{ backgroundColor: colors.warning + '10', borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.warning, marginBottom: 4 }}>Special Instructions</Text>
+                      <Text style={{ fontSize: 14, color: colors.textSecondary }}>{o.specialInstructions}</Text>
+                    </View>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <View style={{ backgroundColor: colors.lightGray, borderRadius: 14, padding: 14, flex: 1, marginRight: 6 }}>
+                      <Text style={{ fontSize: 12, color: colors.textLight }}>Total</Text>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>₦{total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                    </View>
+                    <View style={{ backgroundColor: colors.lightGray, borderRadius: 14, padding: 14, flex: 1, marginLeft: 6 }}>
+                      <Text style={{ fontSize: 12, color: colors.textLight }}>Payment</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: o.paymentStatus === 'completed' ? colors.success : colors.warning }}>{o.paymentStatus === 'completed' ? 'Paid' : o.paymentStatus || 'Pending'}</Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                    {action && action.nextStatus && (
+                      <TouchableOpacity style={{ flex: 1, backgroundColor: action.color, paddingVertical: 14, borderRadius: 14, alignItems: 'center' }} onPress={() => { handleUpdateStatus(o.id, action.nextStatus!); setSelectedOrder(null); }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.white }}>{action.label}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {o.status === 'pending' && (
+                      <TouchableOpacity style={{ flex: 1, backgroundColor: colors.error + '15', paddingVertical: 14, borderRadius: 14, alignItems: 'center' }} onPress={() => { handleRejectOrder(o.id); setSelectedOrder(null); }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.error }}>Reject</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

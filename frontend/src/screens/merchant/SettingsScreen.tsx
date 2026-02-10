@@ -136,10 +136,10 @@ export default function MerchantSettingsScreen({ navigation }: any) {
 
   // Map frontend keys to backend API field names
   const orderKeyToApi: Record<string, string> = {
-    prepTime: 'preparationTime',
+    prepTime: 'averagePreparationTime',
     maxOrders: 'maxConcurrentOrders',
     deliveryRadius: 'deliveryRadius',
-    minOrderAmount: 'minimumOrder',
+    minOrderAmount: 'minimumOrderAmount',
   };
 
   const saveOrderEdit = () => {
