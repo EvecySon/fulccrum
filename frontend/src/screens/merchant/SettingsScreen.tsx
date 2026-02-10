@@ -264,17 +264,17 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               thumbColor={autoAccept ? colors.teal : colors.darkGray}
             />
           </View>
-          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Default Prep Time', 'prepTime', prepTime, 'minutes')}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Default Prep Time', 'prepTime', prepTime, 'min')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Default Prep Time</Text>
-              <Text style={styles.settingDesc}>{prepTime} minutes</Text>
+              <Text style={styles.settingDesc}>{prepTime} min</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Max Concurrent Orders', 'maxOrders', maxOrders, 'orders')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Max Concurrent Orders</Text>
-              <Text style={styles.settingDesc}>{maxOrders} orders</Text>
+              <Text style={styles.settingDesc}>{maxOrders}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
