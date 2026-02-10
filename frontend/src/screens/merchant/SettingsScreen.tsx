@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
@@ -112,8 +113,19 @@ export default function MerchantSettingsScreen({ navigation }: any) {
   const [businessProfile, setBusinessProfile] = useState<any>(null);
   const [businessHours, setBusinessHours] = useState<any[]>([]);
 
+  // Load notification prefs from AsyncStorage on mount
   useEffect(() => {
     (async () => {
+      try {
+        const prefs = await AsyncStorage.getItem('notif_prefs');
+        if (prefs) {
+          const p = JSON.parse(prefs);
+          if (p.soundAlerts !== undefined) setSoundAlerts(p.soundAlerts);
+          if (p.pushNotifs !== undefined) setPushNotifs(p.pushNotifs);
+          if (p.emailNotifs !== undefined) setEmailNotifs(p.emailNotifs);
+          if (p.autoAccept !== undefined) setAutoAccept(p.autoAccept);
+        }
+      } catch {}
       try {
         const [profileRes, hoursRes] = await Promise.all([
           usersAPI.getProfile().catch(() => null),
@@ -125,6 +137,21 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       } catch {}
     })();
   }, []);
+
+  const saveNotifPref = (key: string, value: boolean) => {
+    const setters: Record<string, (v: boolean) => void> = {
+      soundAlerts: setSoundAlerts,
+      pushNotifs: setPushNotifs,
+      emailNotifs: setEmailNotifs,
+      autoAccept: setAutoAccept,
+    };
+    setters[key]?.(value);
+    AsyncStorage.getItem('notif_prefs').then(raw => {
+      const prefs = raw ? JSON.parse(raw) : {};
+      prefs[key] = value;
+      AsyncStorage.setItem('notif_prefs', JSON.stringify(prefs));
+    }).catch(() => {});
+  };
 
   return (
     <View style={styles.container}>
@@ -183,7 +210,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={autoAccept}
-              onValueChange={setAutoAccept}
+              onValueChange={(v) => saveNotifPref('autoAccept', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={autoAccept ? colors.teal : colors.darkGray}
             />
@@ -228,7 +255,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={soundAlerts}
-              onValueChange={setSoundAlerts}
+              onValueChange={(v) => saveNotifPref('soundAlerts', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={soundAlerts ? colors.teal : colors.darkGray}
             />
@@ -240,7 +267,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={pushNotifs}
-              onValueChange={setPushNotifs}
+              onValueChange={(v) => saveNotifPref('pushNotifs', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={pushNotifs ? colors.teal : colors.darkGray}
             />
@@ -252,7 +279,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={emailNotifs}
-              onValueChange={setEmailNotifs}
+              onValueChange={(v) => saveNotifPref('emailNotifs', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={emailNotifs ? colors.teal : colors.darkGray}
             />
