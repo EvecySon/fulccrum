@@ -82,9 +82,8 @@ export default function InventoryScreen({ navigation }: any) {
     finally { setEditingSaving(false); }
   };
 
-  const handleAddInventory = () => {
-    Alert.alert('Add Inventory', 'To add inventory items, first add menu items from the Menu screen. Inventory is automatically tracked for all menu items.');
-  };
+  const [showAddInfo, setShowAddInfo] = useState(false);
+  const handleAddInventory = () => setShowAddInfo(true);
 
   const getStockStatus = (item: any) => {
     if (item.currentStock === 0) return { label: 'Out of Stock', color: colors.error };
@@ -224,6 +223,21 @@ export default function InventoryScreen({ navigation }: any) {
                 <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Restock</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Info Modal */}
+      <Modal visible={showAddInfo} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowAddInfo(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400, alignItems: 'center' }}>
+            <Ionicons name="information-circle-outline" size={40} color={colors.teal} style={{ marginBottom: 12 }} />
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 }}>Add Inventory</Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20 }}>To add inventory items, first add menu items from the Menu screen. Inventory is automatically tracked for all menu items.</Text>
+            <TouchableOpacity style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={() => setShowAddInfo(false)}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Got it</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
