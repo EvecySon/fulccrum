@@ -25,6 +25,8 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
+export const getApiBaseUrl = () => BASE_URL;
+
 // Token management
 let accessToken: string | null = null;
 
