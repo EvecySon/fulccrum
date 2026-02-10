@@ -84,43 +84,65 @@ export default function PromotionsScreen({ navigation }: any) {
     finally { setCreating(false); }
   };
 
-  const handleDeletePromo = (id: string, code: string) => {
-    Alert.alert('Delete Promo', `Delete promotion "${code}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await promosAPI.delete(id);
-            setPromos(prev => prev.filter(p => p.id !== id));
-          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete promo'); }
-        },
-      },
-    ]);
-  };
-
-  const handleViewStats = async (id: string) => {
-    try {
-      const stats = await promosAPI.getStats(id);
-      Alert.alert('Promo Stats', `Total uses: ${stats?.totalUses || 0}\nTotal discount given: ₦${stats?.totalDiscount?.toLocaleString() || 0}`);
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load stats'); }
-  };
+  // ─── Edit Modal ───
+  const [showEdit, setShowEdit] = useState(false);
+  const [editPromo, setEditPromo] = useState<any>(null);
+  const [editDiscount, setEditDiscount] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   const handleEditPromo = (promo: any) => {
-    Alert.prompt('Edit Discount', `Current: ${promo.discountValue}%`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Save',
-        onPress: async (val?: string) => {
-          if (!val) return;
-          try {
-            await promosAPI.update(promo.id, { discountValue: parseFloat(val) });
-            setPromos(prev => prev.map(p => p.id === promo.id ? { ...p, discountValue: parseFloat(val) } : p));
-          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update promo'); }
-        },
-      },
-    ], 'plain-text', String(promo.discountValue));
+    setEditPromo(promo);
+    setEditDiscount(String(promo.discountValue));
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDiscount.trim() || !editPromo) return;
+    setEditSaving(true);
+    try {
+      await promosAPI.update(editPromo.id, { discountValue: parseFloat(editDiscount) });
+      setPromos(prev => prev.map(p => p.id === editPromo.id ? { ...p, discountValue: parseFloat(editDiscount) } : p));
+      setShowEdit(false);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update promo'); }
+    finally { setEditSaving(false); }
+  };
+
+  // ─── Delete Modal ───
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeletePromo = (id: string, code: string) => {
+    setDeleteTarget({ id, code });
+    setShowDelete(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await promosAPI.delete(deleteTarget.id);
+      setPromos(prev => prev.filter(p => p.id !== deleteTarget.id));
+      setShowDelete(false);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete promo'); }
+    finally { setDeleting(false); }
+  };
+
+  // ─── Stats Modal ───
+  const [showStats, setShowStats] = useState(false);
+  const [statsData, setStatsData] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const handleViewStats = async (id: string) => {
+    setStatsLoading(true);
+    setStatsData(null);
+    setShowStats(true);
+    try {
+      const stats = await promosAPI.getStats(id);
+      setStatsData(stats);
+    } catch (e: any) {
+      setStatsData({ error: e?.message || 'Could not load stats' });
+    } finally { setStatsLoading(false); }
   };
 
   const togglePromo = async (id: string) => {
@@ -206,7 +228,7 @@ export default function PromotionsScreen({ navigation }: any) {
                 </View>
                 <View style={styles.promoDetail}>
                   <Ionicons name="calendar-outline" size={14} color={colors.textLight} />
-                  <Text style={styles.promoDetailText}>{promo.validFrom} — {promo.validUntil}</Text>
+                  <Text style={styles.promoDetailText}>{formatDateDisplay(promo.validFrom?.split('T')[0])} — {formatDateDisplay(promo.validUntil?.split('T')[0])}</Text>
                 </View>
                 <View style={styles.promoDetail}>
                   <Ionicons name="people-outline" size={14} color={colors.textLight} />
@@ -339,6 +361,104 @@ export default function PromotionsScreen({ navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Promo Modal */}
+      <Modal visible={showEdit} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !editSaving && setShowEdit(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 }}>Edit Promotion</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginBottom: 16 }}>
+              {editPromo?.code} — Current: {editPromo?.discountValue}%
+            </Text>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 16 }}
+              placeholder="New discount %"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={editDiscount}
+              onChangeText={setEditDiscount}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowEdit(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center', opacity: editSaving ? 0.6 : 1 }}
+                onPress={handleSaveEdit}
+                disabled={editSaving}
+              >
+                {editSaving ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={showDelete} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !deleting && setShowDelete(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 }}>Delete Promotion</Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 20 }}>
+              Are you sure you want to delete "{deleteTarget?.code}"? This cannot be undone.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowDelete(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: deleting ? 0.6 : 1 }}
+                onPress={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Stats Modal */}
+      <Modal visible={showStats} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !statsLoading && setShowStats(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>Promo Stats</Text>
+            {statsLoading ? (
+              <ActivityIndicator color={colors.teal} size="large" style={{ marginVertical: 20 }} />
+            ) : statsData?.error ? (
+              <Text style={{ fontSize: 14, color: colors.error, marginBottom: 16 }}>{statsData.error}</Text>
+            ) : (
+              <View style={{ gap: 12, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.lightGray, borderRadius: 12, padding: 14 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Total Uses</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{statsData?.totalUses || 0}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.lightGray, borderRadius: 12, padding: 14 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Total Discount Given</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>₦{(statsData?.totalDiscount || 0).toLocaleString()}</Text>
+                </View>
+              </View>
+            )}
+            <TouchableOpacity
+              style={{ paddingVertical: 14, borderRadius: 12, backgroundColor: colors.navy, alignItems: 'center' }}
+              onPress={() => setShowStats(false)}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
