@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -32,25 +34,54 @@ export default function PromotionsScreen({ navigation }: any) {
   const [newCode, setNewCode] = useState('');
   const [newDiscount, setNewDiscount] = useState('');
   const [newMinOrder, setNewMinOrder] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const getDefaultFrom = () => new Date().toISOString().split('T')[0];
+  const getDefaultUntil = () => {
+    const d = new Date(); d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split('T')[0];
+  };
+  const [validFrom, setValidFrom] = useState(getDefaultFrom());
+  const [validUntil, setValidUntil] = useState(getDefaultUntil());
+
+  const formatDateDisplay = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch { return dateStr; }
+  };
+
+  const openCreateModal = () => {
+    setNewCode(''); setNewDiscount(''); setNewMinOrder('');
+    setValidFrom(getDefaultFrom());
+    setValidUntil(getDefaultUntil());
+    setShowCreate(true);
+  };
 
   const handleCreatePromo = async () => {
     if (!newCode.trim() || !newDiscount.trim()) {
       Alert.alert('Missing Info', 'Please enter promo code and discount value.');
       return;
     }
+    if (!validFrom || !validUntil) {
+      Alert.alert('Missing Dates', 'Please set start and end dates.');
+      return;
+    }
+    setCreating(true);
     try {
       const created = await promosAPI.create({
         code: newCode.trim().toUpperCase(),
         discountType: 'percentage',
         discountValue: parseFloat(newDiscount),
         minimumOrder: parseFloat(newMinOrder) || 0,
-        isActive: true,
+        validFrom: new Date(validFrom + 'T00:00:00').toISOString(),
+        validUntil: new Date(validUntil + 'T23:59:59').toISOString(),
+        applicableTo: 'all',
       });
       setPromos(prev => [created, ...prev]);
       setShowCreate(false);
-      setNewCode(''); setNewDiscount(''); setNewMinOrder('');
-      Alert.alert('Success', 'Promotion created!');
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not create promo'); }
+    finally { setCreating(false); }
   };
 
   const handleDeletePromo = (id: string, code: string) => {
@@ -109,7 +140,7 @@ export default function PromotionsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Promotions</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={openCreateModal}>
           <Ionicons name="add" size={20} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
@@ -222,8 +253,9 @@ export default function PromotionsScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Create Promo Modal */}
-      <Modal visible={showCreate} transparent animationType="slide">
+      <Modal visible={showCreate} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !creating && setShowCreate(false)} />
           <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>Create Promotion</Text>
             <TextInput
@@ -243,19 +275,68 @@ export default function PromotionsScreen({ navigation }: any) {
               onChangeText={setNewDiscount}
             />
             <TextInput
-              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 16 }}
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 12 }}
               placeholder="Min order amount (₦) (optional)"
               placeholderTextColor={colors.textLight}
               keyboardType="numeric"
               value={newMinOrder}
               onChangeText={setNewMinOrder}
             />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 }}>Validity Period</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: colors.textLight, marginBottom: 4 }}>Start Date</Text>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={validFrom}
+                    onChange={(e: any) => setValidFrom(e.target.value)}
+                    style={{ backgroundColor: colors.lightGray, borderRadius: 12, padding: '14px 12px', fontSize: 14, color: colors.textPrimary, border: 'none', width: '100%', boxSizing: 'border-box' } as any}
+                  />
+                ) : (
+                  <TextInput
+                    style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 14, fontSize: 14, color: colors.textPrimary }}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.textLight}
+                    value={validFrom}
+                    onChangeText={setValidFrom}
+                  />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: colors.textLight, marginBottom: 4 }}>End Date</Text>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={validUntil}
+                    onChange={(e: any) => setValidUntil(e.target.value)}
+                    style={{ backgroundColor: colors.lightGray, borderRadius: 12, padding: '14px 12px', fontSize: 14, color: colors.textPrimary, border: 'none', width: '100%', boxSizing: 'border-box' } as any}
+                  />
+                ) : (
+                  <TextInput
+                    style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 14, fontSize: 14, color: colors.textPrimary }}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.textLight}
+                    value={validUntil}
+                    onChangeText={setValidUntil}
+                  />
+                )}
+              </View>
+            </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowCreate(false)}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={handleCreatePromo}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Create</Text>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center', opacity: creating ? 0.6 : 1 }}
+                onPress={handleCreatePromo}
+                disabled={creating}
+              >
+                {creating ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Create</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
