@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   Alert,
   TextInput,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { colors } from '../../theme/colors';
 import { menuAPI, uploadAPI } from '../../services/api';
@@ -22,31 +24,28 @@ export default function MerchantMenuScreen({ navigation }: any) {
   const [menuCategories, setMenuCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [itemAvailability, setItemAvailability] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const res = await menuAPI.getCategories('me');
-        if (res?.categories?.length) {
-          setMenuCategories(res.categories);
-          setSelectedCategory(res.categories[0].id);
-          setItemAvailability(
-            Object.fromEntries(
-              res.categories.flatMap((c: any) => c.items.map((i: any) => [i.id, i.available]))
-            )
-          );
-        } else if (res?.length) {
-          setMenuCategories(res);
-          setSelectedCategory(res[0].id);
-          setItemAvailability(
-            Object.fromEntries(
-              res.flatMap((c: any) => (c.items || []).map((i: any) => [i.id, i.available !== false]))
-            )
-          );
-        }
-      } catch {}
-    })();
+  const loadMenu = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await menuAPI.getCategories('me', true);
+      const cats = Array.isArray(res) ? res : res?.categories || [];
+      setMenuCategories(cats);
+      if (cats.length && !selectedCategory) setSelectedCategory(cats[0].id);
+      setItemAvailability(
+        Object.fromEntries(
+          cats.flatMap((c: any) => (c.items || []).map((i: any) => [i.id, i.isAvailable !== false]))
+        )
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not load menu');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(useCallback(() => { loadMenu(); }, [loadMenu]));
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -77,13 +76,7 @@ export default function MerchantMenuScreen({ navigation }: any) {
       setShowAddItem(false);
       setNewItemName('');
       setNewItemPrice('');
-      // Reload menu
-      const res = await menuAPI.getCategories('me');
-      if (res?.length) {
-        setMenuCategories(res);
-      } else if (res?.categories?.length) {
-        setMenuCategories(res.categories);
-      }
+      await loadMenu();
       Alert.alert('Success', 'Item added to menu!');
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Could not add item');
@@ -99,9 +92,7 @@ export default function MerchantMenuScreen({ navigation }: any) {
           if (!newPrice) return;
           try {
             await menuAPI.updateItem(item.id, { price: parseFloat(newPrice) });
-            const res = await menuAPI.getCategories('me');
-            if (res?.length) setMenuCategories(res);
-            else if (res?.categories?.length) setMenuCategories(res.categories);
+            await loadMenu();
           } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update item'); }
         },
       },
@@ -112,12 +103,10 @@ export default function MerchantMenuScreen({ navigation }: any) {
     try {
       await menuAPI.createItem({
         name: `${item.name} (Copy)`,
-        price: item.price,
+        price: Number(item.price),
         categoryId: selectedCategory,
       });
-      const res = await menuAPI.getCategories('me');
-      if (res?.length) setMenuCategories(res);
-      else if (res?.categories?.length) setMenuCategories(res.categories);
+      await loadMenu();
       Alert.alert('Duplicated', `"${item.name}" has been duplicated.`);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not duplicate item'); }
   };
@@ -173,6 +162,10 @@ export default function MerchantMenuScreen({ navigation }: any) {
       const formData = new FormData();
       formData.append('file', { uri, name: `menu_item_${itemId}.jpg`, type: 'image/jpeg' } as any);
       const res = await uploadAPI.uploadImage(formData);
+      if (res?.url) {
+        await menuAPI.updateItem(itemId, { images: [res.url] });
+        await loadMenu();
+      }
       Alert.alert('Photo Updated', 'Menu item photo has been updated.');
     } catch (err: any) {
       Alert.alert('Upload Failed', err.message || 'Could not upload photo.');
@@ -203,18 +196,18 @@ export default function MerchantMenuScreen({ navigation }: any) {
       {/* Stats Bar */}
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.length, 0)}</Text>
+          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + (c.items || []).length, 0)}</Text>
           <Text style={styles.statLabel}>Total Items</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => i.available).length, 0)}</Text>
+          <Text style={styles.statValue}>{Object.values(itemAvailability).filter(Boolean).length}</Text>
           <Text style={styles.statLabel}>Available</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.error }]}>
-            {menuCategories.reduce((sum, c) => sum + c.items.filter((i: any) => !i.available).length, 0)}
+            {Object.values(itemAvailability).filter(v => !v).length}
           </Text>
           <Text style={styles.statLabel}>Unavailable</Text>
         </View>
@@ -251,7 +244,12 @@ export default function MerchantMenuScreen({ navigation }: any) {
 
       {/* Menu Items */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {menuCategories.length === 0 && (
+        {loading && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color={colors.navy} />
+          </View>
+        )}
+        {!loading && menuCategories.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Ionicons name="restaurant-outline" size={48} color={colors.textLight} />
             <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textLight, marginTop: 12 }}>No menu items yet</Text>
@@ -269,10 +267,19 @@ export default function MerchantMenuScreen({ navigation }: any) {
         </View>
         )}
 
-        {currentCategory?.items?.map((item: any) => (
+        {currentCategory?.items?.map((item: any) => {
+          const imgArr = Array.isArray(item.images) ? item.images : [];
+          const imgUri = imgArr[0] || null;
+          return (
           <View key={item.id} style={[styles.menuItem, !itemAvailability[item.id] && styles.menuItemDisabled]}>
             <TouchableOpacity onPress={() => handlePickItemPhoto(item.id)}>
-              <Image source={{ uri: item.image }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />
+              {imgUri ? (
+                <Image source={{ uri: imgUri }} style={[styles.itemImage, !itemAvailability[item.id] && styles.itemImageDisabled]} />
+              ) : (
+                <View style={[styles.itemImage, { backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="image-outline" size={28} color={colors.textLight} />
+                </View>
+              )}
               <View style={styles.photoOverlay}>
                 <Ionicons name="camera" size={14} color={colors.textWhite} />
               </View>
@@ -280,15 +287,15 @@ export default function MerchantMenuScreen({ navigation }: any) {
             <View style={styles.itemInfo}>
               <View style={styles.itemNameRow}>
                 <Text style={[styles.itemName, !itemAvailability[item.id] && styles.itemNameDisabled]}>{item.name}</Text>
-                {item.popular && (
+                {item.isFeatured && (
                   <View style={styles.popularBadge}>
                     <Ionicons name="flame" size={10} color={colors.warning} />
-                    <Text style={styles.popularText}>Popular</Text>
+                    <Text style={styles.popularText}>Featured</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.itemPrice}>₦{item.price.toFixed(2)}</Text>
-              <Text style={styles.itemOrders}>{item.orders} orders this week</Text>
+              <Text style={styles.itemPrice}>₦{Number(item.price).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+              <Text style={styles.itemOrders}>Prep: {item.preparationTime || 15} min</Text>
               <View style={styles.itemActions}>
                 <TouchableOpacity style={styles.editBtn} onPress={() => handleEditItem(item)}>
                   <Ionicons name="create-outline" size={16} color={colors.navy} />
@@ -312,7 +319,8 @@ export default function MerchantMenuScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
+          );
+        })}
 
         {/* Add Item to Category */}
         <TouchableOpacity style={styles.addItemCard} onPress={() => setShowAddItem(true)}>

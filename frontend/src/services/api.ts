@@ -264,7 +264,8 @@ export const ordersAPI = {
 
 // ─── Menu API ───
 export const menuAPI = {
-  getCategories: (businessId: string) => api.get(`/menu/categories?businessId=${businessId}`),
+  getCategories: (businessId: string, includeInactive = false) =>
+    api.get(`/menu/categories?businessId=${businessId}${includeInactive ? '&includeInactive=true' : ''}`),
   createCategory: (data: any) => api.post('/menu/categories', data),
   updateCategory: (id: string, data: any) => api.put(`/menu/categories/${id}`, data),
   deleteCategory: (id: string) => api.delete(`/menu/categories/${id}`),
