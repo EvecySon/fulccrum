@@ -347,6 +347,16 @@ export class OrdersService {
               lastName: true,
             },
           },
+          items: {
+            include: {
+              menuItem: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       }),
       this.prisma.order.count({ where: { businessId } }),

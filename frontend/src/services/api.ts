@@ -2,24 +2,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
+const DEV_IP = '192.168.18.2';
+
 const getBaseUrl = () => {
   // In production, use your production API URL
   if (process.env.NODE_ENV === 'production') {
-    return 'https://api.fulccrum.com'; // Replace with your actual production URL
+    return 'https://api.fulccrum.com';
   }
   
   // For development:
-  // - Web: use localhost
-  // - Mobile (iOS/Android): use your computer's local IP
   if (Platform.OS === 'web') {
-    return 'http://localhost:3001';
-  } else {
-    // Replace this IP with your computer's current local IP address
-    return 'http://192.168.18.2:3001';
+    // If opened on the same machine use localhost, otherwise use LAN IP
+    const host = typeof window !== 'undefined' && window.location?.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    return `http://${DEV_IP}:3001`;
   }
+  // Mobile (iOS/Android): always use LAN IP
+  return `http://${DEV_IP}:3001`;
 };
 
 const BASE_URL = getBaseUrl();
+
+export const getApiBaseUrl = () => BASE_URL;
 
 // Token management
 let accessToken: string | null = null;
@@ -139,7 +145,8 @@ export const api = {
   patch: <T = any>(endpoint: string, body?: any) =>
     request<T>(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
 
-  delete: <T = any>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
+  delete: <T = any>(endpoint: string, body?: any) =>
+    request<T>(endpoint, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 
   // File upload (multipart)
   upload: async <T = any>(endpoint: string, formData: FormData) => {
@@ -186,7 +193,10 @@ export const authAPI = {
     api.post('/auth/reset-password', { email, resetToken, newPassword }),
 
   resendOTP: (email: string) =>
-    api.post('/auth/forgot-password', { email }),
+    api.post('/auth/resend-otp', { email }),
+
+  verifyRegistration: (email: string, otp: string) =>
+    api.post('/auth/verify-registration', { email, otp }),
 
   refreshToken: (refreshToken: string) =>
     api.post('/auth/refresh-token', { refreshToken }),
@@ -209,6 +219,8 @@ export const usersAPI = {
   updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string }) =>
     api.patch('/users/profile', data),
   updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),
+  deleteAccount: (password: string) => api.delete('/users/account', { password }),
+  exportData: () => api.get('/users/data-export'),
 };
 
 // ─── Search API ───
@@ -254,7 +266,8 @@ export const ordersAPI = {
 
 // ─── Menu API ───
 export const menuAPI = {
-  getCategories: (businessId: string) => api.get(`/menu/categories?businessId=${businessId}`),
+  getCategories: (businessId: string, includeInactive = false) =>
+    api.get(`/menu/categories?businessId=${businessId}${includeInactive ? '&includeInactive=true' : ''}`),
   createCategory: (data: any) => api.post('/menu/categories', data),
   updateCategory: (id: string, data: any) => api.put(`/menu/categories/${id}`, data),
   deleteCategory: (id: string) => api.delete(`/menu/categories/${id}`),
@@ -314,7 +327,7 @@ export const reviewsAPI = {
   getBusinessReviews: (businessId: string, page = 1) => api.get(`/reviews/business/${businessId}?page=${page}`),
   getDriverReviews: (driverId: string, page = 1) => api.get(`/reviews/driver/${driverId}?page=${page}`),
   getMyReviews: (page = 1) => api.get(`/reviews/customer/my-reviews?page=${page}`),
-  respond: (id: string, response: string) => api.post(`/reviews/${id}/respond`, { response }),
+  respond: (id: string, response: string) => api.post(`/reviews/${id}/respond`, { businessResponse: response }),
   markHelpful: (id: string) => api.patch(`/reviews/${id}/helpful`),
   getBusinessStats: (businessId: string) => api.get(`/reviews/business/${businessId}/stats`),
   hide: (id: string, notes: string) => api.patch(`/reviews/${id}/hide`, { moderationNotes: notes }),
@@ -332,6 +345,15 @@ export const promosAPI = {
   toggle: (id: string) => api.patch(`/promos/${id}/toggle`),
   delete: (id: string) => api.delete(`/promos/${id}`),
   myUsage: (page = 1) => api.get(`/promos/my-usage?page=${page}`),
+};
+
+// ─── Flash Sales API ───
+export const flashSalesAPI = {
+  getAll: () => api.get('/merchant/flash-sales'),
+  create: (data: any) => api.post('/merchant/flash-sales', data),
+  update: (id: string, data: any) => api.patch(`/merchant/flash-sales/${id}`, data),
+  toggle: (id: string) => api.patch(`/merchant/flash-sales/${id}/toggle`),
+  delete: (id: string) => api.delete(`/merchant/flash-sales/${id}`),
 };
 
 // ─── Notifications API ───
@@ -361,6 +383,7 @@ export const locationAPI = {
 
 // ─── Analytics API ───
 export const analyticsAPI = {
+  merchantAnalytics: (period = 'today') => api.get(`/analytics/merchant?period=${period}`),
   dashboard: () => api.get('/analytics/dashboard'),
   revenue: (days = 30) => api.get(`/analytics/revenue?days=${days}`),
   topPerformers: (type: 'drivers' | 'businesses', limit = 10) =>
@@ -403,6 +426,11 @@ export const adminAPI = {
     api.put(`/admin/registration-fees/${role}`, data),
   getRegistrationPayments: (page = 1) => api.get(`/admin/registration-payments?page=${page}`),
   waiveRegistrationFee: (userId: string) => api.post(`/admin/users/${userId}/waive-fee`),
+  // Admin user management
+  getAdmins: () => api.get('/admin/admins'),
+  createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
+    api.post('/admin/admins', data),
+  removeAdmin: (userId: string) => api.delete(`/admin/admins/${userId}`),
 };
 
 // ─── Support API ───
@@ -537,6 +565,7 @@ export const merchantInsightsAPI = {
 export const merchantCrmAPI = {
   getCustomerProfiles: (page = 1) => api.get(`/merchant/crm/customers?page=${page}`),
   getCustomerProfile: (customerId: string) => api.get(`/merchant/crm/customers/${customerId}`),
+  createCustomerProfile: (data: any) => api.post('/merchant/crm/customers', data),
   getCampaigns: () => api.get('/merchant/crm/campaigns'),
   createCampaign: (data: any) => api.post('/merchant/crm/campaigns', data),
   updateCampaign: (id: string, data: any) => api.patch(`/merchant/crm/campaigns/${id}`, data),

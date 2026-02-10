@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator, RefreshControl, TextInput, Modal, Alert, ScrollView, Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -47,6 +47,53 @@ export default function CRMScreen({ navigation }: any) {
     } catch {
       // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
+  };
+
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showAddCampaign, setShowAddCampaign] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [custForm, setCustForm] = useState({ name: '', email: '', phone: '' });
+  const [campForm, setCampForm] = useState({ name: '', type: 'promotion', targetCount: '' });
+
+  const handleAdd = () => {
+    if (activeTab === 'customers') {
+      setCustForm({ name: '', email: '', phone: '' });
+      setShowAddCustomer(true);
+    } else {
+      setCampForm({ name: '', type: 'promotion', targetCount: '' });
+      setShowAddCampaign(true);
+    }
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!custForm.name.trim()) return;
+    setSaving(true);
+    try {
+      await merchantCrmAPI.createCustomerProfile(custForm);
+      setShowAddCustomer(false);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not add customer');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCampaign = async () => {
+    if (!campForm.name.trim()) return;
+    setSaving(true);
+    try {
+      await merchantCrmAPI.createCampaign({
+        ...campForm,
+        targetCount: parseInt(campForm.targetCount) || 0,
+      });
+      setShowAddCampaign(false);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not create campaign');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filtered = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -102,7 +149,7 @@ export default function CRMScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Customer CRM</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={handleAdd}>
           <Ionicons name="add-circle-outline" size={24} color={colors.tealLight} />
         </TouchableOpacity>
       </View>
@@ -147,6 +194,87 @@ export default function CRMScreen({ navigation }: any) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.teal} />}
         />
       )}
+      {/* Add Customer Modal */}
+      <Modal visible={showAddCustomer} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setShowAddCustomer(false)} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Customer</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Customer name *"
+              placeholderTextColor={colors.textLight}
+              value={custForm.name}
+              onChangeText={v => setCustForm(p => ({ ...p, name: v }))}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Email"
+              placeholderTextColor={colors.textLight}
+              keyboardType="email-address"
+              value={custForm.email}
+              onChangeText={v => setCustForm(p => ({ ...p, email: v }))}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Phone"
+              placeholderTextColor={colors.textLight}
+              keyboardType="phone-pad"
+              value={custForm.phone}
+              onChangeText={v => setCustForm(p => ({ ...p, phone: v }))}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddCustomer(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSaveBtn, saving && { opacity: 0.6 }]} onPress={handleSaveCustomer} disabled={saving}>
+                {saving ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={styles.modalSaveText}>Add</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Campaign Modal */}
+      <Modal visible={showAddCampaign} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setShowAddCampaign(false)} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Create Campaign</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Campaign name *"
+              placeholderTextColor={colors.textLight}
+              value={campForm.name}
+              onChangeText={v => setCampForm(p => ({ ...p, name: v }))}
+            />
+            <Text style={styles.fieldLabel}>Type</Text>
+            <View style={styles.typeRow}>
+              {['promotion', 'loyalty', 'retention', 'winback'].map(t => (
+                <TouchableOpacity key={t} style={[styles.typeChip, campForm.type === t && styles.typeChipActive]} onPress={() => setCampForm(p => ({ ...p, type: t }))}>
+                  <Text style={[styles.typeChipText, campForm.type === t && styles.typeChipTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Target customer count"
+              placeholderTextColor={colors.textLight}
+              keyboardType="number-pad"
+              value={campForm.targetCount}
+              onChangeText={v => setCampForm(p => ({ ...p, targetCount: v }))}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddCampaign(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSaveBtn, saving && { opacity: 0.6 }]} onPress={handleSaveCampaign} disabled={saving}>
+                {saving ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={styles.modalSaveText}>Create</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -186,4 +314,19 @@ const styles = StyleSheet.create({
   effectivenessBar: { flex: 1, height: 6, backgroundColor: colors.lightGray, borderRadius: 3, overflow: 'hidden' },
   effectivenessFill: { height: '100%', backgroundColor: colors.teal, borderRadius: 3 },
   effectivenessValue: { fontSize: 12, fontWeight: '700', color: colors.teal },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.navy, textAlign: 'center', marginBottom: 20 },
+  modalInput: { backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  modalSaveBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.navy, alignItems: 'center' },
+  modalSaveText: { fontSize: 15, fontWeight: '600', color: colors.textWhite },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.lightGray, borderWidth: 1, borderColor: colors.border },
+  typeChipActive: { backgroundColor: colors.navy + '15', borderColor: colors.navy },
+  typeChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, textTransform: 'capitalize' },
+  typeChipTextActive: { color: colors.navy },
 });

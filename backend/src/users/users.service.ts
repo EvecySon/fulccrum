@@ -13,8 +13,11 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { id } });
+  async findById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: { businessProfile: true, driverProfile: true },
+    });
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -71,9 +74,27 @@ export class UsersService {
       throw new NotFoundException('Business profile not found');
     }
 
+    const data: any = {};
+    if (dto.businessName !== undefined) data.businessName = dto.businessName;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.address2 !== undefined) data.address2 = dto.address2;
+    if (dto.city !== undefined) data.city = dto.city;
+    if (dto.state !== undefined) data.state = dto.state;
+    if (dto.lga !== undefined) data.lga = dto.lga;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.preparationTime !== undefined) data.averagePreparationTime = dto.preparationTime;
+    if (dto.maxConcurrentOrders !== undefined) data.maxConcurrentOrders = dto.maxConcurrentOrders;
+    if (dto.deliveryRadius !== undefined) data.deliveryRadius = dto.deliveryRadius;
+    if (dto.autoAcceptOrders !== undefined) data.autoAcceptOrders = dto.autoAcceptOrders;
+    if (dto.minimumOrder !== undefined) data.minimumOrderAmount = dto.minimumOrder;
+    if (dto.deliveryFee !== undefined) data.deliveryFee = dto.deliveryFee;
+    if (dto.logo !== undefined) data.logoUrl = dto.logo;
+    if (dto.coverImage !== undefined) data.coverImageUrl = dto.coverImage;
+
     return this.prisma.businessProfile.update({
       where: { userId },
-      data: dto,
+      data,
     });
   }
 
@@ -175,7 +196,7 @@ export class UsersService {
 
   async exportUserData(userId: string) {
     // Fetch all user data for GDPR compliance
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         customerProfile: true,
@@ -232,7 +253,11 @@ export class UsersService {
             },
           },
         },
-        wallet: true,
+        wallet: {
+          include: {
+            withdrawalRequests: true,
+          },
+        },
         notifications: true,
         supportTickets: {
           include: {

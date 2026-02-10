@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { MerchantCrmService } from './merchant-crm.service';
-import { MerchantCrmController } from './merchant-crm.controller';
+import { FlashSalesService } from './flash-sales.service';
+import { FlashSalesController } from './flash-sales.controller';
 
 @Module({
   imports: [
@@ -16,7 +16,7 @@ import { MerchantCrmController } from './merchant-crm.controller';
       }),
     }),
   ],
-  controllers: [MerchantCrmController],
-  providers: [MerchantCrmService],
+  controllers: [FlashSalesController],
+  providers: [FlashSalesService],
 })
-export class MerchantCrmModule {}
+export class FlashSalesModule {}

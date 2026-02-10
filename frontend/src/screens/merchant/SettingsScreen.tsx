@@ -8,39 +8,103 @@ import {
   Switch,
   Image,
   Alert,
+  Linking,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
-import { usersAPI, menuAPI } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
-    ]);
+  const [promoCount, setPromoCount] = useState({ active: 0, total: 0 });
+  const [flashCount, setFlashCount] = useState({ active: 0, total: 0 });
+  const [bankAccount, setBankAccount] = useState<any>(null);
+
+  const refreshData = async () => {
+    try {
+      const res = await promosAPI.getAll(1, false);
+      const all = res?.data || [];
+      const active = all.filter((p: any) => p.isActive).length;
+      setPromoCount({ active, total: all.length });
+    } catch {}
+    try {
+      const res = await flashSalesAPI.getAll();
+      const all = Array.isArray(res?.data) ? res.data : [];
+      const active = all.filter((s: any) => s.isActive && new Date(s.endsAt) > new Date()).length;
+      setFlashCount({ active, total: all.length });
+    } catch {}
+    try {
+      const banks = await walletAPI.getBankAccounts();
+      if (banks?.length) {
+        const defaultBank = banks.find((b: any) => b.isDefault) || banks[0];
+        setBankAccount(defaultBank);
+      } else {
+        setBankAccount(null);
+      }
+    } catch {}
   };
 
+  useEffect(() => {
+    refreshData();
+    // Re-fetch when this tab gains focus (switching tabs)
+    const unsubTab = navigation.addListener('focus', refreshData);
+    // Re-fetch when any stack navigation happens (e.g. popping back from BankAccounts)
+    const parent = navigation.getParent?.();
+    const unsubState = parent?.addListener?.('state', refreshData);
+    return () => { unsubTab(); unsubState?.(); };
+  }, [navigation]);
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleLogout = () => setShowLogoutModal(true);
+
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your merchant account and all your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Account Deleted', 'Your account has been deleted.', [
-              { text: 'OK', onPress: () => logout() },
-            ]);
-          },
-        },
-      ],
-    );
+    setDeletePassword('');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword) return;
+    setDeleting(true);
+    try {
+      await usersAPI.deleteAccount(deletePassword);
+      setShowDeleteModal(false);
+      logout();
+    } catch (e: any) {
+      setShowDeleteModal(false);
+      Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleExportData = () => setShowExportModal(true);
+
+  const confirmExportData = async () => {
+    setExporting(true);
+    try {
+      await usersAPI.exportData();
+      setShowExportModal(false);
+      Alert.alert('Success', 'Your data export has been prepared. Check your email.');
+    } catch (e: any) {
+      setShowExportModal(false);
+      Alert.alert('Error', e?.message || 'Could not export data.');
+    } finally {
+      setExporting(false);
+    }
   };
   const [autoAccept, setAutoAccept] = useState(false);
   const [soundAlerts, setSoundAlerts] = useState(true);
@@ -49,19 +113,110 @@ export default function MerchantSettingsScreen({ navigation }: any) {
   const [businessProfile, setBusinessProfile] = useState<any>(null);
   const [businessHours, setBusinessHours] = useState<any[]>([]);
 
+  // Order settings
+  const [prepTime, setPrepTime] = useState(15);
+  const [maxOrders, setMaxOrders] = useState(10);
+  const [deliveryRadius, setDeliveryRadius] = useState(5);
+  const [minOrderAmount, setMinOrderAmount] = useState(3000);
+
+  // Edit modal for order settings
+  const [showOrderEdit, setShowOrderEdit] = useState(false);
+  const [orderEditLabel, setOrderEditLabel] = useState('');
+  const [orderEditKey, setOrderEditKey] = useState('');
+  const [orderEditValue, setOrderEditValue] = useState('');
+  const [orderEditSuffix, setOrderEditSuffix] = useState('');
+
+  const openOrderEdit = (label: string, key: string, value: number, suffix: string) => {
+    setOrderEditLabel(label);
+    setOrderEditKey(key);
+    setOrderEditValue(String(value));
+    setOrderEditSuffix(suffix);
+    setShowOrderEdit(true);
+  };
+
+  // Map frontend keys to backend API field names
+  const orderKeyToApi: Record<string, string> = {
+    prepTime: 'averagePreparationTime',
+    maxOrders: 'maxConcurrentOrders',
+    deliveryRadius: 'deliveryRadius',
+    minOrderAmount: 'minimumOrderAmount',
+  };
+
+  const saveOrderEdit = () => {
+    const num = parseFloat(orderEditValue);
+    if (isNaN(num) || num < 0) return;
+    const setters: Record<string, (v: number) => void> = {
+      prepTime: setPrepTime,
+      maxOrders: setMaxOrders,
+      deliveryRadius: setDeliveryRadius,
+      minOrderAmount: setMinOrderAmount,
+    };
+    setters[orderEditKey]?.(num);
+    // Save to backend
+    const apiKey = orderKeyToApi[orderEditKey];
+    if (apiKey) {
+      usersAPI.updateBusinessProfile({ [apiKey]: num }).catch(() => {});
+    }
+    setShowOrderEdit(false);
+  };
+
+  // Load prefs on mount
   useEffect(() => {
     (async () => {
+      // Load notification prefs from AsyncStorage (device-specific)
+      try {
+        const prefs = await AsyncStorage.getItem('notif_prefs');
+        if (prefs) {
+          const p = JSON.parse(prefs);
+          if (p.soundAlerts !== undefined) setSoundAlerts(p.soundAlerts);
+          if (p.pushNotifs !== undefined) setPushNotifs(p.pushNotifs);
+          if (p.emailNotifs !== undefined) setEmailNotifs(p.emailNotifs);
+        }
+      } catch {}
+      // Load order settings + profile from backend
       try {
         const [profileRes, hoursRes] = await Promise.all([
           usersAPI.getProfile().catch(() => null),
           menuAPI.getBusinessHours('me').catch(() => null),
         ]);
-        if (profileRes) setBusinessProfile(profileRes);
+        if (profileRes) {
+          setBusinessProfile(profileRes);
+          const bp = profileRes.businessProfile;
+          if (bp) {
+            if (bp.averagePreparationTime != null) setPrepTime(bp.averagePreparationTime);
+            if (bp.maxConcurrentOrders != null) setMaxOrders(bp.maxConcurrentOrders);
+            if (bp.deliveryRadius != null) setDeliveryRadius(Number(bp.deliveryRadius));
+            if (bp.autoAcceptOrders != null) setAutoAccept(bp.autoAcceptOrders);
+            if (bp.minimumOrderAmount != null) setMinOrderAmount(Number(bp.minimumOrderAmount));
+          }
+        }
         if (Array.isArray(hoursRes)) setBusinessHours(hoursRes);
         else if (hoursRes?.data) setBusinessHours(hoursRes.data);
       } catch {}
     })();
   }, []);
+
+  const saveNotifPref = (key: string, value: boolean) => {
+    const setters: Record<string, (v: boolean) => void> = {
+      soundAlerts: setSoundAlerts,
+      pushNotifs: setPushNotifs,
+      emailNotifs: setEmailNotifs,
+      autoAccept: setAutoAccept,
+    };
+    setters[key]?.(value);
+    // Sound/push/email are device-specific → AsyncStorage
+    if (key !== 'autoAccept') {
+      AsyncStorage.getItem('notif_prefs').then(raw => {
+        const prefs = raw ? JSON.parse(raw) : {};
+        prefs[key] = value;
+        AsyncStorage.setItem('notif_prefs', JSON.stringify(prefs));
+      }).catch(() => {});
+    }
+    // autoAccept affects all apps → save to backend
+    if (key === 'autoAccept') {
+      usersAPI.updateBusinessProfile({ autoAcceptOrders: value }).catch(() => {});
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -72,22 +227,24 @@ export default function MerchantSettingsScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Store Profile */}
-        <View style={styles.profileCard}>
-          <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
-            <Ionicons name="storefront" size={28} color={colors.navy} />
-          </View>
+        <TouchableOpacity style={styles.profileCard} onPress={() => navigation.navigate('BusinessVerification')}>
+          {businessProfile?.businessProfile?.logoUrl ? (
+            <Image source={{ uri: businessProfile.businessProfile.logoUrl }} style={styles.storeImage} />
+          ) : (
+            <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="storefront" size={28} color={colors.navy} />
+            </View>
+          )}
           <View style={styles.profileInfo}>
             <Text style={styles.storeName}>{businessProfile?.businessProfile?.businessName || user?.firstName || 'My Store'}</Text>
             <Text style={styles.storeAddress}>{user?.email || 'No email set'}</Text>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.warning} />
-              <Text style={styles.ratingText}>{businessProfile?.businessProfile?.averageRating ? `${businessProfile.businessProfile.averageRating} rating` : 'No reviews yet'}</Text>
+              <Text style={styles.ratingText}>{businessProfile?.businessProfile?.rating && Number(businessProfile.businessProfile.rating) > 0 ? `${Number(businessProfile.businessProfile.rating).toFixed(1)} rating` : 'No reviews yet'}</Text>
             </View>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
 
         {/* Store Hours */}
         <View style={styles.section}>
@@ -97,12 +254,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               <Text style={styles.editLink}>Edit</Text>
             </TouchableOpacity>
           </View>
-          {businessHours.length > 0 ? businessHours.map((h: any, i: number) => (
-            <View key={i} style={styles.scheduleRow}>
-              <Text style={styles.scheduleDay}>{h.dayOfWeek || h.day}</Text>
-              <Text style={styles.scheduleHours}>{h.openTime} - {h.closeTime}</Text>
-            </View>
-          )) : (
+          {businessHours.length > 0 ? businessHours.map((h: any, i: number) => {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[h.dayOfWeek] ?? h.day ?? `Day ${h.dayOfWeek}`;
+            return (
+              <View key={i} style={styles.scheduleRow}>
+                <Text style={styles.scheduleDay}>{dayName}</Text>
+                <Text style={[styles.scheduleHours, h.isClosed && { color: colors.error }]}>
+                  {h.isClosed ? 'Closed' : `${h.openingTime || h.openTime} - ${h.closingTime || h.closeTime}`}
+                </Text>
+              </View>
+            );
+          }) : (
             <View style={{ alignItems: 'center', paddingVertical: 16 }}>
               <Ionicons name="time-outline" size={28} color={colors.textLight} />
               <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 6 }}>No store hours set yet</Text>
@@ -120,36 +283,36 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={autoAccept}
-              onValueChange={setAutoAccept}
+              onValueChange={(v) => saveNotifPref('autoAccept', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={autoAccept ? colors.teal : colors.darkGray}
             />
           </View>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Default Prep Time', 'prepTime', prepTime, 'min')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Default Prep Time</Text>
-              <Text style={styles.settingDesc}>15 minutes</Text>
+              <Text style={styles.settingDesc}>{prepTime} min</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Max Concurrent Orders', 'maxOrders', maxOrders, 'orders')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Max Concurrent Orders</Text>
-              <Text style={styles.settingDesc}>10 orders</Text>
+              <Text style={styles.settingDesc}>{maxOrders}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Delivery Radius', 'deliveryRadius', deliveryRadius, 'km')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Delivery Radius</Text>
-              <Text style={styles.settingDesc}>5 km</Text>
+              <Text style={styles.settingDesc}>{deliveryRadius} km</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => openOrderEdit('Minimum Order Amount', 'minOrderAmount', minOrderAmount, '₦')}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Minimum Order Amount</Text>
-              <Text style={styles.settingDesc}>₦3,000</Text>
+              <Text style={styles.settingDesc}>₦{minOrderAmount.toLocaleString()}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
@@ -165,7 +328,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={soundAlerts}
-              onValueChange={setSoundAlerts}
+              onValueChange={(v) => saveNotifPref('soundAlerts', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={soundAlerts ? colors.teal : colors.darkGray}
             />
@@ -177,7 +340,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={pushNotifs}
-              onValueChange={setPushNotifs}
+              onValueChange={(v) => saveNotifPref('pushNotifs', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={pushNotifs ? colors.teal : colors.darkGray}
             />
@@ -189,7 +352,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Switch
               value={emailNotifs}
-              onValueChange={setEmailNotifs}
+              onValueChange={(v) => saveNotifPref('emailNotifs', v)}
               trackColor={{ false: colors.border, true: colors.teal + '60' }}
               thumbColor={emailNotifs ? colors.teal : colors.darkGray}
             />
@@ -211,14 +374,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('BankAccounts')}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: colors.navy + '15' }]}>
                 <Ionicons name="card-outline" size={18} color={colors.navy} />
               </View>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Bank Account</Text>
-                <Text style={styles.settingDesc}>****4521 · GTBank</Text>
+                <Text style={styles.settingDesc}>
+                  {bankAccount
+                    ? `****${bankAccount.accountNumber.slice(-4)} · ${bankAccount.bankName}`
+                    : 'No bank account added'}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
@@ -288,19 +455,19 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               </View>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Active Promotions</Text>
-                <Text style={styles.settingDesc}>2 running, 1 scheduled</Text>
+                <Text style={styles.settingDesc}>{promoCount.active} active, {promoCount.total} total</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('FlashSales')}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: colors.teal + '15' }]}>
                 <Ionicons name="flash-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Flash Sales</Text>
-                <Text style={styles.settingDesc}>Time-limited deals</Text>
+                <Text style={styles.settingDesc}>{flashCount.active} active, {flashCount.total} total</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
@@ -375,37 +542,201 @@ export default function MerchantSettingsScreen({ navigation }: any) {
         {/* Support & Legal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
-          {[
-            { icon: 'help-circle-outline', label: 'Help Center', color: colors.navy },
-            { icon: 'chatbubbles-outline', label: 'Contact Support', color: colors.teal },
-            { icon: 'document-outline', label: 'Terms of Service', color: colors.textSecondary },
-            { icon: 'shield-outline', label: 'Privacy Policy', color: colors.textSecondary },
-          ].map((item, index) => (
-            <TouchableOpacity key={index} style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <Ionicons name={item.icon as any} size={20} color={item.color} />
-                <Text style={styles.settingLabel}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/help')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="help-circle-outline" size={20} color={colors.navy} />
+              <Text style={styles.settingLabel}>Help Center</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('mailto:support@fulccrum.com?subject=Merchant%20Support%20Request')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="chatbubbles-outline" size={20} color={colors.teal} />
+              <Text style={styles.settingLabel}>Contact Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/terms')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="document-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Terms of Service</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://fulccrum.com/privacy')}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="shield-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
-        {/* Delete Account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-          <Ionicons name="trash-outline" size={20} color={colors.textLight} />
-          <Text style={styles.deleteText}>Delete Account</Text>
-        </TouchableOpacity>
+        {/* Account Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <TouchableOpacity activeOpacity={0.6} style={styles.actionBtn} onPress={handleExportData}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.navy + '15' }]}>
+                <Ionicons name="download-outline" size={18} color={colors.navy} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Export My Data</Text>
+                <Text style={styles.settingDesc}>Download a copy of your data</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.6} style={styles.actionBtn} onPress={handleLogout}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.error + '15' }]}>
+                <Ionicons name="log-out-outline" size={18} color={colors.error} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.error }]}>Log Out</Text>
+                <Text style={styles.settingDesc}>Sign out of your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.6} style={[styles.actionBtn, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.textLight + '20' }]}>
+                <Ionicons name="trash-outline" size={18} color={colors.textLight} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.textLight }]}>Delete Account</Text>
+                <Text style={styles.settingDesc}>Permanently delete your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.version}>Fulccrum Merchant v1.0.0</Text>
-        <View style={{ height: 110 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Order Settings Edit Modal */}
+      {showOrderEdit && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowOrderEdit(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.teal, textAlign: 'center', marginBottom: 16 }}>{orderEditLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16 }}>
+                {orderEditSuffix === '₦' && <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginRight: 4 }}>₦</Text>}
+                <TextInput
+                  style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.textPrimary, paddingVertical: 14 }}
+                  value={orderEditValue}
+                  onChangeText={setOrderEditValue}
+                  keyboardType="numeric"
+                  selectTextOnFocus
+                />
+              </View>
+              {orderEditSuffix !== '₦' && <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textLight }}>{orderEditSuffix}</Text>}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowOrderEdit(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={saveOrderEdit}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowLogoutModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="log-out-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalSubtitle}>Are you sure you want to log out of your merchant account?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLogoutModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalDeleteBtn} onPress={() => { setShowLogoutModal(false); logout(); }}>
+                <Text style={styles.modalDeleteText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Export Data Confirmation Modal */}
+      <Modal visible={showExportModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !exporting && setShowExportModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.navy + '15' }]}>
+              <Ionicons name="download-outline" size={28} color={colors.navy} />
+            </View>
+            <Text style={[styles.modalTitle, { color: colors.navy }]}>Export My Data</Text>
+            <Text style={styles.modalSubtitle}>We'll prepare a copy of your data and send a download link to your email.</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowExportModal(false)} disabled={exporting}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, exporting && { opacity: 0.6 }]}
+                onPress={confirmExportData}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Export</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Password Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !deleting && setShowDeleteModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="trash-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalSubtitle}>This will permanently delete your merchant account and all data. Enter your password to confirm.</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textLight}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deleting}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={confirmDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Delete Forever</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -542,35 +873,101 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginTop: 2,
   },
-  logoutBtn: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
+    justifyContent: 'space-between',
     paddingVertical: 14,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.error,
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-    paddingVertical: 12,
-  },
-  deleteText: {
-    fontSize: 14,
-    color: colors.textLight,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   version: {
     textAlign: 'center',
     fontSize: 12,
     color: colors.textLight,
     marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+  },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.error,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalInput: {
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalDeleteBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+  },
+  modalDeleteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textWhite,
   },
 });

@@ -347,17 +347,14 @@ export class MenuService {
   }
 
   async getLowStockItems(businessId: string) {
-    return this.prisma.inventory.findMany({
-      where: {
-        businessId,
-        currentStock: {
-          lte: this.prisma.inventory.fields.minimumStock,
-        },
-      },
-      include: {
-        item: true,
-      },
-    });
+    return this.prisma.$queryRaw`
+      SELECT i.*, m.name as item_name
+      FROM inventory i
+      JOIN menu_items m ON m.id = i.item_id
+      WHERE i.business_id = ${businessId}::uuid
+        AND i.current_stock <= i.minimum_stock
+      ORDER BY i.current_stock ASC
+    `;
   }
 
   async getInventory(businessId: string) {

@@ -37,7 +37,7 @@ export class MenuController {
     @Query('businessId') businessId?: string,
     @Query('includeInactive') includeInactive?: string,
   ) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.getCategories(targetBusinessId, includeInactive === 'true');
   }
 
@@ -68,7 +68,7 @@ export class MenuController {
     @Query('categoryId') categoryId?: string,
     @Query('includeUnavailable') includeUnavailable?: string,
   ) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.getItems(
       targetBusinessId,
       categoryId,
@@ -108,7 +108,7 @@ export class MenuController {
 
   @Get('modifiers')
   async getModifiers(@Request() req: any, @Query('businessId') businessId?: string) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.getModifiers(targetBusinessId);
   }
 
@@ -138,13 +138,13 @@ export class MenuController {
 
   @Get('business-hours')
   async getBusinessHours(@Request() req: any, @Query('businessId') businessId?: string) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.getBusinessHours(targetBusinessId);
   }
 
   @Get('business-hours/is-open')
   async isBusinessOpen(@Request() req: any, @Query('businessId') businessId?: string) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.isBusinessOpen(targetBusinessId);
   }
 

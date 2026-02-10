@@ -54,16 +54,18 @@ export default function OTPVerificationScreen({ navigation, route }: any) {
     setError('');
     setLoading(true);
     try {
-      await authAPI.verifyOTP(code, email);
-      // Route based on mode and role
       if (mode === 'reset') {
+        await authAPI.verifyOTP(code, email);
         navigation.navigate('ResetPassword', { email, resetToken: code });
-      } else if (role === 'business_owner') {
-        navigation.navigate('MerchantBusinessSetup', { role, email });
-      } else if (role === 'driver') {
-        navigation.navigate('CourierDocumentSetup', { role, email });
       } else {
-        navigation.navigate('Login');
+        await authAPI.verifyRegistration(email, code);
+        if (role === 'business_owner') {
+          navigation.navigate('MerchantBusinessSetup', { role, email });
+        } else if (role === 'driver') {
+          navigation.navigate('CourierDocumentSetup', { role, email });
+        } else {
+          navigation.navigate('Login');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Invalid code. Please try again.');

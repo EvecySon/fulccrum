@@ -16,15 +16,26 @@ export class MerchantKitchenService {
       },
     });
 
-    return orders.map((o: any) => ({
-      id: o.id,
-      orderId: o.id,
-      customerName: `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.trim(),
-      items: o.items?.map((i: any) => i.menuItem?.name).filter(Boolean) || [],
-      status: o.status === 'preparing' ? 'prepping' : 'pending',
-      createdAt: o.createdAt,
-      estimatedPrepTime: 15,
-    }));
+    // Get merchant's average prep time
+    const profile = await this.prisma.businessProfile.findUnique({
+      where: { userId: merchantId },
+      select: { averagePreparationTime: true },
+    });
+    const basePrepTime = profile?.averagePreparationTime || 15;
+
+    return orders.map((o: any) => {
+      const itemCount = o.items?.length || 1;
+      const estimatedPrepTime = Math.round(basePrepTime * (1 + (itemCount - 1) * 0.3));
+      return {
+        id: o.id,
+        orderId: o.id,
+        customerName: `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.trim(),
+        items: o.items?.map((i: any) => i.menuItem?.name).filter(Boolean) || [],
+        status: o.status === 'preparing' ? 'prepping' : 'pending',
+        createdAt: o.createdAt,
+        estimatedPrepTime,
+      };
+    });
   }
 
   async createOperation(merchantId: string, body: { orderId: string; itemId: string; operationType: string }) {
@@ -79,10 +90,55 @@ export class MerchantKitchenService {
   }
 
   async getPrepPredictions(merchantId: string) {
+    const weekAgo = new Date(Date.now() - 7 * 86400000);
+    const orders = await this.prisma.order.findMany({
+      where: { businessId: merchantId, createdAt: { gte: weekAgo } },
+      select: { createdAt: true },
+    });
+
+    // Calculate peak hours from last week's orders
+    const hourCounts: Record<number, number> = {};
+    orders.forEach((o) => {
+      const h = o.createdAt.getHours();
+      hourCounts[h] = (hourCounts[h] || 0) + 1;
+    });
+
+    const sorted = Object.entries(hourCounts)
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .slice(0, 3);
+
+    const peakHours = sorted.map(([h]) => {
+      const hour = parseInt(h);
+      return `${String(hour).padStart(2, '0')}:00-${String(hour + 1).padStart(2, '0')}:00`;
+    });
+
+    // Predict today's orders based on weekly average
+    const avgDaily = orders.length > 0 ? Math.round(orders.length / 7) : 0;
+
+    // Get most ordered items
+    const recentOrders = await this.prisma.order.findMany({
+      where: { businessId: merchantId, createdAt: { gte: weekAgo } },
+      include: { items: { include: { menuItem: { select: { name: true } } } } },
+      take: 50,
+    });
+
+    const itemCounts: Record<string, number> = {};
+    recentOrders.forEach((o: any) => {
+      (o.items || []).forEach((i: any) => {
+        const name = i.menuItem?.name;
+        if (name) itemCounts[name] = (itemCounts[name] || 0) + i.quantity;
+      });
+    });
+
+    const suggestedPrepItems = Object.entries(itemCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, estimatedQuantity: Math.ceil(count / 7) }));
+
     return {
-      peakHours: ['12:00-13:00', '18:00-20:00'],
-      predictedOrders: 0,
-      suggestedPrepItems: [],
+      peakHours: peakHours.length > 0 ? peakHours : ['12:00-13:00', '18:00-20:00'],
+      predictedOrders: avgDaily,
+      suggestedPrepItems,
     };
   }
 }

@@ -109,6 +109,7 @@ model User {
   passwordResets     PasswordReset[]
   bankAccounts       BankAccount[]
   savedCards         SavedCard[]
+  crmCustomerNotes   CrmCustomerNote[] @relation("crm_customer_notes")
 
   @@map("users")
 }
@@ -154,6 +155,11 @@ model BusinessProfile {
   businessName          String   @map("business_name") @db.VarChar(255)
   businessType          String   @map("business_type") @db.VarChar(50)
   description           String?  @db.Text
+  address               String?  @db.VarChar(255)
+  address2              String?  @db.VarChar(255)
+  city                  String?  @db.VarChar(100)
+  state                 String?  @db.VarChar(100)
+  lga                   String?  @db.VarChar(100)
   logoUrl               String?  @map("logo_url") @db.Text
   coverImageUrl         String?  @map("cover_image_url") @db.Text
   website               String?  @db.VarChar(255)
@@ -165,6 +171,9 @@ model BusinessProfile {
   verificationDate      DateTime? @map("verification_date")
   rating                Decimal  @default(5.00) @db.Decimal(3, 2)
   averagePreparationTime Int     @default(15) @map("average_preparation_time")
+  maxConcurrentOrders   Int      @default(10) @map("max_concurrent_orders")
+  deliveryRadius        Decimal  @default(5.00) @map("delivery_radius") @db.Decimal(5, 2)
+  autoAcceptOrders      Boolean  @default(false) @map("auto_accept_orders")
   deliveryFee           Decimal  @default(0.00) @map("delivery_fee") @db.Decimal(5, 2)
   minimumOrderAmount    Decimal  @default(0.00) @map("minimum_order_amount") @db.Decimal(8, 2)
   createdAt             DateTime @default(now()) @map("created_at")
@@ -178,6 +187,12 @@ model BusinessProfile {
   reviews        Review[]
   deliveryZones  DeliveryZone[]
   favorites      Favorite[]
+  crmCampaigns   CrmCampaign[]
+  crmCustomerNotes CrmCustomerNote[]
+  flashSales     FlashSale[]
+  channels       MerchantChannel[]
+  subscriptions  MerchantSubscription[]
+  pricingRules   PricingRule[]
 
   @@map("business_profiles")
 }
@@ -885,4 +900,130 @@ model OrderItem {
   @@index([orderId])
   @@index([menuItemId])
   @@map("order_items")
+}
+
+// CRM Campaign for merchant marketing
+model CrmCampaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  type        String   @default("promotion") @db.VarChar(50)
+  targetCount Int      @default(0) @map("target_count")
+  status      String   @default("draft") @db.VarChar(20)
+  effectiveness Float  @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("crm_campaigns")
+}
+
+// CRM Customer Note for merchant to track customers
+model CrmCustomerNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  customerId String?  @map("customer_id") @db.Uuid
+  name       String   @db.VarChar(255)
+  email      String?  @db.VarChar(255)
+  phone      String?  @db.VarChar(50)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+  customer User?           @relation("crm_customer_notes", fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId])
+  @@index([customerId])
+  @@map("crm_customer_notes")
+}
+
+model FlashSale {
+  id            String   @id @default(uuid()) @db.Uuid
+  merchantId    String   @map("merchant_id") @db.Uuid
+  title         String   @db.VarChar(255)
+  description   String?  @db.Text
+  discountType  String   @default("percentage") @map("discount_type") @db.VarChar(20)
+  discountValue Float    @map("discount_value")
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  isActive      Boolean  @default(true) @map("is_active")
+  itemsSold     Int      @default(0) @map("items_sold")
+  maxQuantity   Int?     @map("max_quantity")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([startsAt, endsAt])
+  @@map("flash_sales")
+}
+
+model MerchantChannel {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  name       String   @db.VarChar(100)
+  type       String   @default("delivery") @db.VarChar(50)
+  enabled    Boolean  @default(false)
+  orders     Int      @default(0)
+  revenue    Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@unique([merchantId, type])
+  @@index([merchantId])
+  @@map("merchant_channels")
+}
+
+model MerchantSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  type        String   @default("meal_plan") @db.VarChar(50)
+  price       Decimal  @default(0) @db.Decimal(10, 2)
+  schedule    String   @default("weekly") @db.VarChar(50)
+  subscribers Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("merchant_subscriptions")
+}
+
+model MerchantInsightAction {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  insightId  String   @map("insight_id") @db.VarChar(255)
+  action     String   @db.VarChar(20) // 'implemented' or 'dismissed'
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([merchantId, insightId])
+  @@index([merchantId])
+  @@map("merchant_insight_actions")
+}
+
+model PricingRule {
+  id            String   @id @default(uuid()) @db.Uuid
+  merchantId    String   @map("merchant_id") @db.Uuid
+  name          String   @db.VarChar(255)
+  type          String   @default("surge") @db.VarChar(50)
+  condition     String?  @db.Text
+  adjustment    Float    @default(0)
+  adjustmentType String  @default("percentage") @map("adjustment_type") @db.VarChar(20)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("pricing_rules")
 }

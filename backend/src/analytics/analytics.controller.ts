@@ -7,6 +7,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class AnalyticsController {
   constructor(private analyticsService: AnalyticsService) {}
 
+  @Get('merchant')
+  async getMerchantAnalytics(@Request() req: any, @Query('period') period?: string) {
+    return this.analyticsService.getMerchantAnalytics(req.user.sub, period || 'today');
+  }
+
   @Get('dashboard')
   async getDashboardStats(@Request() req: any) {
     return this.analyticsService.getDashboardStats(req.user.sub, req.user.role);

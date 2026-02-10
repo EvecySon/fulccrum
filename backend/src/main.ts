@@ -11,7 +11,15 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Security: Helmet adds various HTTP headers for security
-  app.use(helmet());
+  if (process.env.NODE_ENV === 'production') {
+    app.use(helmet());
+  } else {
+    app.use(helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: false,
+      crossOriginOpenerPolicy: false,
+    }));
+  }
 
   // Performance: Compress responses for mobile optimization
   app.use(compression());

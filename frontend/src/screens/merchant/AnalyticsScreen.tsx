@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  ActivityIndicator,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -14,46 +16,58 @@ import { analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-const periods = ['Today', 'This Week', 'This Month', 'This Year'];
+const periods = [
+  { label: 'Today', key: 'today' },
+  { label: 'This Week', key: 'week' },
+  { label: 'This Month', key: 'month' },
+  { label: 'This Year', key: 'year' },
+];
 
-const emptyRevenueData = {
-  today: { total: 0, change: '0%', positive: true },
+const emptyKpis = {
+  revenue: { total: 0, change: '0%', positive: true },
   orders: { total: 0, change: '0%', positive: true },
   avgOrder: { total: 0, change: '0%', positive: true },
   cancelRate: { total: 0, change: '0%', positive: true },
 };
 
 export default function MerchantAnalyticsScreen() {
-  const [selectedPeriod, setSelectedPeriod] = useState('Today');
-  const [revenueData, setRevenueData] = useState(emptyRevenueData);
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [loading, setLoading] = useState(true);
+  const [kpis, setKpis] = useState(emptyKpis);
   const [hourlyOrders, setHourlyOrders] = useState<{hour: string; orders: number}[]>([]);
   const [topItems, setTopItems] = useState<any[]>([]);
-  const [customerInsights, setCustomerInsights] = useState({ newCustomers: 0, returning: 0, avgRating: 0, totalReviews: 0, responseRate: 0, avgResponseTime: '—' });
+  const [customerInsights, setCustomerInsights] = useState({ newCustomers: 0, returning: 0, avgRating: 0, totalReviews: 0 });
   const [peakHours, setPeakHours] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [dashRes, trendsRes, insightsRes] = await Promise.all([
-          analyticsAPI.dashboard().catch(() => null),
-          analyticsAPI.orderTrends(7).catch(() => null),
-          analyticsAPI.customerInsights().catch(() => null),
-        ]);
-        if (dashRes) setRevenueData(prev => ({ ...prev, ...dashRes }));
-        if (trendsRes?.hourlyOrders) setHourlyOrders(trendsRes.hourlyOrders);
-        if (trendsRes?.topItems) setTopItems(trendsRes.topItems);
-        if (trendsRes?.peakHours) setPeakHours(trendsRes.peakHours);
-        if (insightsRes) setCustomerInsights(prev => ({ ...prev, ...insightsRes }));
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
+  const fetchAnalytics = useCallback(async (period: string) => {
+    setLoading(true);
+    try {
+      const res = await analyticsAPI.merchantAnalytics(period);
+      if (res?.kpis) setKpis(res.kpis);
+      if (res?.hourlyOrders) setHourlyOrders(res.hourlyOrders);
+      if (res?.topItems) setTopItems(res.topItems);
+      if (res?.peakHours) setPeakHours(res.peakHours);
+      if (res?.customerInsights) setCustomerInsights(res.customerInsights);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to load analytics');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchAnalytics(selectedPeriod);
+  }, [selectedPeriod, fetchAnalytics]);
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <TouchableOpacity style={styles.exportBtn}>
+        <TouchableOpacity style={styles.exportBtn} onPress={() => {
+          const report = `Analytics Report (${selectedPeriod})\n\nRevenue: ₦${kpis.revenue.total.toLocaleString()} (${kpis.revenue.change})\nOrders: ${kpis.orders.total} (${kpis.orders.change})\nAvg Order: ₦${kpis.avgOrder.total.toLocaleString()} (${kpis.avgOrder.change})\nCancel Rate: ${kpis.cancelRate.total}% (${kpis.cancelRate.change})\n\nTop Items:\n${topItems.map((i, idx) => `${idx + 1}. ${i.name} - ${i.orders} orders`).join('\n')}\n\nCustomers: ${customerInsights.newCustomers} | Returning: ${customerInsights.returning}% | Rating: ${customerInsights.avgRating}`;
+          Share.share({ message: report, title: 'Analytics Report' }).catch(() => {});
+        }}>
           <Ionicons name="download-outline" size={18} color={colors.textWhite} />
           <Text style={styles.exportText}>Export</Text>
         </TouchableOpacity>
@@ -64,71 +78,50 @@ export default function MerchantAnalyticsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow}>
           {periods.map((period) => (
             <TouchableOpacity
-              key={period}
-              style={[styles.periodChip, selectedPeriod === period && styles.periodChipActive]}
-              onPress={() => setSelectedPeriod(period)}
+              key={period.key}
+              style={[styles.periodChip, selectedPeriod === period.key && styles.periodChipActive]}
+              onPress={() => setSelectedPeriod(period.key)}
             >
-              <Text style={[styles.periodText, selectedPeriod === period && styles.periodTextActive]}>
-                {period}
+              <Text style={[styles.periodText, selectedPeriod === period.key && styles.periodTextActive]}>
+                {period.label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
+        {loading ? (
+          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={colors.navy} />
+          </View>
+        ) : (
+        <>
         {/* KPI Cards */}
         <View style={styles.kpiGrid}>
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeader}>
-              <View style={[styles.kpiIcon, { backgroundColor: colors.teal + '15' }]}>
-                <Ionicons name="cash-outline" size={18} color={colors.teal} />
+          {[
+            { key: 'revenue', icon: 'cash-outline', iconBg: colors.teal, prefix: '₦', suffix: '', format: (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+            { key: 'orders', icon: 'receipt-outline', iconBg: colors.navy, prefix: '', suffix: '', format: (v: number) => String(v) },
+            { key: 'avgOrder', icon: 'trending-up-outline', iconBg: colors.warning, prefix: '₦', suffix: '', format: (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+            { key: 'cancelRate', icon: 'close-circle-outline', iconBg: colors.error, prefix: '', suffix: '%', format: (v: number) => String(v) },
+          ].map((card) => {
+            const data = kpis[card.key as keyof typeof kpis];
+            const trendColor = data.positive ? colors.success : colors.error;
+            const trendIcon = data.positive ? 'trending-up' : 'trending-down';
+            return (
+              <View key={card.key} style={styles.kpiCard}>
+                <View style={styles.kpiHeader}>
+                  <View style={[styles.kpiIcon, { backgroundColor: card.iconBg + '15' }]}>
+                    <Ionicons name={card.icon as any} size={18} color={card.iconBg} />
+                  </View>
+                  <View style={[styles.changeBadge, { backgroundColor: trendColor + '15' }]}>
+                    <Ionicons name={trendIcon as any} size={12} color={trendColor} />
+                    <Text style={[styles.changeText, { color: trendColor }]}>{data.change}</Text>
+                  </View>
+                </View>
+                <Text style={styles.kpiValue}>{card.prefix}{card.format(data.total)}{card.suffix}</Text>
+                <Text style={styles.kpiLabel}>{card.key === 'avgOrder' ? 'Avg Order' : card.key === 'cancelRate' ? 'Cancel Rate' : card.key.charAt(0).toUpperCase() + card.key.slice(1)}</Text>
               </View>
-              <View style={[styles.changeBadge, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="trending-up" size={12} color={colors.success} />
-                <Text style={[styles.changeText, { color: colors.success }]}>{revenueData.today.change}</Text>
-              </View>
-            </View>
-            <Text style={styles.kpiValue}>₦{revenueData.today.total.toFixed(2)}</Text>
-            <Text style={styles.kpiLabel}>Revenue</Text>
-          </View>
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeader}>
-              <View style={[styles.kpiIcon, { backgroundColor: colors.navy + '15' }]}>
-                <Ionicons name="receipt-outline" size={18} color={colors.navy} />
-              </View>
-              <View style={[styles.changeBadge, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="trending-up" size={12} color={colors.success} />
-                <Text style={[styles.changeText, { color: colors.success }]}>{revenueData.orders.change}</Text>
-              </View>
-            </View>
-            <Text style={styles.kpiValue}>{revenueData.orders.total}</Text>
-            <Text style={styles.kpiLabel}>Orders</Text>
-          </View>
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeader}>
-              <View style={[styles.kpiIcon, { backgroundColor: colors.warning + '15' }]}>
-                <Ionicons name="trending-up-outline" size={18} color={colors.warning} />
-              </View>
-              <View style={[styles.changeBadge, { backgroundColor: colors.error + '15' }]}>
-                <Ionicons name="trending-down" size={12} color={colors.error} />
-                <Text style={[styles.changeText, { color: colors.error }]}>{revenueData.avgOrder.change}</Text>
-              </View>
-            </View>
-            <Text style={styles.kpiValue}>₦{revenueData.avgOrder.total.toFixed(2)}</Text>
-            <Text style={styles.kpiLabel}>Avg Order</Text>
-          </View>
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeader}>
-              <View style={[styles.kpiIcon, { backgroundColor: colors.error + '15' }]}>
-                <Ionicons name="close-circle-outline" size={18} color={colors.error} />
-              </View>
-              <View style={[styles.changeBadge, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="trending-down" size={12} color={colors.success} />
-                <Text style={[styles.changeText, { color: colors.success }]}>{revenueData.cancelRate.change}</Text>
-              </View>
-            </View>
-            <Text style={styles.kpiValue}>{revenueData.cancelRate.total}%</Text>
-            <Text style={styles.kpiLabel}>Cancel Rate</Text>
-          </View>
+            );
+          })}
         </View>
 
         {/* Hourly Orders Chart */}
@@ -136,9 +129,9 @@ export default function MerchantAnalyticsScreen() {
           <Text style={styles.chartTitle}>Orders by Hour</Text>
           <View style={styles.hourlyChart}>
             {hourlyOrders.map((item, index) => {
-              const maxOrders = Math.max(...hourlyOrders.map(h => h.orders));
-              const barHeight = (item.orders / maxOrders) * 80;
-              const isPeak = item.orders >= 25;
+              const maxOrders = Math.max(...hourlyOrders.map(h => h.orders), 1);
+              const barHeight = maxOrders > 0 ? (item.orders / maxOrders) * 80 : 0;
+              const isPeak = item.orders >= maxOrders * 0.7;
               return (
                 <View key={index} style={styles.hourBar}>
                   <Text style={styles.hourValue}>{item.orders}</Text>
@@ -179,20 +172,19 @@ export default function MerchantAnalyticsScreen() {
         {/* Top Items */}
         <View style={styles.topItemsCard}>
           <Text style={styles.chartTitle}>Top Selling Items</Text>
-          {topItems.map((item, index) => (
+          {topItems.length > 0 ? topItems.map((item, index) => (
             <View key={index} style={styles.topItemRow}>
               <View style={styles.topItemRank}>
                 <Text style={styles.rankNum}>#{index + 1}</Text>
               </View>
               <View style={styles.topItemInfo}>
                 <Text style={styles.topItemName}>{item.name}</Text>
-                <Text style={styles.topItemMeta}>{item.orders} orders · ₦{item.revenue.toFixed(2)}</Text>
+                <Text style={styles.topItemMeta}>{item.orders} orders · ₦{(item.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
               </View>
-              <Text style={[styles.topItemChange, { color: item.change.startsWith('+') ? colors.success : colors.error }]}>
-                {item.change}
-              </Text>
             </View>
-          ))}
+          )) : (
+            <Text style={{ fontSize: 13, color: colors.textLight, textAlign: 'center', paddingVertical: 16 }}>No order data for this period</Text>
+          )}
         </View>
 
         {/* Customer Insights */}
@@ -202,7 +194,7 @@ export default function MerchantAnalyticsScreen() {
             <View style={styles.insightItem}>
               <Ionicons name="person-add-outline" size={20} color={colors.teal} />
               <Text style={styles.insightValue}>{customerInsights.newCustomers}</Text>
-              <Text style={styles.insightLabel}>New Customers</Text>
+              <Text style={styles.insightLabel}>Customers</Text>
             </View>
             <View style={styles.insightItem}>
               <Ionicons name="refresh-outline" size={20} color={colors.navy} />
@@ -211,16 +203,18 @@ export default function MerchantAnalyticsScreen() {
             </View>
             <View style={styles.insightItem}>
               <Ionicons name="star-outline" size={20} color={colors.warning} />
-              <Text style={styles.insightValue}>{customerInsights.avgRating}</Text>
+              <Text style={styles.insightValue}>{Number(customerInsights.avgRating).toFixed(1)}</Text>
               <Text style={styles.insightLabel}>Avg Rating</Text>
             </View>
             <View style={styles.insightItem}>
               <Ionicons name="chatbubbles-outline" size={20} color={colors.info} />
-              <Text style={styles.insightValue}>{customerInsights.responseRate}%</Text>
-              <Text style={styles.insightLabel}>Response Rate</Text>
+              <Text style={styles.insightValue}>{customerInsights.totalReviews}</Text>
+              <Text style={styles.insightLabel}>Reviews</Text>
             </View>
           </View>
         </View>
+        </>
+        )}
 
         <View style={{ height: 110 }} />
       </ScrollView>

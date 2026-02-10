@@ -45,13 +45,37 @@ export default function CourierProfileScreen({ navigation }: any) {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Account Deleted', 'Your account has been deleted.', [
-              { text: 'OK', onPress: () => logout() },
-            ]);
+            Alert.prompt('Confirm Password', 'Enter your password to confirm deletion:', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete Forever',
+                style: 'destructive',
+                onPress: async (password?: string) => {
+                  if (!password) return;
+                  try {
+                    await usersAPI.deleteAccount(password);
+                    Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+                      { text: 'OK', onPress: () => logout() },
+                    ]);
+                  } catch (e: any) {
+                    Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
+                  }
+                },
+              },
+            ], 'secure-text');
           },
         },
       ],
     );
+  };
+
+  const handleExportData = async () => {
+    try {
+      await usersAPI.exportData();
+      Alert.alert('Data Export', 'Your data export has been prepared. Check your email for the download link.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not export data.');
+    }
   };
 
   useEffect(() => {
@@ -270,6 +294,12 @@ export default function CourierProfileScreen({ navigation }: any) {
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
           <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
+        {/* Export Data */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleExportData}>
+          <Ionicons name="download-outline" size={20} color={colors.navy} />
+          <Text style={[styles.logoutText, { color: colors.navy }]}>Export My Data</Text>
         </TouchableOpacity>
 
         {/* Delete Account */}

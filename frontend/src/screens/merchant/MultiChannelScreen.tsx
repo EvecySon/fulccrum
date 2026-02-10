@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch,
   ActivityIndicator, RefreshControl,
-  Alert,
+  Alert, Modal, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -10,7 +10,7 @@ import { channelsAPI } from '../../services/api';
 
 interface Channel {
   id: string;
-  type: string;
+  name: string;
   label: string;
   icon: string;
   active: boolean;
@@ -27,19 +27,39 @@ interface Subscription {
   schedule: string;
 }
 
+const CHANNEL_ICONS: Record<string, string> = {
+  'dine-in': 'restaurant-outline',
+  'pickup': 'bag-handle-outline',
+  'delivery': 'bicycle-outline',
+  'catering': 'fast-food-outline',
+};
+
+const mapChannel = (raw: any): Channel => ({
+  id: raw.id,
+  name: raw.name || raw.label || raw.id,
+  label: raw.label || raw.name || raw.id,
+  icon: raw.icon || CHANNEL_ICONS[raw.id] || 'storefront-outline',
+  active: raw.active ?? raw.enabled ?? false,
+  orders: raw.orders || 0,
+  revenue: raw.revenue || 0,
+});
 
 export default function MultiChannelScreen({ navigation }: any) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNewPlan, setShowNewPlan] = useState(false);
+  const [newPlanName, setNewPlanName] = useState('');
+  const [newPlanPrice, setNewPlanPrice] = useState('');
+  const [newPlanSchedule, setNewPlanSchedule] = useState('weekly');
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const [ch, sub] = await Promise.all([channelsAPI.getChannels(), channelsAPI.getSubscriptions()]);
-      setChannels(Array.isArray(ch) ? ch : []);
+      setChannels(Array.isArray(ch) ? ch.map(mapChannel) : []);
       setSubscriptions(Array.isArray(sub) ? sub : []);
     } catch {
       // API not available yet
@@ -50,11 +70,42 @@ export default function MultiChannelScreen({ navigation }: any) {
     setChannels(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
     try {
       const ch = channels.find(c => c.id === id);
-      await channelsAPI.updateChannel(id, { active: !ch?.active });
+      await channelsAPI.updateChannel(id, { enabled: !ch?.active });
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   };
 
-  const totalRevenue = channels.reduce((sum, c) => sum + c.revenue, 0);
+  const handleCreatePlan = async () => {
+    if (!newPlanName.trim()) return;
+    try {
+      const res = await channelsAPI.createSubscription({
+        name: newPlanName.trim(),
+        price: parseFloat(newPlanPrice) || 0,
+        schedule: newPlanSchedule,
+        type: 'meal_plan',
+      });
+      setSubscriptions(prev => [...prev, res]);
+      setShowNewPlan(false);
+      setNewPlanName('');
+      setNewPlanPrice('');
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not create plan'); }
+  };
+
+  const handleDeletePlan = (id: string) => {
+    Alert.alert('Delete Plan', 'Are you sure you want to delete this subscription plan?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await channelsAPI.deleteSubscription(id);
+            setSubscriptions(prev => prev.filter(s => s.id !== id));
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete plan'); }
+        },
+      },
+    ]);
+  };
+
+  const totalRevenue = channels.reduce((sum, c) => sum + (c.revenue || 0), 0);
   const activeChannels = channels.filter(c => c.active).length;
 
   return (
@@ -82,7 +133,7 @@ export default function MultiChannelScreen({ navigation }: any) {
               <Text style={styles.summaryLabel}>Total Revenue</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{subscriptions.reduce((s, sub) => s + sub.subscribers, 0)}</Text>
+              <Text style={styles.summaryValue}>{subscriptions.reduce((s, sub) => s + (sub.subscribers || 0), 0)}</Text>
               <Text style={styles.summaryLabel}>Subscribers</Text>
             </View>
           </View>
@@ -96,7 +147,7 @@ export default function MultiChannelScreen({ navigation }: any) {
               </View>
               <View style={styles.channelInfo}>
                 <Text style={styles.channelLabel}>{ch.label}</Text>
-                <Text style={styles.channelMeta}>{ch.orders} orders · ₦{ch.revenue.toLocaleString()}</Text>
+                <Text style={styles.channelMeta}>{ch.orders || 0} orders · ₦{(ch.revenue || 0).toLocaleString()}</Text>
               </View>
               <Switch
                 value={ch.active}
@@ -110,33 +161,90 @@ export default function MultiChannelScreen({ navigation }: any) {
           {/* Subscriptions */}
           <View style={styles.subHeader}>
             <Text style={styles.sectionTitle}>Subscription Plans</Text>
-            <TouchableOpacity style={styles.addSubBtn}>
+            <TouchableOpacity style={styles.addSubBtn} onPress={() => setShowNewPlan(true)}>
               <Ionicons name="add" size={16} color={colors.teal} />
               <Text style={styles.addSubText}>New Plan</Text>
             </TouchableOpacity>
           </View>
+          {subscriptions.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 30, marginHorizontal: 16 }}>
+              <Ionicons name="calendar-outline" size={40} color={colors.textLight} />
+              <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8, textAlign: 'center' }}>No subscription plans yet</Text>
+              <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4, textAlign: 'center' }}>Create meal plans for recurring customers</Text>
+              <TouchableOpacity style={styles.createPlanBtn} onPress={() => setShowNewPlan(true)}>
+                <Ionicons name="add-circle-outline" size={18} color={colors.white} />
+                <Text style={styles.createPlanText}>Create First Plan</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {subscriptions.map(sub => (
-            <View key={sub.id} style={styles.subCard}>
+            <TouchableOpacity key={sub.id} style={styles.subCard} onLongPress={() => handleDeletePlan(sub.id)}>
               <View style={styles.subTop}>
                 <Text style={styles.subName}>{sub.name}</Text>
-                <Text style={styles.subPrice}>₦{sub.price.toLocaleString()}</Text>
+                <Text style={styles.subPrice}>₦{(sub.price || 0).toLocaleString()}</Text>
               </View>
-              <Text style={styles.subMeta}>{sub.schedule}</Text>
+              <Text style={styles.subMeta}>{sub.schedule || 'No schedule'}</Text>
               <View style={styles.subBottom}>
                 <View style={styles.subStat}>
                   <Ionicons name="people-outline" size={14} color={colors.textLight} />
-                  <Text style={styles.subStatText}>{sub.subscribers} subscribers</Text>
+                  <Text style={styles.subStatText}>{sub.subscribers || 0} subscribers</Text>
                 </View>
                 <View style={styles.subTypeBadge}>
-                  <Text style={styles.subTypeText}>{sub.type.replace(/_/g, ' ')}</Text>
+                  <Text style={styles.subTypeText}>{(sub.type || 'plan').replace(/_/g, ' ')}</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
 
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+
+      {/* New Plan Modal */}
+      <Modal visible={showNewPlan} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>New Subscription Plan</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Plan name (e.g. Weekly Lunch Box)"
+              placeholderTextColor={colors.textLight}
+              value={newPlanName}
+              onChangeText={setNewPlanName}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Price (₦)"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={newPlanPrice}
+              onChangeText={setNewPlanPrice}
+            />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 }}>Schedule</Text>
+            <View style={styles.scheduleRow}>
+              {['daily', 'weekly', 'monthly'].map(s => (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.scheduleChip, newPlanSchedule === s && styles.scheduleChipActive]}
+                  onPress={() => setNewPlanSchedule(s)}
+                >
+                  <Text style={[styles.scheduleText, newPlanSchedule === s && styles.scheduleTextActive]}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => { setShowNewPlan(false); setNewPlanName(''); setNewPlanPrice(''); }}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSave, !newPlanName.trim() && { opacity: 0.5 }]} onPress={handleCreatePlan}>
+                <Text style={styles.modalSaveText}>Create Plan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -169,4 +277,20 @@ const styles = StyleSheet.create({
   subStatText: { fontSize: 12, color: colors.textLight },
   subTypeBadge: { backgroundColor: colors.navy + '10', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   subTypeText: { fontSize: 10, fontWeight: '700', color: colors.navy, textTransform: 'capitalize' },
+  createPlanBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.teal, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 16 },
+  createPlanText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 20 },
+  modalInput: { backgroundColor: colors.lightGray, borderRadius: 12, padding: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 12 },
+  scheduleRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  scheduleChip: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.lightGray, alignItems: 'center' },
+  scheduleChipActive: { backgroundColor: colors.navy },
+  scheduleText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  scheduleTextActive: { color: colors.white },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  modalSave: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' },
+  modalSaveText: { fontSize: 15, fontWeight: '700', color: colors.white },
 });

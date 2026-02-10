@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -73,20 +74,25 @@ export default function DeliveryZonesScreen({ navigation }: any) {
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not save zone'); }
   };
 
+  // ─── Delete Modal ───
+  const [showDeleteZone, setShowDeleteZone] = useState(false);
+  const [deleteZoneTarget, setDeleteZoneTarget] = useState<any>(null);
+  const [deletingZone, setDeletingZone] = useState(false);
+
   const handleDeleteZone = (id: string, name: string) => {
-    Alert.alert('Delete Zone', `Delete "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await zonesAPI.delete(id);
-            setZones(prev => prev.filter(z => z.id !== id));
-          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete zone'); }
-        },
-      },
-    ]);
+    setDeleteZoneTarget({ id, name });
+    setShowDeleteZone(true);
+  };
+
+  const confirmDeleteZone = async () => {
+    if (!deleteZoneTarget) return;
+    setDeletingZone(true);
+    try {
+      await zonesAPI.delete(deleteZoneTarget.id);
+      setZones(prev => prev.filter(z => z.id !== deleteZoneTarget.id));
+      setShowDeleteZone(false);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not delete zone'); }
+    finally { setDeletingZone(false); }
   };
 
   const updateZoneField = (zoneId: string, field: string, value: any) => {
@@ -244,8 +250,9 @@ export default function DeliveryZonesScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Add Zone Modal */}
-      <Modal visible={showAddZone} transparent animationType="slide">
+      <Modal visible={showAddZone} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowAddZone(false)} />
           <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>Add Delivery Zone</Text>
             <TextInput
@@ -269,6 +276,25 @@ export default function DeliveryZonesScreen({ navigation }: any) {
               </TouchableOpacity>
               <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={handleAddZone}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Add Zone</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Zone Modal */}
+      <Modal visible={showDeleteZone} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !deletingZone && setShowDeleteZone(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 }}>Delete Zone</Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 20 }}>Are you sure you want to delete "{deleteZoneTarget?.name}"?</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowDeleteZone(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: deletingZone ? 0.6 : 1 }} onPress={confirmDeleteZone} disabled={deletingZone}>
+                {deletingZone ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>

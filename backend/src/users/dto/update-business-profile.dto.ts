@@ -23,6 +23,26 @@ export class UpdateBusinessProfileDto {
 
   @IsOptional()
   @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  address2?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  lga?: string;
+
+  @IsOptional()
+  @IsString()
   phone?: string;
 
   @IsOptional()
@@ -34,6 +54,22 @@ export class UpdateBusinessProfileDto {
   @Min(0)
   @Max(120)
   preparationTime?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  maxConcurrentOrders?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  deliveryRadius?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoAcceptOrders?: boolean;
 
   @IsOptional()
   @IsNumber()
