@@ -78,11 +78,15 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string, password: string) {
+    console.log('[DELETE] Starting account deletion for userId:', userId);
+    
     // Find user with password hash
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, passwordHash: true, status: true },
     });
+
+    console.log('[DELETE] User found:', user ? { id: user.id, email: user.email, status: user.status } : 'NOT FOUND');
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -94,10 +98,14 @@ export class UsersService {
 
     // Verify password for security
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    console.log('[DELETE] Password valid:', isPasswordValid);
+    
     if (!isPasswordValid) {
       throw new BadRequestException('Invalid password');
     }
 
+    console.log('[DELETE] Starting transaction to anonymize and delete account...');
+    
     // Perform soft delete with anonymization
     await this.prisma.$transaction(async (tx) => {
       // Anonymize user data
@@ -156,6 +164,8 @@ export class UsersService {
       // Keep reviews but they're now linked to anonymized user
       // Keep wallet transactions for legal/tax records
     });
+
+    console.log('[DELETE] Account deletion completed successfully for userId:', userId);
 
     return {
       message: 'Account successfully deleted. All personal data has been anonymized.',
@@ -222,11 +232,7 @@ export class UsersService {
             },
           },
         },
-        wallet: {
-          include: {
-            transactions: true,
-          },
-        },
+        wallet: true,
         notifications: true,
         supportTickets: {
           include: {
@@ -257,26 +263,26 @@ export class UsersService {
           dateOfBirth: user.dateOfBirth,
           role: user.role,
         },
-        profile: user.customerProfile || user.driverProfile || user.businessProfile,
-        addresses: user.addresses,
-        ordersAsCustomer: user.ordersAsCustomer,
-        ordersAsDriver: user.ordersAsDriver,
-        reviews: user.customerReviews,
-        favorites: user.favorites,
-        wallet: user.wallet,
-        notifications: user.notifications,
-        supportTickets: user.supportTickets,
+        profile: (user as any).customerProfile || (user as any).driverProfile || (user as any).businessProfile,
+        addresses: (user as any).addresses || [],
+        ordersAsCustomer: (user as any).ordersAsCustomer || [],
+        ordersAsDriver: (user as any).ordersAsDriver || [],
+        reviews: (user as any).customerReviews || [],
+        favorites: (user as any).favorites || [],
+        wallet: (user as any).wallet,
+        notifications: (user as any).notifications || [],
+        supportTickets: (user as any).supportTickets || [],
         paymentMethods: {
-          bankAccounts: user.bankAccounts,
-          savedCards: user.savedCards,
+          bankAccounts: (user as any).bankAccounts || [],
+          savedCards: (user as any).savedCards || [],
         },
       },
       metadata: {
         accountCreated: user.createdAt,
         lastUpdated: user.updatedAt,
         lastLogin: user.lastLogin,
-        totalOrders: user.ordersAsCustomer.length,
-        totalReviews: user.customerReviews.length,
+        totalOrders: ((user as any).ordersAsCustomer || []).length,
+        totalReviews: ((user as any).customerReviews || []).length,
       },
     };
   }

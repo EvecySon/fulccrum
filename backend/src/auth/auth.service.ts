@@ -132,8 +132,22 @@ export class AuthService {
       },
     });
 
+    console.log('[LOGIN] Attempting login for:', dto.email);
+    console.log('[LOGIN] User found:', user ? { id: user.id, email: user.email, phone: user.phone, status: user.status } : 'NOT FOUND');
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if account has been deleted
+    if (user.status === 'deleted') {
+      console.log('[LOGIN] BLOCKED - Account is deleted');
+      throw new UnauthorizedException('This account has been deleted and cannot be accessed');
+    }
+
+    // Check if account is suspended
+    if (user.status === 'suspended') {
+      throw new UnauthorizedException('This account has been suspended. Please contact support');
     }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);

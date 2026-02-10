@@ -15,7 +15,7 @@ const getBaseUrl = () => {
     return 'http://localhost:3001';
   } else {
     // Replace this IP with your computer's current local IP address
-    return 'http://192.168.18.8:3001';
+    return 'http://192.168.18.2:3001';
   }
 };
 

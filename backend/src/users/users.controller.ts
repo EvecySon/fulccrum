@@ -27,6 +27,9 @@ export class UsersController {
 
   @Delete('account')
   async deleteAccount(@Request() req: any, @Body() dto: DeleteAccountDto) {
+    console.log('[CONTROLLER] DELETE /users/account called');
+    console.log('[CONTROLLER] User ID:', req.user.sub);
+    console.log('[CONTROLLER] Password provided:', dto.password ? 'YES' : 'NO');
     return this.usersService.deleteAccount(req.user.sub, dto.password);
   }
 
