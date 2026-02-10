@@ -252,12 +252,18 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               <Text style={styles.editLink}>Edit</Text>
             </TouchableOpacity>
           </View>
-          {businessHours.length > 0 ? businessHours.map((h: any, i: number) => (
-            <View key={i} style={styles.scheduleRow}>
-              <Text style={styles.scheduleDay}>{h.dayOfWeek || h.day}</Text>
-              <Text style={styles.scheduleHours}>{h.openTime} - {h.closeTime}</Text>
-            </View>
-          )) : (
+          {businessHours.length > 0 ? businessHours.map((h: any, i: number) => {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[h.dayOfWeek] ?? h.day ?? `Day ${h.dayOfWeek}`;
+            return (
+              <View key={i} style={styles.scheduleRow}>
+                <Text style={styles.scheduleDay}>{dayName}</Text>
+                <Text style={[styles.scheduleHours, h.isClosed && { color: colors.error }]}>
+                  {h.isClosed ? 'Closed' : `${h.openingTime || h.openTime} - ${h.closingTime || h.closeTime}`}
+                </Text>
+              </View>
+            );
+          }) : (
             <View style={{ alignItems: 'center', paddingVertical: 16 }}>
               <Ionicons name="time-outline" size={28} color={colors.textLight} />
               <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 6 }}>No store hours set yet</Text>
