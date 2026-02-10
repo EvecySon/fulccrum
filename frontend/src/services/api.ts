@@ -324,7 +324,7 @@ export const reviewsAPI = {
   getBusinessReviews: (businessId: string, page = 1) => api.get(`/reviews/business/${businessId}?page=${page}`),
   getDriverReviews: (driverId: string, page = 1) => api.get(`/reviews/driver/${driverId}?page=${page}`),
   getMyReviews: (page = 1) => api.get(`/reviews/customer/my-reviews?page=${page}`),
-  respond: (id: string, response: string) => api.post(`/reviews/${id}/respond`, { response }),
+  respond: (id: string, response: string) => api.post(`/reviews/${id}/respond`, { businessResponse: response }),
   markHelpful: (id: string) => api.patch(`/reviews/${id}/helpful`),
   getBusinessStats: (businessId: string) => api.get(`/reviews/business/${businessId}/stats`),
   hide: (id: string, notes: string) => api.patch(`/reviews/${id}/hide`, { moderationNotes: notes }),

@@ -24,17 +24,14 @@ export class ZonesService {
   }
 
   async createZone(businessId: string, data: any) {
-    // Validate coordinates
-    if (!Array.isArray(data.coordinates) || data.coordinates.length < 3) {
-      throw new BadRequestException('Zone must have at least 3 coordinate points');
-    }
-
     return this.prisma.deliveryZone.create({
       data: {
         businessId,
         name: data.name,
-        description: data.description,
-        coordinates: data.coordinates,
+        description: data.description || null,
+        coordinates: Array.isArray(data.coordinates) && data.coordinates.length >= 3
+          ? data.coordinates
+          : [],
         deliveryFee: data.deliveryFee,
         minimumOrder: data.minimumOrder,
         maxOrders: data.maxOrders,

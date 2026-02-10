@@ -9,6 +9,7 @@ import {
   Image,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -56,22 +57,29 @@ export default function InventoryScreen({ navigation }: any) {
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not restock'); }
   };
 
+  // ─── Edit Stock Modal ───
+  const [showEditStock, setShowEditStock] = useState(false);
+  const [editStockItem, setEditStockItem] = useState<any>(null);
+  const [editStockVal, setEditStockVal] = useState('');
+  const [editingSaving, setEditingSaving] = useState(false);
+
   const handleEditStock = (item: any) => {
-    Alert.prompt('Edit Stock', `Current stock: ${item.currentStock} ${item.unit}`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Save',
-        onPress: async (val?: string) => {
-          if (!val) return;
-          const newStock = parseInt(val);
-          if (isNaN(newStock)) return;
-          try {
-            await menuAPI.updateInventory(item.id, { currentStock: newStock });
-            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, currentStock: newStock } : i));
-          } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update stock'); }
-        },
-      },
-    ], 'plain-text', String(item.currentStock));
+    setEditStockItem(item);
+    setEditStockVal(String(item.currentStock));
+    setShowEditStock(true);
+  };
+
+  const handleSaveEditStock = async () => {
+    if (!editStockItem || !editStockVal.trim()) return;
+    const newStock = parseInt(editStockVal);
+    if (isNaN(newStock)) { Alert.alert('Invalid', 'Enter a valid number.'); return; }
+    setEditingSaving(true);
+    try {
+      await menuAPI.updateInventory(editStockItem.id, { currentStock: newStock });
+      setInventory(prev => prev.map(i => i.id === editStockItem.id ? { ...i, currentStock: newStock } : i));
+      setShowEditStock(false);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not update stock'); }
+    finally { setEditingSaving(false); }
   };
 
   const handleAddInventory = () => {
@@ -194,8 +202,9 @@ export default function InventoryScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Restock Modal */}
-      <Modal visible={!!showRestock} transparent animationType="slide">
+      <Modal visible={!!showRestock} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowRestock(null)} />
           <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 }}>Restock {showRestock?.name}</Text>
             <Text style={{ fontSize: 13, color: colors.textLight, marginBottom: 16 }}>Current: {showRestock?.currentStock} {showRestock?.unit}</Text>
@@ -206,7 +215,6 @@ export default function InventoryScreen({ navigation }: any) {
               keyboardType="numeric"
               value={restockQty}
               onChangeText={setRestockQty}
-              autoFocus
             />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowRestock(null)}>
@@ -214,6 +222,33 @@ export default function InventoryScreen({ navigation }: any) {
               </TouchableOpacity>
               <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' }} onPress={handleRestock}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Restock</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Stock Modal */}
+      <Modal visible={showEditStock} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !editingSaving && setShowEditStock(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 }}>Edit Stock</Text>
+            <Text style={{ fontSize: 13, color: colors.textLight, marginBottom: 16 }}>{editStockItem?.name} — Current: {editStockItem?.currentStock} {editStockItem?.unit}</Text>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, marginBottom: 16 }}
+              placeholder="New stock quantity"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={editStockVal}
+              onChangeText={setEditStockVal}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowEditStock(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center', opacity: editingSaving ? 0.6 : 1 }} onPress={handleSaveEditStock} disabled={editingSaving}>
+                {editingSaving ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Save</Text>}
               </TouchableOpacity>
             </View>
           </View>

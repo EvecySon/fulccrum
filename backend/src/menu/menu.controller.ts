@@ -138,13 +138,13 @@ export class MenuController {
 
   @Get('business-hours')
   async getBusinessHours(@Request() req: any, @Query('businessId') businessId?: string) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.getBusinessHours(targetBusinessId);
   }
 
   @Get('business-hours/is-open')
   async isBusinessOpen(@Request() req: any, @Query('businessId') businessId?: string) {
-    const targetBusinessId = businessId || req.user.sub;
+    const targetBusinessId = (!businessId || businessId === 'me') ? req.user.sub : businessId;
     return this.menuService.isBusinessOpen(targetBusinessId);
   }
 
