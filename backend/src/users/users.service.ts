@@ -165,7 +165,7 @@ export class UsersService {
 
   async exportUserData(userId: string) {
     // Fetch all user data for GDPR compliance
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         customerProfile: true,
@@ -224,7 +224,7 @@ export class UsersService {
         },
         wallet: {
           include: {
-            transactions: true,
+            withdrawalRequests: true,
           },
         },
         notifications: true,

@@ -17,6 +17,11 @@ export class MerchantCrmController {
     return this.crmService.getCustomerProfile(req.user.sub, customerId);
   }
 
+  @Post('customers')
+  async createCustomerNote(@Request() req: any, @Body() data: any) {
+    return this.crmService.createCustomerNote(req.user.sub, data);
+  }
+
   @Get('campaigns')
   async getCampaigns(@Request() req: any) {
     return this.crmService.getCampaigns(req.user.sub);

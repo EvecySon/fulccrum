@@ -109,6 +109,7 @@ model User {
   passwordResets     PasswordReset[]
   bankAccounts       BankAccount[]
   savedCards         SavedCard[]
+  crmCustomerNotes   CrmCustomerNote[] @relation("crm_customer_notes")
 
   @@map("users")
 }
@@ -178,6 +179,8 @@ model BusinessProfile {
   reviews        Review[]
   deliveryZones  DeliveryZone[]
   favorites      Favorite[]
+  crmCampaigns   CrmCampaign[]
+  crmCustomerNotes CrmCustomerNote[]
 
   @@map("business_profiles")
 }
@@ -885,4 +888,42 @@ model OrderItem {
   @@index([orderId])
   @@index([menuItemId])
   @@map("order_items")
+}
+
+// CRM Campaign for merchant marketing
+model CrmCampaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  type        String   @default("promotion") @db.VarChar(50)
+  targetCount Int      @default(0) @map("target_count")
+  status      String   @default("draft") @db.VarChar(20)
+  effectiveness Float  @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("crm_campaigns")
+}
+
+// CRM Customer Note for merchant to track customers
+model CrmCustomerNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  customerId String?  @map("customer_id") @db.Uuid
+  name       String   @db.VarChar(255)
+  email      String?  @db.VarChar(255)
+  phone      String?  @db.VarChar(50)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+  customer User?           @relation("crm_customer_notes", fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId])
+  @@index([customerId])
+  @@map("crm_customer_notes")
 }

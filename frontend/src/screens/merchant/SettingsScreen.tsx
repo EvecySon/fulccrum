@@ -13,6 +13,7 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -476,7 +477,8 @@ export default function MerchantSettingsScreen({ navigation }: any) {
 
       {/* Logout Confirmation Modal */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLogoutModal(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowLogoutModal(false)} />
           <View style={styles.modalContent}>
             <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
               <Ionicons name="log-out-outline" size={28} color={colors.error} />
@@ -492,12 +494,13 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* Export Data Confirmation Modal */}
       <Modal visible={showExportModal} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => !exporting && setShowExportModal(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !exporting && setShowExportModal(false)} />
           <View style={styles.modalContent}>
             <View style={[styles.modalIconCircle, { backgroundColor: colors.navy + '15' }]}>
               <Ionicons name="download-outline" size={28} color={colors.navy} />
@@ -521,13 +524,14 @@ export default function MerchantSettingsScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* Delete Account Password Modal */}
       <Modal visible={showDeleteModal} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => !deleting && setShowDeleteModal(false)}>
-          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !deleting && setShowDeleteModal(false)} />
+          <View style={styles.modalContent}>
             <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
               <Ionicons name="trash-outline" size={28} color={colors.error} />
             </View>
@@ -557,8 +561,8 @@ export default function MerchantSettingsScreen({ navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

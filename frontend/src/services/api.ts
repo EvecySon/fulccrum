@@ -2,21 +2,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
+const DEV_IP = '192.168.0.102';
+
 const getBaseUrl = () => {
   // In production, use your production API URL
   if (process.env.NODE_ENV === 'production') {
-    return 'https://api.fulccrum.com'; // Replace with your actual production URL
+    return 'https://api.fulccrum.com';
   }
   
   // For development:
-  // - Web: use localhost
-  // - Mobile (iOS/Android): use your computer's local IP
   if (Platform.OS === 'web') {
-    return 'http://localhost:3001';
-  } else {
-    // Replace this IP with your computer's current local IP address
-    return 'http://192.168.18.8:3001';
+    // If opened on the same machine use localhost, otherwise use LAN IP
+    const host = typeof window !== 'undefined' && window.location?.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    return `http://${DEV_IP}:3001`;
   }
+  // Mobile (iOS/Android): always use LAN IP
+  return `http://${DEV_IP}:3001`;
 };
 
 const BASE_URL = getBaseUrl();
@@ -548,6 +552,7 @@ export const merchantInsightsAPI = {
 export const merchantCrmAPI = {
   getCustomerProfiles: (page = 1) => api.get(`/merchant/crm/customers?page=${page}`),
   getCustomerProfile: (customerId: string) => api.get(`/merchant/crm/customers/${customerId}`),
+  createCustomerProfile: (data: any) => api.post('/merchant/crm/customers', data),
   getCampaigns: () => api.get('/merchant/crm/campaigns'),
   createCampaign: (data: any) => api.post('/merchant/crm/campaigns', data),
   updateCampaign: (id: string, data: any) => api.patch(`/merchant/crm/campaigns/${id}`, data),
