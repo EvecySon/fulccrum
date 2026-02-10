@@ -594,21 +594,23 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Order Settings Edit Modal */}
-      <Modal visible={showOrderEdit} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+      {showOrderEdit && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowOrderEdit(false)} />
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{orderEditLabel}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16 }}>
-              {orderEditSuffix === '₦' && <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginRight: 4 }}>₦</Text>}
-              <TextInput
-                style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.textPrimary, paddingVertical: 14 }}
-                value={orderEditValue}
-                onChangeText={setOrderEditValue}
-                keyboardType="numeric"
-                selectTextOnFocus
-              />
-              {orderEditSuffix !== '₦' && <Text style={{ fontSize: 14, color: colors.textLight, marginLeft: 8 }}>{orderEditSuffix}</Text>}
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.teal, textAlign: 'center', marginBottom: 16 }}>{orderEditLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16 }}>
+                {orderEditSuffix === '₦' && <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginRight: 4 }}>₦</Text>}
+                <TextInput
+                  style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.textPrimary, paddingVertical: 14 }}
+                  value={orderEditValue}
+                  onChangeText={setOrderEditValue}
+                  keyboardType="numeric"
+                  selectTextOnFocus
+                />
+              </View>
+              {orderEditSuffix !== '₦' && <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textLight }}>{orderEditSuffix}</Text>}
             </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowOrderEdit(false)}>
@@ -620,7 +622,7 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Logout Confirmation Modal */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
