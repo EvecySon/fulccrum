@@ -227,22 +227,24 @@ export default function MerchantSettingsScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Store Profile */}
-        <View style={styles.profileCard}>
-          <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
-            <Ionicons name="storefront" size={28} color={colors.navy} />
-          </View>
+        <TouchableOpacity style={styles.profileCard} onPress={() => navigation.navigate('BusinessVerification')}>
+          {businessProfile?.businessProfile?.logoUrl ? (
+            <Image source={{ uri: businessProfile.businessProfile.logoUrl }} style={styles.storeImage} />
+          ) : (
+            <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="storefront" size={28} color={colors.navy} />
+            </View>
+          )}
           <View style={styles.profileInfo}>
             <Text style={styles.storeName}>{businessProfile?.businessProfile?.businessName || user?.firstName || 'My Store'}</Text>
             <Text style={styles.storeAddress}>{user?.email || 'No email set'}</Text>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.warning} />
-              <Text style={styles.ratingText}>{businessProfile?.businessProfile?.averageRating ? `${businessProfile.businessProfile.averageRating} rating` : 'No reviews yet'}</Text>
+              <Text style={styles.ratingText}>{businessProfile?.businessProfile?.rating && Number(businessProfile.businessProfile.rating) > 0 ? `${Number(businessProfile.businessProfile.rating).toFixed(1)} rating` : 'No reviews yet'}</Text>
             </View>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
 
         {/* Store Hours */}
         <View style={styles.section}>

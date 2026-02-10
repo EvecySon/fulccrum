@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,27 +9,92 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { uploadAPI, usersAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
+import { nigerianStatesLgas, nigerianStates } from '../../data/nigerianStatesLgas';
 
 type VerificationStep = 'info' | 'documents' | 'review';
 
 export default function BusinessVerificationScreen({ navigation }: any) {
   const [step, setStep] = useState<VerificationStep>('info');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   // Business info
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('restaurant');
   const [address, setAddress] = useState('');
+  const [address2, setAddress2] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  const [lga, setLga] = useState('');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
+
+  // Existing doc URLs from backend (for edit mode)
+  const [existingLogoUrl, setExistingLogoUrl] = useState('');
+  const [existingCoverUrl, setExistingCoverUrl] = useState('');
+  const [existingCacUrl, setExistingCacUrl] = useState('');
+
+  // Load existing profile on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const profile = await usersAPI.getProfile();
+        const bp = profile?.businessProfile;
+        if (bp && bp.businessName) {
+          setIsEditing(true);
+          setBusinessName(bp.businessName || '');
+          setBusinessType(bp.businessType || 'restaurant');
+          setAddress(bp.address || '');
+          setAddress2(bp.address2 || '');
+          setCity(bp.city || '');
+          setState(bp.state || '');
+          setLga(bp.lga || '');
+          setDescription(bp.description || '');
+          if (bp.phone) setPhone(bp.phone.replace('+234', ''));
+          if (bp.logoUrl) setExistingLogoUrl(bp.logoUrl);
+          if (bp.coverImageUrl) setExistingCoverUrl(bp.coverImageUrl);
+          if (bp.businessLicense) setExistingCacUrl(bp.businessLicense);
+        }
+      } catch {}
+      setInitialLoading(false);
+    })();
+  }, []);
+
+  // Picker modal state
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerType, setPickerType] = useState<'state' | 'lga'>('state');
+  const [pickerSearch, setPickerSearch] = useState('');
+
+  const openPicker = (type: 'state' | 'lga') => {
+    setPickerType(type);
+    setPickerSearch('');
+    setPickerVisible(true);
+  };
+
+  const pickerItems = useMemo(() => {
+    const items = pickerType === 'state' ? nigerianStates : (nigerianStatesLgas[state] || []);
+    if (!pickerSearch) return items;
+    const q = pickerSearch.toLowerCase();
+    return items.filter(i => i.toLowerCase().includes(q));
+  }, [pickerType, pickerSearch, state]);
+
+  const handlePickerSelect = (item: string) => {
+    if (pickerType === 'state') {
+      setState(item);
+      setLga('');
+    } else {
+      setLga(item);
+    }
+    setPickerVisible(false);
+  };
 
   // Documents
   const [logoUri, setLogoUri] = useState('');
@@ -59,7 +124,7 @@ export default function BusinessVerificationScreen({ navigation }: any) {
   };
 
   const handleSubmit = async () => {
-    if (!businessName || !address || !city || !state) {
+    if (!businessName || !address || !city || !state || !lga) {
       setError('Please fill in all required fields');
       return;
     }
@@ -94,7 +159,9 @@ export default function BusinessVerificationScreen({ navigation }: any) {
         businessName,
         businessType,
         address,
+        address2: address2 || undefined,
         city,
+        lga,
         state,
         description,
         phone: phone ? `+234${phone}` : undefined,
@@ -103,11 +170,19 @@ export default function BusinessVerificationScreen({ navigation }: any) {
         cacDocument: cacDocUrl,
       });
 
-      Alert.alert(
-        'Verification Submitted',
-        'Your business verification is under review. We\'ll notify you once approved.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      if (isEditing) {
+        Alert.alert(
+          'Profile Updated',
+          'Your business profile has been updated successfully.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+        );
+      } else {
+        Alert.alert(
+          'Verification Submitted',
+          'Your business verification is under review. We\'ll notify you once approved.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+        );
+      }
     } catch (err: any) {
       setError(err.message || 'Submission failed. Please try again.');
     } finally {
@@ -143,7 +218,7 @@ export default function BusinessVerificationScreen({ navigation }: any) {
         }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Business Verification</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit Business Profile' : 'Business Verification'}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -156,6 +231,11 @@ export default function BusinessVerificationScreen({ navigation }: any) {
         </View>
       ) : null}
 
+      {initialLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.navy} />
+        </View>
+      ) : (
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Step 1: Business Info */}
         {step === 'info' && (
@@ -193,15 +273,28 @@ export default function BusinessVerificationScreen({ navigation }: any) {
               <TextInput style={styles.input} placeholder="Street address" placeholderTextColor={colors.textLight} value={address} onChangeText={setAddress} />
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>City *</Text>
-                <TextInput style={styles.input} placeholder="City" placeholderTextColor={colors.textLight} value={city} onChangeText={setCity} />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>State *</Text>
-                <TextInput style={styles.input} placeholder="State" placeholderTextColor={colors.textLight} value={state} onChangeText={setState} />
-              </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Address 2 (Optional)</Text>
+              <TextInput style={styles.input} placeholder="Apt, suite, floor, etc." placeholderTextColor={colors.textLight} value={address2} onChangeText={setAddress2} />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>State *</Text>
+              <TouchableOpacity style={styles.input} onPress={() => openPicker('state')}>
+                <Text style={{ fontSize: 15, color: state ? colors.textPrimary : colors.textLight }}>{state || 'Select State'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>LGA *</Text>
+              <TouchableOpacity style={[styles.input, !state && { opacity: 0.5 }]} onPress={() => state ? openPicker('lga') : setError('Please select a state first')} disabled={!state}>
+                <Text style={{ fontSize: 15, color: lga ? colors.textPrimary : colors.textLight }}>{lga || 'Select LGA'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>City / Town *</Text>
+              <TextInput style={styles.input} placeholder="e.g. Ikeja" placeholderTextColor={colors.textLight} value={city} onChangeText={setCity} />
             </View>
 
             <View style={styles.inputGroup}>
@@ -227,7 +320,7 @@ export default function BusinessVerificationScreen({ navigation }: any) {
             </View>
 
             <TouchableOpacity style={styles.primaryBtn} onPress={() => {
-              if (!businessName || !address || !city || !state) {
+              if (!businessName || !address || !city || !state || !lga) {
                 setError('Please fill in all required fields');
                 return;
               }
@@ -249,6 +342,8 @@ export default function BusinessVerificationScreen({ navigation }: any) {
             <TouchableOpacity style={styles.uploadCard} onPress={handlePickLogo}>
               {logoUri ? (
                 <Image source={{ uri: logoUri }} style={styles.uploadPreview} />
+              ) : existingLogoUrl ? (
+                <Image source={{ uri: existingLogoUrl }} style={styles.uploadPreview} />
               ) : (
                 <View style={styles.uploadPlaceholder}>
                   <Ionicons name="image-outline" size={32} color={colors.teal} />
@@ -261,6 +356,8 @@ export default function BusinessVerificationScreen({ navigation }: any) {
             <TouchableOpacity style={styles.uploadCard} onPress={handlePickCover}>
               {coverUri ? (
                 <Image source={{ uri: coverUri }} style={[styles.uploadPreview, { height: 140 }]} />
+              ) : existingCoverUrl ? (
+                <Image source={{ uri: existingCoverUrl }} style={[styles.uploadPreview, { height: 140 }]} />
               ) : (
                 <View style={[styles.uploadPlaceholder, { height: 140 }]}>
                   <Ionicons name="image-outline" size={32} color={colors.teal} />
@@ -275,6 +372,11 @@ export default function BusinessVerificationScreen({ navigation }: any) {
                 <View style={styles.uploadDone}>
                   <Ionicons name="document-text" size={28} color={colors.success} />
                   <Text style={styles.uploadDoneText}>CAC Document uploaded</Text>
+                </View>
+              ) : existingCacUrl ? (
+                <View style={styles.uploadDone}>
+                  <Ionicons name="document-text" size={28} color={colors.success} />
+                  <Text style={styles.uploadDoneText}>CAC Document on file</Text>
                 </View>
               ) : (
                 <View style={styles.uploadPlaceholder}>
@@ -308,7 +410,7 @@ export default function BusinessVerificationScreen({ navigation }: any) {
             </View>
             <View style={styles.reviewCard}>
               <Text style={styles.reviewLabel}>Address</Text>
-              <Text style={styles.reviewValue}>{address}, {city}, {state}</Text>
+              <Text style={styles.reviewValue}>{address}{address2 ? `, ${address2}` : ''}, {city}, {lga}, {state}</Text>
             </View>
             {phone ? (
               <View style={styles.reviewCard}>
@@ -320,32 +422,89 @@ export default function BusinessVerificationScreen({ navigation }: any) {
               <Text style={styles.reviewLabel}>Documents</Text>
               <View style={styles.reviewDocs}>
                 <View style={styles.reviewDocItem}>
-                  <Ionicons name={logoUri ? 'checkmark-circle' : 'close-circle'} size={18} color={logoUri ? colors.success : colors.textLight} />
+                  <Ionicons name={(logoUri || existingLogoUrl) ? 'checkmark-circle' : 'close-circle'} size={18} color={(logoUri || existingLogoUrl) ? colors.success : colors.textLight} />
                   <Text style={styles.reviewDocText}>Logo</Text>
                 </View>
                 <View style={styles.reviewDocItem}>
-                  <Ionicons name={coverUri ? 'checkmark-circle' : 'close-circle'} size={18} color={coverUri ? colors.success : colors.textLight} />
+                  <Ionicons name={(coverUri || existingCoverUrl) ? 'checkmark-circle' : 'close-circle'} size={18} color={(coverUri || existingCoverUrl) ? colors.success : colors.textLight} />
                   <Text style={styles.reviewDocText}>Cover</Text>
                 </View>
                 <View style={styles.reviewDocItem}>
-                  <Ionicons name={cacDocUri ? 'checkmark-circle' : 'close-circle'} size={18} color={cacDocUri ? colors.success : colors.textLight} />
+                  <Ionicons name={(cacDocUri || existingCacUrl) ? 'checkmark-circle' : 'close-circle'} size={18} color={(cacDocUri || existingCacUrl) ? colors.success : colors.textLight} />
                   <Text style={styles.reviewDocText}>CAC Doc</Text>
                 </View>
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => navigation.navigate('MerchantPayment')}
-            >
-              <Text style={styles.primaryBtnText}>Continue to Payment</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
-            </TouchableOpacity>
+            {isEditing ? (
+              <TouchableOpacity
+                style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? <ActivityIndicator color={colors.textWhite} /> : (
+                  <>
+                    <Text style={styles.primaryBtnText}>Submit Changes</Text>
+                    <Ionicons name="checkmark-circle" size={20} color={colors.textWhite} />
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => navigation.navigate('MerchantPayment')}
+              >
+                <Text style={styles.primaryBtnText}>Continue to Payment</Text>
+                <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      )}
+
+      {/* State / LGA Picker Modal */}
+      {pickerVisible && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setPickerVisible(false)} />
+          <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%', paddingBottom: 30 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>{pickerType === 'state' ? 'Select State' : 'Select LGA'}</Text>
+              <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}>
+              <TextInput
+                style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: colors.textPrimary }}
+                placeholder={`Search ${pickerType === 'state' ? 'states' : 'LGAs'}...`}
+                placeholderTextColor={colors.textLight}
+                value={pickerSearch}
+                onChangeText={setPickerSearch}
+                autoFocus
+              />
+            </View>
+            <FlatList
+              data={pickerItems}
+              keyExtractor={(item) => item}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{ paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.borderLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  onPress={() => handlePickerSelect(item)}
+                >
+                  <Text style={{ fontSize: 15, color: colors.textPrimary }}>{item}</Text>
+                  {((pickerType === 'state' && item === state) || (pickerType === 'lga' && item === lga)) && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.teal} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }

@@ -23,6 +23,26 @@ export class UpdateBusinessProfileDto {
 
   @IsOptional()
   @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  address2?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  lga?: string;
+
+  @IsOptional()
+  @IsString()
   phone?: string;
 
   @IsOptional()

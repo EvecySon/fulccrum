@@ -5,6 +5,147 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
+  async getMerchantAnalytics(businessId: string, period: string) {
+    const now = new Date();
+    const startDate = new Date();
+    const prevStart = new Date();
+    const prevEnd = new Date();
+
+    switch (period) {
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        prevStart.setDate(now.getDate() - 14);
+        prevEnd.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setDate(now.getDate() - 30);
+        prevStart.setDate(now.getDate() - 60);
+        prevEnd.setDate(now.getDate() - 30);
+        break;
+      case 'year':
+        startDate.setFullYear(now.getFullYear() - 1);
+        prevStart.setFullYear(now.getFullYear() - 2);
+        prevEnd.setFullYear(now.getFullYear() - 1);
+        break;
+      default: // today
+        startDate.setHours(0, 0, 0, 0);
+        prevStart.setDate(now.getDate() - 1);
+        prevStart.setHours(0, 0, 0, 0);
+        prevEnd.setDate(now.getDate() - 1);
+        prevEnd.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    const currentWhere = { businessId, createdAt: { gte: startDate } };
+    const prevWhere = { businessId, createdAt: { gte: prevStart, lte: prevEnd } };
+    const paidCurrentWhere = { ...currentWhere, paymentStatus: 'paid' as const };
+    const paidPrevWhere = { ...prevWhere, paymentStatus: 'paid' as const };
+
+    // KPI queries
+    const [
+      currentOrders,
+      prevOrders,
+      currentRevenue,
+      prevRevenue,
+      cancelledCurrent,
+      cancelledPrev,
+      allCurrentOrders,
+      rating,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: currentWhere }),
+      this.prisma.order.count({ where: prevWhere }),
+      this.prisma.order.aggregate({ where: paidCurrentWhere, _sum: { totalAmount: true } }),
+      this.prisma.order.aggregate({ where: paidPrevWhere, _sum: { totalAmount: true } }),
+      this.prisma.order.count({ where: { ...currentWhere, status: 'cancelled' } }),
+      this.prisma.order.count({ where: { ...prevWhere, status: 'cancelled' } }),
+      this.prisma.order.findMany({
+        where: currentWhere,
+        include: { items: { include: { menuItem: { select: { name: true } } } } },
+      }),
+      this.prisma.businessProfile.findUnique({ where: { userId: businessId }, select: { rating: true } }),
+    ]);
+
+    const rev = Number(currentRevenue._sum.totalAmount || 0);
+    const prevRev = Number(prevRevenue._sum.totalAmount || 0);
+    const avgOrder = currentOrders > 0 ? rev / currentOrders : 0;
+    const prevAvg = prevOrders > 0 ? prevRev / prevOrders : 0;
+    const cancelRate = currentOrders > 0 ? (cancelledCurrent / currentOrders) * 100 : 0;
+    const prevCancelRate = prevOrders > 0 ? (cancelledPrev / prevOrders) * 100 : 0;
+
+    const pctChange = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? '+100%' : '0%';
+      const change = ((curr - prev) / prev) * 100;
+      return `${change >= 0 ? '+' : ''}${Math.round(change)}%`;
+    };
+
+    // Hourly orders
+    const hourlyMap: { [h: number]: number } = {};
+    for (let h = 0; h < 24; h++) hourlyMap[h] = 0;
+    allCurrentOrders.forEach((o: any) => {
+      const h = new Date(o.createdAt).getHours();
+      hourlyMap[h]++;
+    });
+    const hourlyOrders = Object.entries(hourlyMap).map(([h, count]) => ({
+      hour: `${String(h).padStart(2, '0')}:00`,
+      orders: count,
+    }));
+
+    // Peak hours
+    const sorted = [...hourlyOrders].sort((a, b) => b.orders - a.orders);
+    const maxOrders = sorted[0]?.orders || 1;
+    const peakHours = sorted.slice(0, 4).map((h) => ({
+      time: h.hour,
+      label: parseInt(h.hour) < 12 ? 'Morning' : parseInt(h.hour) < 17 ? 'Afternoon' : 'Evening',
+      intensity: Math.round((h.orders / maxOrders) * 100),
+    }));
+
+    // Top selling items
+    const itemMap: { [key: string]: { name: string; orders: number; revenue: number } } = {};
+    allCurrentOrders.forEach((o: any) => {
+      (o.items || []).forEach((item: any) => {
+        const name = item.menuItem?.name || 'Unknown';
+        if (!itemMap[name]) itemMap[name] = { name, orders: 0, revenue: 0 };
+        itemMap[name].orders += item.quantity;
+        itemMap[name].revenue += Number(item.price) * item.quantity;
+      });
+    });
+    const topItems = Object.values(itemMap)
+      .sort((a, b) => b.orders - a.orders)
+      .slice(0, 5)
+      .map((item) => ({ ...item, revenue: Math.round(item.revenue * 100) / 100 }));
+
+    // Customer insights
+    const customerIds = [...new Set(allCurrentOrders.map((o: any) => o.customerId).filter(Boolean))];
+    let repeatCount = 0;
+    if (customerIds.length > 0) {
+      const repeatCustomers = await this.prisma.order.groupBy({
+        by: ['customerId'],
+        where: { businessId, customerId: { in: customerIds as string[] } },
+        _count: true,
+        having: { customerId: { _count: { gt: 1 } } },
+      });
+      repeatCount = repeatCustomers.length;
+    }
+
+    return {
+      kpis: {
+        revenue: { total: Math.round(rev * 100) / 100, change: pctChange(rev, prevRev), positive: rev >= prevRev },
+        orders: { total: currentOrders, change: pctChange(currentOrders, prevOrders), positive: currentOrders >= prevOrders },
+        avgOrder: { total: Math.round(avgOrder * 100) / 100, change: pctChange(avgOrder, prevAvg), positive: avgOrder >= prevAvg },
+        cancelRate: { total: Math.round(cancelRate * 10) / 10, change: pctChange(cancelRate, prevCancelRate), positive: cancelRate <= prevCancelRate },
+      },
+      hourlyOrders,
+      peakHours,
+      topItems,
+      customerInsights: {
+        newCustomers: customerIds.length,
+        returning: customerIds.length > 0 ? Math.round((repeatCount / customerIds.length) * 100) : 0,
+        avgRating: Number(rating?.rating || 0),
+        totalReviews: 0,
+      },
+    };
+  }
+
   async getDashboardStats(userId: string, userRole: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

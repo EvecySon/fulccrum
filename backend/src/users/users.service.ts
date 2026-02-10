@@ -77,6 +77,11 @@ export class UsersService {
     const data: any = {};
     if (dto.businessName !== undefined) data.businessName = dto.businessName;
     if (dto.description !== undefined) data.description = dto.description;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.address2 !== undefined) data.address2 = dto.address2;
+    if (dto.city !== undefined) data.city = dto.city;
+    if (dto.state !== undefined) data.state = dto.state;
+    if (dto.lga !== undefined) data.lga = dto.lga;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.preparationTime !== undefined) data.averagePreparationTime = dto.preparationTime;
     if (dto.maxConcurrentOrders !== undefined) data.maxConcurrentOrders = dto.maxConcurrentOrders;

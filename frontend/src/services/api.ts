@@ -380,6 +380,7 @@ export const locationAPI = {
 
 // ─── Analytics API ───
 export const analyticsAPI = {
+  merchantAnalytics: (period = 'today') => api.get(`/analytics/merchant?period=${period}`),
   dashboard: () => api.get('/analytics/dashboard'),
   revenue: (days = 30) => api.get(`/analytics/revenue?days=${days}`),
   topPerformers: (type: 'drivers' | 'businesses', limit = 10) =>

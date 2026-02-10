@@ -155,6 +155,11 @@ model BusinessProfile {
   businessName          String   @map("business_name") @db.VarChar(255)
   businessType          String   @map("business_type") @db.VarChar(50)
   description           String?  @db.Text
+  address               String?  @db.VarChar(255)
+  address2              String?  @db.VarChar(255)
+  city                  String?  @db.VarChar(100)
+  state                 String?  @db.VarChar(100)
+  lga                   String?  @db.VarChar(100)
   logoUrl               String?  @map("logo_url") @db.Text
   coverImageUrl         String?  @map("cover_image_url") @db.Text
   website               String?  @db.VarChar(255)
