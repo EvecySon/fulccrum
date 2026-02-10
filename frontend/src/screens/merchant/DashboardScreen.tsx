@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,39 +7,122 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
-import { analyticsAPI, ordersAPI } from '../../services/api';
+import { analyticsAPI, ordersAPI, reviewsAPI, menuAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const timeAgo = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+};
+
 export default function MerchantDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
-  const [stats, setStats] = useState({
-    todayEarnings: 0, todayOrders: 0, avgOrderValue: 0, rating: 0,
-    weeklyEarnings: [{ day: 'Mon', amount: 0 }, { day: 'Tue', amount: 0 }, { day: 'Wed', amount: 0 }, { day: 'Thu', amount: 0 }, { day: 'Fri', amount: 0 }, { day: 'Sat', amount: 0 }, { day: 'Sun', amount: 0 }],
-  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [todayRevenue, setTodayRevenue] = useState(0);
+  const [todayOrders, setTodayOrders] = useState(0);
+  const [avgOrderValue, setAvgOrderValue] = useState(0);
+  const [rating, setRating] = useState(0);
+  const [pendingOrders, setPendingOrders] = useState(0);
+  const [weeklyEarnings, setWeeklyEarnings] = useState<{day: string; amount: number}[]>(
+    DAY_NAMES.map(d => ({ day: d, amount: 0 }))
+  );
   const [orders, setOrders] = useState<any[]>([]);
+  const [topItems, setTopItems] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isOpen, setIsOpen] = useState(true);
+  const [businessName, setBusinessName] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [statsRes, ordersRes] = await Promise.all([
-          analyticsAPI.dashboard().catch(() => null),
-          ordersAPI.getBusinessOrders('me').catch(() => null),
-        ]);
-        if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
-        if (ordersRes?.data) setOrders(ordersRes.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
-  }, []);
+  const loadDashboard = useCallback(async () => {
+    try {
+      const [dashRes, ordersRes, weekRes, reviewsRes, hoursRes] = await Promise.all([
+        analyticsAPI.dashboard().catch(() => null),
+        ordersAPI.getBusinessOrders('me', 1, 5).catch(() => null),
+        analyticsAPI.merchantAnalytics('week').catch(() => null),
+        reviewsAPI.getBusinessReviews('me', 1).catch(() => null),
+        menuAPI.getBusinessHours('me').catch(() => null),
+      ]);
+
+      // Dashboard stats
+      if (dashRes) {
+        setTodayRevenue(Number(dashRes.todayRevenue || 0));
+        setTodayOrders(dashRes.todayOrders || 0);
+        setRating(dashRes.rating || 0);
+        setPendingOrders(dashRes.pendingOrders || 0);
+        const totalRev = Number(dashRes.totalRevenue || 0);
+        const totalOrd = dashRes.totalOrders || 0;
+        setAvgOrderValue(totalOrd > 0 ? totalRev / totalOrd : 0);
+      }
+
+      // Recent orders
+      if (ordersRes?.data) setOrders(ordersRes.data);
+      else if (Array.isArray(ordersRes)) setOrders(ordersRes.slice(0, 5));
+
+      // Weekly analytics
+      if (weekRes?.kpis) {
+        // Build weekly earnings from hourly data or use kpis
+        if (weekRes.topItems) setTopItems(weekRes.topItems.slice(0, 5));
+      }
+
+      // Reviews
+      if (reviewsRes?.data) setReviews(reviewsRes.data.slice(0, 3));
+      else if (Array.isArray(reviewsRes)) setReviews(reviewsRes.slice(0, 3));
+
+      // Business hours - check if currently open
+      if (Array.isArray(hoursRes)) {
+        const today = new Date().getDay();
+        const todayHours = hoursRes.find((h: any) => h.dayOfWeek === today);
+        if (todayHours) {
+          if (todayHours.isClosed) {
+            setIsOpen(false);
+          } else {
+            const now = new Date();
+            const nowMins = now.getHours() * 60 + now.getMinutes();
+            const [openH, openM] = (todayHours.openingTime || '0:0').split(':').map(Number);
+            const [closeH, closeM] = (todayHours.closingTime || '23:59').split(':').map(Number);
+            setIsOpen(nowMins >= openH * 60 + openM && nowMins <= closeH * 60 + closeM);
+          }
+        }
+      }
+
+      // Business name from user profile
+      if (user?.businessProfile?.businessName) {
+        setBusinessName(user.businessProfile.businessName);
+      } else if (user?.firstName) {
+        setBusinessName(user.firstName + "'s Store");
+      }
+    } catch (e: any) {
+      console.log('Dashboard load error:', e?.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useFocusEffect(useCallback(() => { loadDashboard(); }, [loadDashboard]));
+
+  const onRefresh = () => { setRefreshing(true); loadDashboard(); };
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      await ordersAPI.updateStatus(orderId, 'preparing');
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'preparing' } : o));
+      await ordersAPI.updateStatus(orderId, 'accepted');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'accepted' } : o));
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not accept order'); }
   };
 
@@ -51,8 +134,8 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await ordersAPI.updateStatus(orderId, 'cancelled');
-            setOrders(prev => prev.filter(o => o.id !== orderId));
+            await ordersAPI.updateStatus(orderId, 'rejected');
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'rejected' } : o));
           } catch (e: any) { Alert.alert('Error', e?.message || 'Could not reject order'); }
         },
       },
@@ -61,11 +144,29 @@ export default function MerchantDashboardScreen({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new': return colors.info;
+      case 'pending': return colors.info;
+      case 'accepted': return colors.teal;
       case 'preparing': return colors.warning;
-      case 'ready': return colors.teal;
-      case 'completed': return colors.success;
+      case 'ready': return '#22c55e';
+      case 'picked_up': return colors.navy;
+      case 'delivered': return colors.success;
+      case 'cancelled': return colors.error;
+      case 'rejected': return colors.error;
       default: return colors.textLight;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'New';
+      case 'accepted': return 'Accepted';
+      case 'preparing': return 'Preparing';
+      case 'ready': return 'Ready';
+      case 'picked_up': return 'Picked Up';
+      case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      case 'rejected': return 'Rejected';
+      default: return status;
     }
   };
 
@@ -75,49 +176,71 @@ export default function MerchantDashboardScreen({ navigation }: any) {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back!</Text>
-          <Text style={styles.storeName}>{user?.firstName || 'My Store'}</Text>
+          <Text style={styles.storeName}>{businessName || user?.firstName || 'My Store'}</Text>
         </View>
         <View style={styles.headerRight}>
           <View style={styles.statusBadge}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.statusText}>Open</Text>
+            <View style={[styles.onlineDot, { backgroundColor: isOpen ? colors.success : colors.error }]} />
+            <Text style={styles.statusText}>{isOpen ? 'Open' : 'Closed'}</Text>
           </View>
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('MerchantOrders')}>
             <Ionicons name="notifications-outline" size={22} color={colors.textWhite} />
-            <View style={styles.notifDot} />
+            {pendingOrders > 0 && <View style={styles.notifDot} />}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
+      >
+        {loading && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color={colors.navy} />
+          </View>
+        )}
+
+        {/* Pending Orders Alert */}
+        {pendingOrders > 0 && (
+          <TouchableOpacity style={styles.pendingAlert} onPress={() => navigation.navigate('MerchantOrders')}>
+            <View style={styles.pendingIcon}>
+              <Ionicons name="alert-circle" size={22} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingTitle}>{pendingOrders} Pending Order{pendingOrders > 1 ? 's' : ''}</Text>
+              <Text style={styles.pendingSubtitle}>Tap to review and accept</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.warning} />
+          </TouchableOpacity>
+        )}
+
         {/* Quick Stats */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.teal + '15' }]}>
               <Ionicons name="cash-outline" size={22} color={colors.teal} />
             </View>
-            <Text style={styles.statValue}>₦{stats.todayEarnings.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₦{todayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
             <Text style={styles.statLabel}>Today's Earnings</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.navy + '15' }]}>
               <Ionicons name="receipt-outline" size={22} color={colors.navy} />
             </View>
-            <Text style={styles.statValue}>{stats.todayOrders}</Text>
+            <Text style={styles.statValue}>{todayOrders}</Text>
             <Text style={styles.statLabel}>Orders Today</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="trending-up-outline" size={22} color={colors.warning} />
             </View>
-            <Text style={styles.statValue}>₦{stats.avgOrderValue.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₦{avgOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
             <Text style={styles.statLabel}>Avg Order Value</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
               <Ionicons name="star-outline" size={22} color={colors.success} />
             </View>
-            <Text style={styles.statValue}>{stats.rating}</Text>
+            <Text style={styles.statValue}>{rating > 0 ? rating.toFixed(1) : '—'}</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
@@ -126,24 +249,27 @@ export default function MerchantDashboardScreen({ navigation }: any) {
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Weekly Earnings</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MerchantAnalytics')}>
               <Text style={styles.chartLink}>View Report</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.chartBars}>
-            {stats.weeklyEarnings.map((item, index) => {
-              const maxAmount = Math.max(...stats.weeklyEarnings.map(e => e.amount));
-              const barHeight = (item.amount / maxAmount) * 100;
-              const isToday = index === 1;
+            {weeklyEarnings.map((item, index) => {
+              const maxAmount = Math.max(...weeklyEarnings.map(e => e.amount), 1);
+              const barHeight = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 5;
+              const todayIdx = new Date().getDay();
+              const isToday = index === todayIdx;
               return (
                 <View key={item.day} style={styles.barContainer}>
-                  <Text style={styles.barValue}>₦{(item.amount / 1000).toFixed(1)}k</Text>
+                  <Text style={styles.barValue}>
+                    {item.amount >= 1000 ? `₦${(item.amount / 1000).toFixed(1)}k` : `₦${item.amount}`}
+                  </Text>
                   <View style={styles.barTrack}>
                     <View
                       style={[
                         styles.barFill,
                         {
-                          height: `${barHeight}%`,
+                          height: `${Math.max(barHeight, 5)}%`,
                           backgroundColor: isToday ? colors.teal : colors.navy + '40',
                         },
                       ]}
@@ -160,29 +286,29 @@ export default function MerchantDashboardScreen({ navigation }: any) {
 
         {/* Quick Actions */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantOrders')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.teal + '15' }]}>
-              <Ionicons name="pause-circle-outline" size={24} color={colors.teal} />
+              <Ionicons name="receipt-outline" size={24} color={colors.teal} />
             </View>
-            <Text style={styles.actionText}>Pause Orders</Text>
+            <Text style={styles.actionText}>Orders</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantMenu')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.navy + '15' }]}>
-              <Ionicons name="time-outline" size={24} color={colors.navy} />
+              <Ionicons name="restaurant-outline" size={24} color={colors.navy} />
             </View>
-            <Text style={styles.actionText}>Set Prep Time</Text>
+            <Text style={styles.actionText}>Menu</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantAnalytics')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
-              <Ionicons name="megaphone-outline" size={24} color={colors.warning} />
+              <Ionicons name="bar-chart-outline" size={24} color={colors.warning} />
             </View>
-            <Text style={styles.actionText}>Run Promo</Text>
+            <Text style={styles.actionText}>Analytics</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MerchantSettings')}>
             <View style={[styles.actionIcon, { backgroundColor: colors.error + '15' }]}>
-              <Ionicons name="alert-circle-outline" size={24} color={colors.error} />
+              <Ionicons name="settings-outline" size={24} color={colors.error} />
             </View>
-            <Text style={styles.actionText}>86 an Item</Text>
+            <Text style={styles.actionText}>Settings</Text>
           </TouchableOpacity>
         </View>
 
@@ -194,34 +320,44 @@ export default function MerchantDashboardScreen({ navigation }: any) {
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-          {orders.length === 0 && (
+          {orders.length === 0 && !loading && (
             <View style={{ alignItems: 'center', paddingVertical: 30 }}>
               <Ionicons name="receipt-outline" size={40} color={colors.textLight} />
               <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>No orders yet</Text>
             </View>
           )}
-          {orders.map((order) => (
-            <TouchableOpacity key={order.id} style={styles.orderCard}>
+          {orders.slice(0, 5).map((order) => {
+            const customerName = order.customer
+              ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim()
+              : 'Customer';
+            const orderItems = (order.items || []).map((oi: any) =>
+              `${oi.quantity > 1 ? oi.quantity + 'x ' : ''}${oi.menuItem?.name || 'Item'}`
+            );
+            const total = Number(order.totalAmount || 0);
+            return (
+            <TouchableOpacity key={order.id} style={styles.orderCard} onPress={() => navigation.navigate('MerchantOrders')}>
               <View style={styles.orderTop}>
-                <View>
-                  <Text style={styles.orderCustomer}>{order.customerName}</Text>
-                  <Text style={styles.orderId}>{order.id} · {order.timeAgo}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderCustomer}>{customerName}</Text>
+                  <Text style={styles.orderId}>#{order.orderNumber} · {timeAgo(order.placedAt || order.createdAt)}</Text>
                 </View>
                 <View style={[styles.orderStatus, { backgroundColor: getStatusColor(order.status) + '15' }]}>
                   <View style={[styles.orderStatusDot, { backgroundColor: getStatusColor(order.status) }]} />
                   <Text style={[styles.orderStatusText, { color: getStatusColor(order.status) }]}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                    {getStatusLabel(order.status)}
                   </Text>
                 </View>
               </View>
+              {orderItems.length > 0 && (
               <View style={styles.orderItems}>
-                {order.items.map((item: any, idx: number) => (
+                {orderItems.map((item: string, idx: number) => (
                   <Text key={idx} style={styles.orderItemText}>• {item}</Text>
                 ))}
               </View>
+              )}
               <View style={styles.orderBottom}>
-                <Text style={styles.orderTotal}>₦{order.total.toFixed(2)}</Text>
-                {order.status === 'new' && (
+                <Text style={styles.orderTotal}>₦{total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                {order.status === 'pending' && (
                   <View style={styles.orderActions}>
                     <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectOrder(order.id)}>
                       <Text style={styles.rejectText}>Reject</Text>
@@ -231,24 +367,33 @@ export default function MerchantDashboardScreen({ navigation }: any) {
                     </TouchableOpacity>
                   </View>
                 )}
-                {order.status === 'preparing' && order.eta && (
-                  <View style={styles.etaBadge}>
-                    <Ionicons name="time" size={14} color={colors.warning} />
-                    <Text style={styles.etaText}>{order.eta} left</Text>
-                  </View>
-                )}
               </View>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
 
-        {/* Popular Items Today */}
+        {/* Top Sellers Today */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Sellers Today</Text>
-          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Ionicons name="trophy-outline" size={36} color={colors.textLight} />
-            <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>Top sellers will appear here</Text>
-          </View>
+          {topItems.length === 0 && !loading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <Ionicons name="trophy-outline" size={36} color={colors.textLight} />
+              <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>Top sellers will appear as orders come in</Text>
+            </View>
+          ) : (
+            topItems.map((item: any, idx: number) => (
+              <View key={idx} style={styles.topSellerRow}>
+                <View style={styles.topSellerRank}>
+                  <Text style={styles.rankText}>#{idx + 1}</Text>
+                </View>
+                <View style={styles.topSellerInfo}>
+                  <Text style={styles.topSellerName}>{item.name || item.menuItem?.name || 'Item'}</Text>
+                  <Text style={styles.topSellerMeta}>{item.count || item.quantity || 0} orders · ₦{Number(item.revenue || 0).toLocaleString()}</Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Advanced Tools */}
@@ -287,13 +432,34 @@ export default function MerchantDashboardScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Customer Feedback Summary */}
+        {/* Recent Reviews */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Reviews</Text>
-          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Ionicons name="chatbubbles-outline" size={36} color={colors.textLight} />
-            <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>No reviews yet</Text>
-          </View>
+          {reviews.length === 0 && !loading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <Ionicons name="chatbubbles-outline" size={36} color={colors.textLight} />
+              <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 8 }}>No reviews yet</Text>
+            </View>
+          ) : (
+            reviews.map((review: any) => (
+              <View key={review.id} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewName}>
+                    {review.customer?.firstName || review.reviewer?.firstName || 'Customer'}
+                  </Text>
+                  <View style={styles.reviewStars}>
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Ionicons key={s} name={s <= (review.rating || 0) ? 'star' : 'star-outline'} size={14} color={colors.warning} />
+                    ))}
+                  </View>
+                  <Text style={styles.reviewTime}>{timeAgo(review.createdAt)}</Text>
+                </View>
+                {review.comment ? (
+                  <Text style={styles.reviewText} numberOfLines={2}>{review.comment}</Text>
+                ) : null}
+              </View>
+            ))
+          )}
         </View>
 
         <View style={{ height: 110 }} />
@@ -306,6 +472,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.lightGray,
+  },
+  pendingAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning + '15',
+    marginHorizontal: 10,
+    marginTop: 12,
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.warning + '30',
+  },
+  pendingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.warning,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.warning,
+  },
+  pendingSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   header: {
     backgroundColor: colors.navy,
