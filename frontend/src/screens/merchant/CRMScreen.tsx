@@ -35,18 +35,35 @@ export default function CRMScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'customers' | 'campaigns'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'campaigns' | 'loyalty'>('customers');
+  const [loyalty, setLoyalty] = useState({ enabled: false, pointsPerOrder: 10, rewardThreshold: 100, rewardValue: 500, rewardType: 'discount' });
+  const [savingLoyalty, setSavingLoyalty] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [cust, camp] = await Promise.all([merchantCrmAPI.getCustomerProfiles(), merchantCrmAPI.getCampaigns()]);
+      const [cust, camp, loy] = await Promise.all([
+        merchantCrmAPI.getCustomerProfiles(),
+        merchantCrmAPI.getCampaigns(),
+        merchantCrmAPI.getLoyaltyProgram(),
+      ]);
       setCustomers(Array.isArray(cust?.data || cust) ? (cust?.data || cust) : []);
       setCampaigns(Array.isArray(camp?.data || camp) ? (camp?.data || camp) : []);
+      if (loy) setLoyalty({ enabled: loy.enabled ?? false, pointsPerOrder: loy.pointsPerOrder ?? 10, rewardThreshold: loy.rewardThreshold ?? 100, rewardValue: loy.rewardValue ?? 500, rewardType: loy.rewardType ?? 'discount' });
     } catch {
       // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
+  };
+
+  const handleSaveLoyalty = async () => {
+    setSavingLoyalty(true);
+    try {
+      const res = await merchantCrmAPI.updateLoyaltyProgram(loyalty);
+      if (res) Alert.alert('Success', 'Loyalty program updated');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not update loyalty program');
+    } finally { setSavingLoyalty(false); }
   };
 
   const [showAddCustomer, setShowAddCustomer] = useState(false);
@@ -164,6 +181,10 @@ export default function CRMScreen({ navigation }: any) {
           <Ionicons name="megaphone" size={16} color={activeTab === 'campaigns' ? colors.textWhite : colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === 'campaigns' && styles.tabTextActive]}>Campaigns</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, activeTab === 'loyalty' && styles.tabActive]} onPress={() => setActiveTab('loyalty')}>
+          <Ionicons name="heart" size={16} color={activeTab === 'loyalty' ? colors.textWhite : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'loyalty' && styles.tabTextActive]}>Loyalty</Text>
+        </TouchableOpacity>
       </View>
 
       {activeTab === 'customers' && (
@@ -175,6 +196,52 @@ export default function CRMScreen({ navigation }: any) {
 
       {loading ? (
         <View style={styles.centered}><ActivityIndicator size="large" color={colors.teal} /></View>
+      ) : activeTab === 'loyalty' ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.loyaltyCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>Loyalty Program</Text>
+                <Text style={{ fontSize: 13, color: colors.textLight, marginTop: 2 }}>{loyalty.enabled ? 'Active' : 'Inactive'}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.loyaltyToggle, loyalty.enabled && styles.loyaltyToggleActive]}
+                onPress={() => setLoyalty(p => ({ ...p, enabled: !p.enabled }))}
+              >
+                <View style={[styles.loyaltyToggleDot, loyalty.enabled && styles.loyaltyToggleDotActive]} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.loyaltyLabel}>Points per Order</Text>
+            <TextInput style={styles.loyaltyInput} keyboardType="number-pad" value={String(loyalty.pointsPerOrder)} onChangeText={v => setLoyalty(p => ({ ...p, pointsPerOrder: parseInt(v) || 0 }))} />
+
+            <Text style={styles.loyaltyLabel}>Reward Threshold (points needed)</Text>
+            <TextInput style={styles.loyaltyInput} keyboardType="number-pad" value={String(loyalty.rewardThreshold)} onChangeText={v => setLoyalty(p => ({ ...p, rewardThreshold: parseInt(v) || 0 }))} />
+
+            <Text style={styles.loyaltyLabel}>Reward Value (₦)</Text>
+            <TextInput style={styles.loyaltyInput} keyboardType="number-pad" value={String(loyalty.rewardValue)} onChangeText={v => setLoyalty(p => ({ ...p, rewardValue: parseInt(v) || 0 }))} />
+
+            <Text style={styles.loyaltyLabel}>Reward Type</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+              {['discount', 'free_item', 'cashback'].map(t => (
+                <TouchableOpacity key={t} style={[styles.typeChip, loyalty.rewardType === t && styles.typeChipActive]} onPress={() => setLoyalty(p => ({ ...p, rewardType: t }))}>
+                  <Text style={[styles.typeChipText, loyalty.rewardType === t && styles.typeChipTextActive]}>{t.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={[styles.modalSaveBtn, savingLoyalty && { opacity: 0.6 }]} onPress={handleSaveLoyalty} disabled={savingLoyalty}>
+              {savingLoyalty ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={styles.modalSaveText}>Save Changes</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.loyaltyInfoCard}>
+            <Ionicons name="information-circle" size={20} color={colors.info} />
+            <Text style={{ flex: 1, fontSize: 13, color: colors.textSecondary, marginLeft: 10 }}>
+              Customers earn {loyalty.pointsPerOrder} points per order. After {loyalty.rewardThreshold} points, they get a ₦{loyalty.rewardValue} {loyalty.rewardType.replace('_', ' ')} reward.
+            </Text>
+          </View>
+        </ScrollView>
       ) : activeTab === 'customers' ? (
         <FlatList
           data={filtered}
@@ -329,4 +396,12 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: colors.navy + '15', borderColor: colors.navy },
   typeChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, textTransform: 'capitalize' },
   typeChipTextActive: { color: colors.navy },
+  loyaltyCard: { backgroundColor: colors.white, borderRadius: 20, padding: 20, marginBottom: 12 },
+  loyaltyLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
+  loyaltyInput: { backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, fontWeight: '700', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
+  loyaltyToggle: { width: 52, height: 30, borderRadius: 15, backgroundColor: colors.border, justifyContent: 'center', paddingHorizontal: 3 },
+  loyaltyToggleActive: { backgroundColor: colors.teal },
+  loyaltyToggleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.white },
+  loyaltyToggleDotActive: { alignSelf: 'flex-end' as const },
+  loyaltyInfoCard: { flexDirection: 'row' as const, backgroundColor: colors.info + '10', borderRadius: 14, padding: 14, alignItems: 'flex-start' as const },
 });

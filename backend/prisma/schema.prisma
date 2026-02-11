@@ -193,6 +193,7 @@ model BusinessProfile {
   channels       MerchantChannel[]
   subscriptions  MerchantSubscription[]
   pricingRules   PricingRule[]
+  loyaltyProgram LoyaltyProgram?
 
   @@map("business_profiles")
 }
@@ -996,6 +997,22 @@ model MerchantSubscription {
 
   @@index([merchantId])
   @@map("merchant_subscriptions")
+}
+
+model LoyaltyProgram {
+  id              String   @id @default(uuid()) @db.Uuid
+  merchantId      String   @unique @map("merchant_id") @db.Uuid
+  enabled         Boolean  @default(false)
+  pointsPerOrder  Int      @default(10) @map("points_per_order")
+  rewardThreshold Int      @default(100) @map("reward_threshold")
+  rewardValue     Int      @default(500) @map("reward_value")
+  rewardType      String   @default("discount") @map("reward_type") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@map("loyalty_programs")
 }
 
 model MerchantInsightAction {

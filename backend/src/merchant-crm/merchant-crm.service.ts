@@ -221,16 +221,38 @@ export class MerchantCrmService {
   // ─── Loyalty ───
 
   async getLoyaltyProgram(merchantId: string) {
-    return {
-      merchantId,
-      enabled: false,
-      pointsPerOrder: 10,
-      rewardThreshold: 100,
-      rewardValue: 500,
-    };
+    let program = await this.prisma.loyaltyProgram.findUnique({
+      where: { merchantId },
+    });
+
+    if (!program) {
+      program = await this.prisma.loyaltyProgram.create({
+        data: { merchantId },
+      });
+    }
+
+    return program;
   }
 
   async updateLoyaltyProgram(merchantId: string, data: any) {
-    return { message: 'Loyalty program updated', ...data };
+    const program = await this.prisma.loyaltyProgram.upsert({
+      where: { merchantId },
+      create: {
+        merchantId,
+        ...(data.enabled !== undefined && { enabled: data.enabled }),
+        ...(data.pointsPerOrder !== undefined && { pointsPerOrder: parseInt(data.pointsPerOrder) }),
+        ...(data.rewardThreshold !== undefined && { rewardThreshold: parseInt(data.rewardThreshold) }),
+        ...(data.rewardValue !== undefined && { rewardValue: parseInt(data.rewardValue) }),
+        ...(data.rewardType && { rewardType: data.rewardType }),
+      },
+      update: {
+        ...(data.enabled !== undefined && { enabled: data.enabled }),
+        ...(data.pointsPerOrder !== undefined && { pointsPerOrder: parseInt(data.pointsPerOrder) }),
+        ...(data.rewardThreshold !== undefined && { rewardThreshold: parseInt(data.rewardThreshold) }),
+        ...(data.rewardValue !== undefined && { rewardValue: parseInt(data.rewardValue) }),
+        ...(data.rewardType && { rewardType: data.rewardType }),
+      },
+    });
+    return program;
   }
 }
