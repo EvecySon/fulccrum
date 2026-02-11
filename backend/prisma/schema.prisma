@@ -110,6 +110,7 @@ model User {
   bankAccounts       BankAccount[]
   savedCards         SavedCard[]
   crmCustomerNotes   CrmCustomerNote[] @relation("crm_customer_notes")
+  merchantCustomerProfiles MerchantCustomerProfile[] @relation("merchant_customer_profiles")
 
   @@map("users")
 }
@@ -194,6 +195,10 @@ model BusinessProfile {
   subscriptions  MerchantSubscription[]
   pricingRules   PricingRule[]
   loyaltyProgram LoyaltyProgram?
+  kitchenOperations KitchenOperation[]
+  aiInsights     MerchantAiInsight[]
+  customerProfiles MerchantCustomerProfile[]
+  marketplaceListings MarketplaceListing[]
 
   @@map("business_profiles")
 }
@@ -530,6 +535,8 @@ model Inventory {
   unit          String    @default("pieces") @db.VarChar(50)
   costPerUnit   Decimal?  @map("cost_per_unit") @db.Decimal(8, 2)
   supplier      String?   @db.VarChar(255)
+  supplierId    String?   @map("supplier_id") @db.Uuid
+  autoReorder   Boolean   @default(false) @map("auto_reorder")
   lastRestocked DateTime? @map("last_restocked")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   
@@ -905,15 +912,18 @@ model OrderItem {
 
 // CRM Campaign for merchant marketing
 model CrmCampaign {
-  id          String   @id @default(uuid()) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
-  name        String   @db.VarChar(255)
-  type        String   @default("promotion") @db.VarChar(50)
-  targetCount Int      @default(0) @map("target_count")
-  status      String   @default("draft") @db.VarChar(20)
-  effectiveness Float  @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid()) @db.Uuid
+  merchantId           String   @map("merchant_id") @db.Uuid
+  name                 String   @db.VarChar(255)
+  type                 String   @default("promotion") @db.VarChar(50)
+  targetCount          Int      @default(0) @map("target_count")
+  status               String   @default("draft") @db.VarChar(20)
+  effectiveness        Float    @default(0)
+  targetSegment        Json?    @map("target_segment")
+  offerData            Json?    @map("offer_data")
+  personalizationLevel String   @default("basic") @map("personalization_level") @db.VarChar(20)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
@@ -964,15 +974,18 @@ model FlashSale {
 }
 
 model MerchantChannel {
-  id         String   @id @default(uuid()) @db.Uuid
-  merchantId String   @map("merchant_id") @db.Uuid
-  name       String   @db.VarChar(100)
-  type       String   @default("delivery") @db.VarChar(50)
-  enabled    Boolean  @default(false)
-  orders     Int      @default(0)
-  revenue    Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid()) @db.Uuid
+  merchantId    String   @map("merchant_id") @db.Uuid
+  name          String   @db.VarChar(100)
+  type          String   @default("delivery") @db.VarChar(50)
+  enabled       Boolean  @default(false)
+  orders        Int      @default(0)
+  revenue       Decimal  @default(0) @db.Decimal(12, 2)
+  channelConfig Json?    @map("channel_config")
+  pricingRules  Json?    @map("pricing_rules")
+  inventorySync Boolean  @default(true) @map("inventory_sync")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
@@ -982,16 +995,18 @@ model MerchantChannel {
 }
 
 model MerchantSubscription {
-  id          String   @id @default(uuid()) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
-  name        String   @db.VarChar(255)
-  type        String   @default("meal_plan") @db.VarChar(50)
-  price       Decimal  @default(0) @db.Decimal(10, 2)
-  schedule    String   @default("weekly") @db.VarChar(50)
-  subscribers Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid()) @db.Uuid
+  merchantId           String   @map("merchant_id") @db.Uuid
+  name                 String   @db.VarChar(255)
+  type                 String   @default("meal_plan") @db.VarChar(50)
+  price                Decimal  @default(0) @db.Decimal(10, 2)
+  schedule             String   @default("weekly") @db.VarChar(50)
+  subscribers          Int      @default(0)
+  isActive             Boolean  @default(true) @map("is_active")
+  deliverySchedule     Json?    @map("delivery_schedule")
+  customizationOptions Json?    @map("customization_options")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
@@ -1032,7 +1047,7 @@ model PricingRule {
   merchantId    String   @map("merchant_id") @db.Uuid
   name          String   @db.VarChar(255)
   type          String   @default("surge") @db.VarChar(50)
-  condition     String?  @db.Text
+  condition     Json?
   adjustment    Float    @default(0)
   adjustmentType String  @default("percentage") @map("adjustment_type") @db.VarChar(20)
   active        Boolean  @default(true)
@@ -1044,3 +1059,96 @@ model PricingRule {
   @@index([merchantId])
   @@map("pricing_rules")
 }
+
+// Kitchen Operations - per-operation tracking per architecture
+model KitchenOperation {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  itemId          String?   @map("item_id") @db.Uuid
+  operationType   String    @map("operation_type") @db.VarChar(50)
+  stationId       String?   @map("station_id") @db.VarChar(50)
+  estimatedPrepTime Int?    @map("estimated_prep_time")
+  actualPrepTime  Int?      @map("actual_prep_time")
+  status          String    @default("pending") @db.VarChar(20)
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([orderId])
+  @@map("kitchen_operations")
+}
+
+// Persisted AI Insights per architecture
+model MerchantAiInsight {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  insightType     String   @map("insight_type") @db.VarChar(50)
+  insightData     Json     @map("insight_data")
+  confidenceScore Float    @default(0) @map("confidence_score")
+  potentialImpact Decimal? @map("potential_impact") @db.Decimal(10, 2)
+  implemented     Boolean  @default(false)
+  dismissed       Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([businessId, insightType])
+  @@map("merchant_ai_insights")
+}
+
+// Dedicated merchant customer profiles per architecture
+model MerchantCustomerProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  businessId     String   @map("business_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  totalOrders    Int      @default(0) @map("total_orders")
+  totalSpent     Decimal  @default(0) @map("total_spent") @db.Decimal(10, 2)
+  favoriteItems  Json?    @map("favorite_items")
+  orderFrequency String?  @map("order_frequency") @db.VarChar(20)
+  loyaltyScore   Int      @default(0) @map("loyalty_score")
+  lastVisit      DateTime? @map("last_visit")
+  tags           Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  customer User            @relation("merchant_customer_profiles", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, customerId])
+  @@index([businessId])
+  @@index([customerId])
+  @@map("merchant_customer_profiles")
+}
+
+// Community Marketplace - merchants list surplus/special items
+model MarketplaceListing {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  title           String    @db.VarChar(255)
+  description     String?   @db.Text
+  category        String    @default("surplus") @db.VarChar(50)
+  originalPrice   Decimal   @map("original_price") @db.Decimal(10, 2)
+  discountedPrice Decimal   @map("discounted_price") @db.Decimal(10, 2)
+  quantity        Int       @default(1)
+  quantitySold    Int       @default(0) @map("quantity_sold")
+  images          Json?
+  expiresAt       DateTime? @map("expires_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  tags            Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([isActive, expiresAt])
+  @@index([category])
+  @@map("marketplace_listings")
+}
+

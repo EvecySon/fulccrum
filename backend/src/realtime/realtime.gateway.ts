@@ -56,11 +56,46 @@ export class RealtimeGateway {
     client.leave(`order:${orderId}`);
   }
 
+  @SubscribeMessage('merchant:join')
+  merchantJoin(@ConnectedSocket() client: Socket, @MessageBody() businessId: string) {
+    if (!businessId) return;
+    client.join(`merchant:${businessId}`);
+  }
+
+  @SubscribeMessage('merchant:leave')
+  merchantLeave(@ConnectedSocket() client: Socket, @MessageBody() businessId: string) {
+    if (!businessId) return;
+    client.leave(`merchant:${businessId}`);
+  }
+
   emitOrderUpdate(orderId: string, status: string, data: any) {
     this.server.to(`order:${orderId}`).emit('order:update', {
       orderId,
       status,
       ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitNewOrderToMerchant(businessId: string, order: any) {
+    this.server.to(`merchant:${businessId}`).emit('merchant:new_order', {
+      ...order,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitOrderStatusToMerchant(businessId: string, orderId: string, status: string, data?: any) {
+    this.server.to(`merchant:${businessId}`).emit('merchant:order_status', {
+      orderId,
+      status,
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitKitchenUpdate(businessId: string, operation: any) {
+    this.server.to(`merchant:${businessId}`).emit('merchant:kitchen_update', {
+      ...operation,
       timestamp: new Date().toISOString(),
     });
   }

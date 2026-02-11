@@ -47,6 +47,9 @@ export class OrdersService {
       },
     });
 
+    // Push new order to merchant via WebSocket
+    this.realtimeGateway.emitNewOrderToMerchant(order.businessId, order);
+
     return order;
   }
 
@@ -153,6 +156,11 @@ export class OrdersService {
       orderNumber: updatedOrder.orderNumber,
       customer: updatedOrder.customer,
       driver: updatedOrder.driver,
+    });
+
+    // Push status change to merchant via WebSocket
+    this.realtimeGateway.emitOrderStatusToMerchant(updatedOrder.businessId, updatedOrder.id, dto.status, {
+      orderNumber: updatedOrder.orderNumber,
     });
 
     return updatedOrder;

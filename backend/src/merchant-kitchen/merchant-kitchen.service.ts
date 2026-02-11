@@ -38,24 +38,67 @@ export class MerchantKitchenService {
     });
   }
 
-  async createOperation(merchantId: string, body: { orderId: string; itemId: string; operationType: string }) {
+  async createOperation(merchantId: string, body: { orderId: string; itemId: string; operationType: string; stationId?: string }) {
+    const profile = await this.prisma.businessProfile.findUnique({
+      where: { userId: merchantId },
+      select: { averagePreparationTime: true },
+    });
+
+    const op = await this.prisma.kitchenOperation.create({
+      data: {
+        businessId: merchantId,
+        orderId: body.orderId,
+        itemId: body.itemId || null,
+        operationType: body.operationType,
+        stationId: body.stationId || null,
+        estimatedPrepTime: profile?.averagePreparationTime || 15,
+        status: body.operationType === 'prep_start' ? 'in_progress' : 'pending',
+        startedAt: body.operationType === 'prep_start' ? new Date() : null,
+      },
+    });
+
     if (body.operationType === 'prep_start') {
       await this.prisma.order.update({
         where: { id: body.orderId },
         data: { status: 'preparing' },
       });
     }
-    return { message: 'Operation created', ...body };
+    return op;
   }
 
   async updateOperation(merchantId: string, id: string, data: any) {
-    if (data.operationType === 'prep_complete') {
+    const existing = await this.prisma.kitchenOperation.findFirst({
+      where: { id, businessId: merchantId },
+    });
+
+    const now = new Date();
+    const actualPrepTime = existing?.startedAt
+      ? Math.round((now.getTime() - existing.startedAt.getTime()) / 60000)
+      : null;
+
+    const op = await this.prisma.kitchenOperation.update({
+      where: { id },
+      data: {
+        ...(data.operationType === 'prep_complete' && {
+          status: 'completed',
+          completedAt: now,
+          actualPrepTime,
+        }),
+        ...(data.operationType === 'prep_start' && {
+          status: 'in_progress',
+          startedAt: now,
+        }),
+        ...(data.stationId && { stationId: data.stationId }),
+      },
+    });
+
+    if (data.operationType === 'prep_complete' && existing) {
       await this.prisma.order.update({
-        where: { id },
+        where: { id: existing.orderId },
         data: { status: 'ready' },
       });
     }
-    return { message: 'Operation updated', id, ...data };
+    return op;
   }
 
   async getInventory(merchantId: string) {

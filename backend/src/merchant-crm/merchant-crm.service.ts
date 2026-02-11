@@ -73,6 +73,53 @@ export class MerchantCrmService {
     const lastOrderMap: Record<string, Date> = {};
     lastOrders.forEach((o: any) => { lastOrderMap[o.customerId] = o.createdAt; });
 
+    // Get favorite items per customer from order items
+    const favoriteItemsMap: Record<string, string[]> = {};
+    if (customerIds.length > 0) {
+      const orderItems = await this.prisma.order.findMany({
+        where: { businessId: merchantId, customerId: { in: customerIds } },
+        select: { customerId: true, items: { select: { menuItem: { select: { name: true } } }, take: 10 } },
+        take: 100,
+      });
+      orderItems.forEach((o: any) => {
+        if (!favoriteItemsMap[o.customerId]) favoriteItemsMap[o.customerId] = [];
+        (o.items || []).forEach((i: any) => {
+          if (i.menuItem?.name && !favoriteItemsMap[o.customerId].includes(i.menuItem.name)) {
+            favoriteItemsMap[o.customerId].push(i.menuItem.name);
+          }
+        });
+      });
+      // Keep top 5 per customer
+      Object.keys(favoriteItemsMap).forEach((k) => { favoriteItemsMap[k] = favoriteItemsMap[k].slice(0, 5); });
+    }
+
+    // Upsert into MerchantCustomerProfile for persistence
+    for (const c of customers) {
+      const st = statsMap[c.id] || { count: 0, spent: 0 };
+      const freq = st.count >= 10 ? 'VIP' : st.count >= 5 ? 'Regular' : st.count >= 2 ? 'Returning' : 'New';
+      await this.prisma.merchantCustomerProfile.upsert({
+        where: { businessId_customerId: { businessId: merchantId, customerId: c.id } },
+        create: {
+          businessId: merchantId,
+          customerId: c.id,
+          totalOrders: st.count,
+          totalSpent: st.spent,
+          favoriteItems: favoriteItemsMap[c.id] || [],
+          orderFrequency: freq,
+          loyaltyScore: Math.min(100, st.count * 10),
+          lastVisit: lastOrderMap[c.id] || c.createdAt,
+        },
+        update: {
+          totalOrders: st.count,
+          totalSpent: st.spent,
+          favoriteItems: favoriteItemsMap[c.id] || [],
+          orderFrequency: freq,
+          loyaltyScore: Math.min(100, st.count * 10),
+          lastVisit: lastOrderMap[c.id] || undefined,
+        },
+      });
+    }
+
     const combined = [
       ...customers.map((c) => {
         const st = statsMap[c.id] || { count: 0, spent: 0 };
@@ -84,7 +131,7 @@ export class MerchantCrmService {
           avatar: c.avatarUrl || '',
           totalOrders: st.count,
           totalSpent: Math.round(st.spent * 100) / 100,
-          favoriteItems: [],
+          favoriteItems: favoriteItemsMap[c.id] || [],
           frequency: freq,
           loyaltyScore,
           lastVisit: lastOrderMap[c.id]

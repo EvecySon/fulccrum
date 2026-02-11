@@ -596,6 +596,16 @@ export const dynamicPricingAPI = {
   getPreview: (ruleId: string) => api.get(`/merchant/pricing/rules/${ruleId}/preview`),
 };
 
+// ─── Community Marketplace API (Merchant) ───
+export const marketplaceAPI = {
+  getMyListings: () => api.get('/merchant/marketplace'),
+  browseAll: (page = 1) => api.get(`/merchant/marketplace/browse?page=${page}`),
+  createListing: (data: any) => api.post('/merchant/marketplace', data),
+  updateListing: (id: string, data: any) => api.patch(`/merchant/marketplace/${id}`, data),
+  toggleListing: (id: string) => api.patch(`/merchant/marketplace/${id}/toggle`),
+  deleteListing: (id: string) => api.delete(`/merchant/marketplace/${id}`),
+};
+
 // ─── Courier Performance / Fleet API ───
 export const courierFleetAPI = {
   getPerformance: () => api.get('/courier/performance'),
