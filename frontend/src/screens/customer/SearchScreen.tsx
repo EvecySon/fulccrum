@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockRestaurants } from '../../data/mockData';
 import { searchAPI } from '../../services/api';
 
 const recentSearches = ['Pizza', 'Sushi', 'Burger', 'Thai Food'];
@@ -30,12 +29,12 @@ export default function SearchScreen({ navigation }: any) {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await searchAPI.searchBusinesses(text);
-        if (res?.length) { setResults(res); return; }
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-      // Fallback to local filter
-      setResults(mockRestaurants.filter(
-        (r) => r.name.toLowerCase().includes(text.toLowerCase()) || r.cuisine.toLowerCase().includes(text.toLowerCase())
-      ));
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setResults(data);
+      } catch (e: any) {
+        Alert.alert('Error', e?.message || 'Something went wrong');
+        setResults([]);
+      }
     }, 300);
   };
 

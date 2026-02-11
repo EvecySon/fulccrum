@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.18.2';
+const DEV_IP = '192.168.0.101';
 
 const getBaseUrl = () => {
   // In production, use your production API URL
@@ -216,9 +216,13 @@ export const authAPI = {
 // ─── Users API ───
 export const usersAPI = {
   getProfile: () => api.get('/users/profile'),
-  updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string }) =>
-    api.patch('/users/profile', data),
+  updateProfile: (data: {
+    firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string;
+    dietaryPreferences?: string[]; allergies?: string[]; customAllergies?: string;
+  }) => api.patch('/users/profile', data),
   updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/users/change-password', { currentPassword, newPassword }),
   deleteAccount: (password: string) => api.delete('/users/account', { password }),
   exportData: () => api.get('/users/data-export'),
 };
@@ -253,6 +257,7 @@ export const addressesAPI = {
 export const ordersAPI = {
   create: (data: any) => api.post('/orders', data),
   get: (id: string) => api.get(`/orders/${id}`),
+  getOrder: (id: string) => api.get(`/orders/${id}`),
   updateStatus: (id: string, status: string) => api.patch(`/orders/${id}/status`, { status }),
   getMyOrders: (page = 1, limit = 20) => api.get(`/orders/customer/my-orders?page=${page}&limit=${limit}`),
   getDriverOrders: (status?: string) => api.get(`/orders/driver/assigned${status ? `?status=${status}` : ''}`),
@@ -302,6 +307,10 @@ export const paymentAPI = {
     api.post('/payment/cards', data),
   setDefaultCard: (id: string) => api.patch(`/payment/cards/${id}/set-default`),
   deleteCard: (id: string) => api.delete(`/payment/cards/${id}`),
+  // Top-up & card add
+  topUp: (amount: number) => api.post('/payment/topup', { amount }),
+  verifyTopUp: (reference: string) => api.get(`/payment/topup/verify/${reference}`),
+  addCard: () => api.post('/payment/cards/add'),
 };
 
 // ─── Wallet API ───
@@ -347,6 +356,14 @@ export const promosAPI = {
   myUsage: (page = 1) => api.get(`/promos/my-usage?page=${page}`),
 };
 
+// ─── Loyalty API ───
+export const loyaltyAPI = {
+  getProfile: () => api.get('/loyalty/profile'),
+  getHistory: (page = 1) => api.get(`/loyalty/history?page=${page}`),
+  getRewards: () => api.get('/loyalty/rewards'),
+  redeem: (rewardId: string) => api.post(`/loyalty/redeem/${rewardId}`),
+};
+
 // ─── Flash Sales API ───
 export const flashSalesAPI = {
   getAll: () => api.get('/merchant/flash-sales'),
@@ -386,7 +403,7 @@ export const analyticsAPI = {
   merchantAnalytics: (period = 'today') => api.get(`/analytics/merchant?period=${period}`),
   dashboard: () => api.get('/analytics/dashboard'),
   revenue: (days = 30) => api.get(`/analytics/revenue?days=${days}`),
-  topPerformers: (type: 'drivers' | 'businesses', limit = 10) =>
+  topPerformers: (type: string, limit = 10) =>
     api.get(`/analytics/top-performers?type=${type}&limit=${limit}`),
   revenueForecast: (days = 30) => api.get(`/analytics/forecast/revenue?days=${days}`),
   orderTrends: (days = 30) => api.get(`/analytics/forecast/orders?days=${days}`),
@@ -499,6 +516,8 @@ export const aiAPI = {
 
 // ─── AR / VR API ───
 export const arAPI = {
+  getAvailableModels: () => api.get('/ar/models'),
+  getVRTours: () => api.get('/ar/tours'),
   getFoodPreview: (itemId: string) => api.get(`/ar/food-preview/${itemId}`),
   getRestaurantTour: (businessId: string) => api.get(`/ar/restaurant-tour/${businessId}`),
   getARNavigation: (orderId: string) => api.get(`/ar/navigation/${orderId}`),
@@ -517,6 +536,12 @@ export const socialAPI = {
   joinChallenge: (challengeId: string) => api.post(`/social/challenges/${challengeId}/join`),
   getGroupOrders: () => api.get('/social/group-orders'),
   createGroupOrder: (data: any) => api.post('/social/group-orders', data),
+  getGroupOrder: (id: string) => api.get(`/social/group-orders/${id}`),
+  getGroupOrderByCode: (code: string) => api.get(`/social/group-orders/join/${code}`),
+  joinGroupOrder: (inviteCode: string) => api.post(`/social/group-orders/join/${inviteCode}`),
+  updateMemberItems: (id: string, items: any[], subtotal: number) => api.post(`/social/group-orders/${id}/items`, { items, subtotal }),
+  updateMemberStatus: (id: string, status: string) => api.post(`/social/group-orders/${id}/status`, { status }),
+  leaveGroupOrder: (id: string) => api.delete(`/social/group-orders/${id}/leave`),
 };
 
 // ─── Blockchain API ───

@@ -11,11 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import { colors } from '../../theme/colors';
-import { mockOrders } from '../../data/mockData';
-import { locationAPI } from '../../services/api';
+import { ordersAPI, locationAPI } from '../../services/api';
 import { joinOrderRoom, leaveOrderRoom, onDriverLocationUpdate } from '../../services/socketService';
-
-const order = mockOrders[0];
 
 // Default coordinates (Lagos, Nigeria)
 const RESTAURANT_COORDS = { latitude: 6.5244, longitude: 3.3792 };
@@ -29,10 +26,15 @@ const stages = [
   { key: 'delivered', label: 'Delivered', icon: 'home' },
 ];
 
-const currentStageIndex = 3;
+const getStageIndex = (status: string) => {
+  const idx = stages.findIndex(s => s.key === status);
+  return idx >= 0 ? idx : 0;
+};
 
 export default function OrderTrackingScreen({ navigation, route }: any) {
-  const orderId = route?.params?.orderId || order.id;
+  const orderId = route?.params?.orderId || '';
+  const [order, setOrder] = useState<any>(route?.params?.order || null);
+  const currentStageIndex = getStageIndex(order?.status || 'confirmed');
   const mapRef = useRef<MapView>(null);
   const [driverLocation, setDriverLocation] = useState({
     latitude: 6.5294,
@@ -40,6 +42,18 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
   });
 
   useEffect(() => {
+    if (!order && orderId) {
+      (async () => {
+        try {
+          const res = await ordersAPI.getOrder(orderId);
+          if (res) setOrder(res);
+        } catch { /* order may not exist yet */ }
+      })();
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return;
     // Join order tracking room
     joinOrderRoom(orderId);
 
@@ -235,7 +249,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
       {/* Order Details */}
       <View style={styles.orderDetails}>
         <Text style={styles.detailsTitle}>{order.restaurantName}</Text>
-        {order.items.map((item, index) => (
+        {order?.items?.map((item: any, index: number) => (
           <Text key={index} style={styles.detailsItem}>
             • {item}
           </Text>

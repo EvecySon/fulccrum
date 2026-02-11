@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
-import { chatAPI } from '../../services/api';
-
-const chatMessages = [
-  { id: '1', sender: 'support', text: 'Hi John! Welcome to Fulccrum support. How can I help you today?', time: '2:30 PM' },
-  { id: '2', sender: 'user', text: 'Hi, I have a question about my recent order #3242', time: '2:31 PM' },
-  { id: '3', sender: 'support', text: 'Of course! I can see order #3242 from Pizza Roma. What seems to be the issue?', time: '2:31 PM' },
-  { id: '4', sender: 'user', text: 'One of the items was missing from my order. I ordered a Caesar Salad but it wasn\'t in the bag.', time: '2:32 PM' },
-  { id: '5', sender: 'support', text: 'I\'m sorry to hear that! Let me look into this for you. I can see the Caesar Salad (₦3,000) was part of your order. I\'ll process a refund for that item right away.', time: '2:33 PM' },
-  { id: '6', sender: 'support', text: 'I\'ve initiated a refund of ₦3,000 to your original payment method. It should appear within 1-3 business days. Is there anything else I can help with?', time: '2:33 PM' },
-];
+import { supportAPI, uploadAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const quickReplies = [
   'Order issue',
@@ -30,23 +25,207 @@ const quickReplies = [
   'Delivery problem',
 ];
 
-export default function ChatScreen({ navigation }: any) {
+export default function ChatScreen({ navigation, route }: any) {
+  const { user } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+  const ticketIdParam = route?.params?.ticketId;
+
+  const [ticketId, setTicketId] = useState<string | null>(ticketIdParam || null);
+  const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(chatMessages);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [ticketStatus, setTicketStatus] = useState('');
+
+  useEffect(() => {
+    loadTicket();
+  }, []);
+
+  const loadTicket = async () => {
+    setLoading(true);
+    try {
+      if (ticketIdParam) {
+        // Load specific ticket
+        const ticket = await supportAPI.getTicket(ticketIdParam);
+        setTicketId(ticket.id);
+        setTicketStatus(ticket.status);
+        setMessages(formatMessages(ticket.messages || [], ticket));
+      } else {
+        // Find most recent open ticket or show empty
+        const res = await supportAPI.getTickets({ status: 'open' });
+        const tickets = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        if (tickets.length > 0) {
+          const ticket = await supportAPI.getTicket(tickets[0].id);
+          setTicketId(ticket.id);
+          setTicketStatus(ticket.status);
+          setMessages(formatMessages(ticket.messages || [], ticket));
+        }
+        // else: no open ticket, show welcome state
+      }
+    } catch (e: any) {
+      // Only show error if it's not a "no tickets" scenario
+      const status = e?.status || e?.response?.status;
+      if (status === 401) {
+        Alert.alert('Session Expired', 'Please log in again to use support chat.');
+      }
+      // 404 or empty results are fine — means no tickets yet
+    }
+    setLoading(false);
+  };
+
+  const formatMessages = (msgs: any[], ticket: any) => {
+    const formatted: any[] = [];
+    // Add initial ticket description as first message
+    if (ticket.description) {
+      formatted.push({
+        id: 'ticket-desc',
+        sender: 'user',
+        text: ticket.subject ? `${ticket.subject}\n\n${ticket.description}` : ticket.description,
+        time: formatTime(ticket.createdAt),
+      });
+    }
+    msgs.forEach((m: any) => {
+      const isSupport = m.sender?.role === 'admin' || m.sender?.role === 'support_agent';
+      formatted.push({
+        id: m.id,
+        sender: isSupport ? 'support' : 'user',
+        text: m.message,
+        time: formatTime(m.createdAt),
+        senderName: isSupport ? `${m.sender?.firstName || 'Support'}` : undefined,
+      });
+    });
+    return formatted;
+  };
+
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   const sendMessage = async () => {
     if (!message.trim()) return;
-    const newMsg = {
-      id: String(messages.length + 1),
-      sender: 'user',
-      text: message.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages([...messages, newMsg]);
+    const text = message.trim();
+    setSending(true);
     setMessage('');
+
+    // Optimistic UI — add message immediately
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = {
+      id: tempId,
+      sender: 'user',
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      pending: true,
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
     try {
-      await chatAPI.sendMessage('support', { text: newMsg.text });
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      let currentTicketId = ticketId;
+
+      if (!currentTicketId) {
+        // Create a new support ticket with first message
+        const ticket = await supportAPI.createTicket({
+          subject: text.length > 60 ? text.slice(0, 60) + '...' : text,
+          description: text,
+          category: 'other',
+          priority: 'medium',
+        });
+        currentTicketId = ticket.id;
+        setTicketId(ticket.id);
+        setTicketStatus(ticket.status || 'open');
+      } else {
+        // Add message to existing ticket
+        await supportAPI.addMessage(currentTicketId, { message: text });
+      }
+
+      // Reload ticket to get server-confirmed messages
+      if (currentTicketId) {
+        try {
+          const ticket = await supportAPI.getTicket(currentTicketId);
+          setMessages(formatMessages(ticket.messages || [], ticket));
+          setTicketStatus(ticket.status);
+        } catch {
+          // If reload fails, keep the optimistic message but mark as sent
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+        }
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.data?.message || e?.message || 'Could not send message';
+      Alert.alert('Send Failed', typeof msg === 'string' ? msg : JSON.stringify(msg));
+      // Mark message as failed instead of removing it
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false, failed: true } : m));
+    }
+    setSending(false);
+  };
+
+  const pickAndSendImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      const tempId = `temp-img-${Date.now()}`;
+      const tempMsg = {
+        id: tempId,
+        sender: 'user',
+        text: '',
+        imageUri: asset.uri,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        pending: true,
+      };
+      setMessages(prev => [...prev, tempMsg]);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+      // Upload image
+      const formData = new FormData();
+      const filename = asset.uri.split('/').pop() || 'photo.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      formData.append('file', { uri: asset.uri, name: filename, type: mimeType } as any);
+      const uploadRes = await uploadAPI.uploadImage(formData);
+      const imageUrl = uploadRes?.url || uploadRes?.fileUrl || asset.uri;
+
+      // Send as message with attachment
+      let currentTicketId = ticketId;
+      if (!currentTicketId) {
+        const ticket = await supportAPI.createTicket({
+          subject: 'Image attachment',
+          description: '[Image]',
+          category: 'other',
+          priority: 'medium',
+          attachments: [imageUrl],
+        });
+        currentTicketId = ticket.id;
+        setTicketId(ticket.id);
+        setTicketStatus(ticket.status || 'open');
+      } else {
+        await supportAPI.addMessage(currentTicketId, {
+          message: '[Image]',
+          attachments: [imageUrl],
+        });
+      }
+
+      // Reload
+      if (currentTicketId) {
+        try {
+          const ticket = await supportAPI.getTicket(currentTicketId);
+          setMessages(formatMessages(ticket.messages || [], ticket));
+        } catch {
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not send image');
+    }
+  };
+
+  const handleQuickReply = (reply: string) => {
+    setMessage(reply);
   };
 
   return (
@@ -65,49 +244,82 @@ export default function ChatScreen({ navigation }: any) {
           <View>
             <Text style={styles.headerTitle}>Support</Text>
             <View style={styles.onlineRow}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Online</Text>
+              <View style={[styles.onlineDot, { backgroundColor: ticketStatus === 'in_progress' ? colors.success : colors.textLight }]} />
+              <Text style={styles.onlineText}>
+                {ticketStatus === 'in_progress' ? 'Agent assigned' : ticketStatus === 'resolved' ? 'Resolved' : ticketStatus === 'closed' ? 'Closed' : 'Online'}
+              </Text>
             </View>
           </View>
         </View>
-        <TouchableOpacity>
-          <Ionicons name="call-outline" size={22} color={colors.textWhite} />
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Messages */}
-      <ScrollView style={styles.chatArea} contentContainerStyle={styles.chatContent}>
-        <View style={styles.dateLabel}>
-          <Text style={styles.dateLabelText}>Today</Text>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.teal} />
+          <Text style={{ color: colors.textLight, marginTop: 12 }}>Loading conversation...</Text>
         </View>
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.supportBubble]}
-          >
-            <Text style={[styles.messageText, msg.sender === 'user' ? styles.userText : styles.supportText]}>
-              {msg.text}
-            </Text>
-            <Text style={[styles.messageTime, msg.sender === 'user' ? styles.userTime : styles.supportTime]}>
-              {msg.time}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+      ) : (
+        <ScrollView ref={scrollRef} style={styles.chatArea} contentContainerStyle={styles.chatContent} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
+          {messages.length === 0 && (
+            <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 }}>
+              <Ionicons name="chatbubbles-outline" size={48} color={colors.textLight} />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 16 }}>How can we help?</Text>
+              <Text style={{ fontSize: 13, color: colors.textLight, textAlign: 'center', marginTop: 8 }}>
+                Send a message or tap a quick reply below to start a conversation with our support team.
+              </Text>
+            </View>
+          )}
+          {messages.length > 0 && (
+            <View style={styles.dateLabel}>
+              <Text style={styles.dateLabelText}>Today</Text>
+            </View>
+          )}
+          {messages.map((msg: any) => (
+            <View
+              key={msg.id}
+              style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.supportBubble, msg.failed && { opacity: 0.6 }]}
+            >
+              {msg.senderName && (
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.teal, marginBottom: 4 }}>{msg.senderName}</Text>
+              )}
+              <Text style={[styles.messageText, msg.sender === 'user' ? styles.userText : styles.supportText]}>
+                {msg.text}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', gap: 4, marginTop: 4 }}>
+                <Text style={[styles.messageTime, msg.sender === 'user' ? styles.userTime : styles.supportTime, { marginTop: 0 }]}>
+                  {msg.pending ? 'Sending...' : msg.failed ? 'Failed' : msg.time}
+                </Text>
+                {msg.failed && (
+                  <TouchableOpacity onPress={() => {
+                    setMessages(prev => prev.filter(m => m.id !== msg.id));
+                    setMessage(msg.text);
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#ff6b6b', fontWeight: '700' }}>Retry</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Quick Replies */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.quickReplies}>
-        {quickReplies.map((reply, index) => (
-          <TouchableOpacity key={index} style={styles.quickReply} onPress={() => setMessage(reply)}>
-            <Text style={styles.quickReplyText}>{reply}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {messages.length === 0 && !loading && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.quickReplies}>
+          {quickReplies.map((reply, index) => (
+            <TouchableOpacity key={index} style={styles.quickReply} onPress={() => handleQuickReply(reply)}>
+              <Text style={styles.quickReplyText}>{reply}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Input Bar */}
       <View style={styles.inputBar}>
-        <TouchableOpacity style={styles.attachBtn}>
-          <Ionicons name="attach" size={22} color={colors.textLight} />
+        <TouchableOpacity style={styles.attachBtn} onPress={pickAndSendImage}>
+          <Ionicons name="image-outline" size={22} color={colors.textLight} />
         </TouchableOpacity>
         <TextInput
           style={styles.textInput}
@@ -117,8 +329,8 @@ export default function ChatScreen({ navigation }: any) {
           onChangeText={setMessage}
           multiline
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-          <Ionicons name="send" size={20} color={colors.textWhite} />
+        <TouchableOpacity style={[styles.sendBtn, sending && { opacity: 0.5 }]} onPress={sendMessage} disabled={sending}>
+          {sending ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Ionicons name="send" size={20} color={colors.textWhite} />}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

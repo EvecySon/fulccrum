@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,54 +6,151 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../theme/colors';
 import { notificationsAPI } from '../../services/api';
 
-const mockNotifications = [
-  { id: '1', type: 'order', title: 'Order Delivered!', message: 'Your order from Burger House has been delivered. Enjoy your meal!', time: '5 min ago', read: false },
-  { id: '2', type: 'promo', title: '20% Off This Weekend!', message: 'Use code WEEKEND20 for 20% off all orders this Saturday & Sunday.', time: '1 hr ago', read: false },
-  { id: '3', type: 'order', title: 'Order On The Way', message: 'Your courier Mike is heading to you. ETA: 8 minutes.', time: '2 hrs ago', read: true },
-  { id: '4', type: 'loyalty', title: 'Points Earned! +35', message: 'You earned 35 loyalty points from your last order.', time: '3 hrs ago', read: true },
-  { id: '5', type: 'system', title: 'New Restaurant Near You', message: 'Sushi Palace just joined Fulccrum! Check out their menu.', time: 'Yesterday', read: true },
-  { id: '6', type: 'promo', title: 'Free Delivery Today!', message: 'All orders over ₦5,000 get free delivery. Limited time only!', time: 'Yesterday', read: true },
-  { id: '7', type: 'order', title: 'Rate Your Order', message: 'How was your order from Pizza Roma? Leave a review to earn bonus points.', time: '2 days ago', read: true },
-  { id: '8', type: 'loyalty', title: 'Tier Upgrade Coming!', message: 'You\'re only 650 points away from Silver tier. Keep ordering!', time: '3 days ago', read: true },
+const PREFS_KEY = 'notification_preferences';
+
+const NOTIFICATION_PREFS = [
+  { key: 'order_updates', icon: 'receipt-outline', label: 'Order Updates', desc: 'Status changes, confirmations, and delivery updates' },
+  { key: 'promotions', icon: 'pricetag-outline', label: 'Promotions & Offers', desc: 'Discounts, flash sales, and special deals' },
+  { key: 'delivery_updates', icon: 'bicycle-outline', label: 'Delivery Tracking', desc: 'Real-time driver location and ETA updates' },
+  { key: 'payment_alerts', icon: 'card-outline', label: 'Payment Alerts', desc: 'Payment confirmations, refunds, and wallet activity' },
+  { key: 'loyalty_rewards', icon: 'trophy-outline', label: 'Loyalty & Rewards', desc: 'Points earned, tier upgrades, and reward reminders' },
+  { key: 'new_restaurants', icon: 'restaurant-outline', label: 'New Restaurants', desc: 'When new restaurants open near you' },
+  { key: 'review_reminders', icon: 'star-outline', label: 'Review Reminders', desc: 'Reminders to rate your recent orders' },
+  { key: 'support_messages', icon: 'chatbubble-outline', label: 'Support Messages', desc: 'Replies from customer support' },
+  { key: 'system_alerts', icon: 'information-circle-outline', label: 'System Alerts', desc: 'App updates, maintenance, and important notices' },
+  { key: 'push_notifications', icon: 'phone-portrait-outline', label: 'Push Notifications', desc: 'Show notifications on your device lock screen' },
+  { key: 'email_notifications', icon: 'mail-outline', label: 'Email Notifications', desc: 'Receive order summaries and receipts via email' },
+  { key: 'sms_notifications', icon: 'chatbox-outline', label: 'SMS Notifications', desc: 'Text messages for critical order updates' },
 ];
 
 const getNotifIcon = (type: string) => {
   switch (type) {
-    case 'order': return { name: 'receipt', color: colors.teal };
-    case 'promo': return { name: 'pricetag', color: colors.warning };
-    case 'loyalty': return { name: 'trophy', color: '#CD7F32' };
-    case 'system': return { name: 'information-circle', color: colors.info };
+    case 'order_update': return { name: 'receipt', color: colors.teal };
+    case 'delivery_update': return { name: 'bicycle', color: colors.navy };
+    case 'payment_update': return { name: 'card', color: colors.success };
+    case 'promotion': return { name: 'pricetag', color: colors.warning };
+    case 'system_alert': return { name: 'information-circle', color: colors.info };
+    case 'support_message': return { name: 'chatbubble', color: colors.teal };
+    case 'review_request': return { name: 'star', color: '#CD7F32' };
     default: return { name: 'notifications', color: colors.navy };
   }
 };
 
-export default function NotificationsScreen({ navigation }: any) {
-  const [notifications, setNotifications] = useState(mockNotifications);
+const formatTimeAgo = (dateStr: string) => {
+  if (!dateStr) return '';
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
+type TabType = 'preferences' | 'inbox';
+
+export default function NotificationsScreen({ navigation }: any) {
+  const [activeTab, setActiveTab] = useState<TabType>('preferences');
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({});
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load preferences from AsyncStorage
   useEffect(() => {
     (async () => {
       try {
-        const res = await notificationsAPI.getAll();
-        if (res?.data?.length) setNotifications(res.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+        const stored = await AsyncStorage.getItem(PREFS_KEY);
+        if (stored) {
+          setPrefs(JSON.parse(stored));
+        } else {
+          // Default: all ON
+          const defaults: Record<string, boolean> = {};
+          NOTIFICATION_PREFS.forEach(p => { defaults[p.key] = true; });
+          setPrefs(defaults);
+        }
+      } catch {
+        const defaults: Record<string, boolean> = {};
+        NOTIFICATION_PREFS.forEach(p => { defaults[p.key] = true; });
+        setPrefs(defaults);
+      }
     })();
   }, []);
+
+  const togglePref = async (key: string) => {
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    try {
+      await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(updated));
+    } catch { /* ignore */ }
+  };
+
+  const loadNotifications = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await notificationsAPI.getAll();
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setNotifications(data);
+    } catch (e: any) {
+      if (!isRefresh) Alert.alert('Error', e?.message || 'Could not load notifications');
+    }
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
 
   const handleMarkAllRead = async () => {
     try {
       await notificationsAPI.markAllRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleTapNotification = async (notif: any) => {
+    if (!notif.isRead) {
+      try {
+        await notificationsAPI.markRead(notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+      } catch { /* ignore */ }
+    }
+    if (notif.type === 'order_update' && notif.data?.orderId) {
+      navigation.navigate('OrderTracking', { orderId: notif.data.orderId });
+    } else if (notif.type === 'support_message') {
+      navigation.navigate('Chat');
+    } else if (notif.type === 'review_request' && notif.data?.orderId) {
+      navigation.navigate('Feedback', { orderId: notif.data.orderId });
+    }
+  };
+
+  const handleDeleteNotification = (notif: any) => {
+    Alert.alert('Delete Notification', 'Remove this notification?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await notificationsAPI.delete(notif.id);
+            setNotifications(prev => prev.filter(n => n.id !== notif.id));
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not delete notification');
+          }
+        },
+      },
+    ]);
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const enabledCount = Object.values(prefs).filter(Boolean).length;
 
   return (
     <View style={styles.container}>
@@ -62,39 +159,115 @@ export default function NotificationsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={handleMarkAllRead}>
-          <Text style={styles.markAll}>Mark all read</Text>
+        {activeTab === 'inbox' && unreadCount > 0 ? (
+          <TouchableOpacity onPress={handleMarkAllRead}>
+            <Text style={styles.markAll}>Mark all read</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 80 }} />
+        )}
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'preferences' && styles.tabActive]}
+          onPress={() => setActiveTab('preferences')}
+        >
+          <Ionicons name="settings-outline" size={16} color={activeTab === 'preferences' ? colors.teal : colors.textLight} />
+          <Text style={[styles.tabText, activeTab === 'preferences' && styles.tabTextActive]}>Preferences</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'inbox' && styles.tabActive]}
+          onPress={() => setActiveTab('inbox')}
+        >
+          <Ionicons name="mail-outline" size={16} color={activeTab === 'inbox' ? colors.teal : colors.textLight} />
+          <Text style={[styles.tabText, activeTab === 'inbox' && styles.tabTextActive]}>
+            Inbox{unreadCount > 0 ? ` (${unreadCount})` : ''}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {unreadCount > 0 && (
-        <View style={styles.unreadBanner}>
-          <Ionicons name="mail-unread-outline" size={18} color={colors.teal} />
-          <Text style={styles.unreadText}>{unreadCount} unread notifications</Text>
-        </View>
-      )}
+      {activeTab === 'preferences' ? (
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+          <View style={styles.prefSummary}>
+            <Ionicons name="notifications" size={20} color={colors.teal} />
+            <Text style={styles.prefSummaryText}>
+              {enabledCount} of {NOTIFICATION_PREFS.length} notifications enabled
+            </Text>
+          </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {notifications.map((notif) => {
-          const icon = getNotifIcon(notif.type);
-          return (
-            <TouchableOpacity key={notif.id} style={[styles.notifCard, !notif.read && styles.notifUnread]}>
-              <View style={[styles.notifIcon, { backgroundColor: icon.color + '15' }]}>
-                <Ionicons name={icon.name as any} size={20} color={icon.color} />
+          {NOTIFICATION_PREFS.map((pref, idx) => (
+            <View key={pref.key} style={[styles.prefRow, idx === NOTIFICATION_PREFS.length - 1 && { borderBottomWidth: 0 }]}>
+              <View style={[styles.prefIcon, { backgroundColor: (prefs[pref.key] ? colors.teal : colors.textLight) + '12' }]}>
+                <Ionicons name={pref.icon as any} size={20} color={prefs[pref.key] ? colors.teal : colors.textLight} />
               </View>
-              <View style={styles.notifContent}>
-                <View style={styles.notifTitleRow}>
-                  <Text style={[styles.notifTitle, !notif.read && styles.notifTitleUnread]}>{notif.title}</Text>
-                  {!notif.read && <View style={styles.unreadDot} />}
+              <View style={styles.prefInfo}>
+                <Text style={styles.prefLabel}>{pref.label}</Text>
+                <Text style={styles.prefDesc}>{pref.desc}</Text>
+              </View>
+              <Switch
+                value={prefs[pref.key] ?? true}
+                onValueChange={() => togglePref(pref.key)}
+                trackColor={{ false: colors.border, true: colors.teal + '50' }}
+                thumbColor={prefs[pref.key] ? colors.teal : colors.textLight}
+              />
+            </View>
+          ))}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.teal} />
+          <Text style={{ color: colors.textLight, marginTop: 12 }}>Loading notifications...</Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
+          <Ionicons name="checkmark-circle-outline" size={56} color={colors.teal} />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 16 }}>All Caught Up!</Text>
+          <Text style={{ fontSize: 14, color: colors.textLight, textAlign: 'center', marginTop: 8 }}>
+            No new notifications. Order updates, promotions, and alerts will appear here.
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadNotifications(true)} tintColor={colors.teal} />}
+        >
+          {unreadCount > 0 && (
+            <View style={styles.unreadBanner}>
+              <Ionicons name="mail-unread-outline" size={18} color={colors.teal} />
+              <Text style={styles.unreadText}>{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</Text>
+            </View>
+          )}
+          {notifications.map((notif) => {
+            const icon = getNotifIcon(notif.type);
+            return (
+              <TouchableOpacity
+                key={notif.id}
+                style={[styles.notifCard, !notif.isRead && styles.notifUnread]}
+                onPress={() => handleTapNotification(notif)}
+                onLongPress={() => handleDeleteNotification(notif)}
+              >
+                <View style={[styles.notifIcon, { backgroundColor: icon.color + '15' }]}>
+                  <Ionicons name={icon.name as any} size={20} color={icon.color} />
                 </View>
-                <Text style={styles.notifMessage} numberOfLines={2}>{notif.message}</Text>
-                <Text style={styles.notifTime}>{notif.time}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+                <View style={styles.notifContent}>
+                  <View style={styles.notifTitleRow}>
+                    <Text style={[styles.notifTitle, !notif.isRead && styles.notifTitleUnread]} numberOfLines={1}>{notif.title}</Text>
+                    {!notif.isRead && <View style={styles.unreadDot} />}
+                  </View>
+                  <Text style={styles.notifMessage} numberOfLines={2}>{notif.message}</Text>
+                  <Text style={styles.notifTime}>{formatTimeAgo(notif.createdAt)}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -129,4 +302,29 @@ const styles = StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.teal },
   notifMessage: { fontSize: 13, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
   notifTime: { fontSize: 11, color: colors.textLight, marginTop: 6 },
+  tabRow: {
+    flexDirection: 'row', marginHorizontal: 10, marginTop: 10, backgroundColor: colors.white,
+    borderRadius: 14, padding: 4, gap: 4,
+  },
+  tab: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, borderRadius: 10, gap: 6,
+  },
+  tabActive: { backgroundColor: colors.teal + '10' },
+  tabText: { fontSize: 14, fontWeight: '600', color: colors.textLight },
+  tabTextActive: { color: colors.teal },
+  prefSummary: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.teal + '08',
+    borderRadius: 12, padding: 14, gap: 10, marginBottom: 10,
+  },
+  prefSummaryText: { fontSize: 13, fontWeight: '600', color: colors.teal },
+  prefRow: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+  },
+  prefIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  prefInfo: { flex: 1 },
+  prefLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  prefDesc: { fontSize: 12, color: colors.textLight, marginTop: 2 },
 });

@@ -7,38 +7,53 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { favoritesAPI } from '../../services/api';
 
-const mockFavoriteRestaurants = [
-  { id: '1', name: 'Burger House', cuisine: 'American · Burgers', rating: 4.7, deliveryTime: '20-30 min', image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=300&h=200&fit=crop', lastOrdered: '2 days ago' },
-  { id: '2', name: 'Sushi Palace', cuisine: 'Japanese · Sushi', rating: 4.9, deliveryTime: '25-35 min', image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=300&h=200&fit=crop', lastOrdered: '1 week ago' },
-  { id: '3', name: 'Pizza Roma', cuisine: 'Italian · Pizza', rating: 4.5, deliveryTime: '15-25 min', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop', lastOrdered: '3 days ago' },
-];
-
-const mockFavoriteItems = [
-  { id: '1', name: 'Gourmet Cheeseburger', restaurant: 'Burger House', price: 14.99, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop', orderedCount: 8 },
-  { id: '2', name: 'Spicy Tuna Roll', restaurant: 'Sushi Palace', price: 12.99, image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=200&h=200&fit=crop', orderedCount: 5 },
-  { id: '3', name: 'Margherita Pizza', restaurant: 'Pizza Roma', price: 16.99, image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&h=200&fit=crop', orderedCount: 12 },
-  { id: '4', name: 'Classic Fries', restaurant: 'Burger House', price: 4.99, image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&h=200&fit=crop', orderedCount: 15 },
-];
-
 export default function FavoritesScreen({ navigation }: any) {
-  const [tab, setTab] = useState<'restaurants' | 'items'>('restaurants');
-  const [favoriteRestaurants, setFavoriteRestaurants] = useState(mockFavoriteRestaurants);
-  const [favoriteItems, setFavoriteItems] = useState(mockFavoriteItems);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await favoritesAPI.getAll();
-        if (res?.restaurants?.length) setFavoriteRestaurants(res.restaurants);
-        if (res?.items?.length) setFavoriteItems(res.items);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
-  }, []);
+  const loadFavorites = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await favoritesAPI.getAll();
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setFavorites(data);
+    } catch (e: any) {
+      if (!isRefresh) Alert.alert('Error', e?.message || 'Could not load favorites');
+    }
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  useEffect(() => { loadFavorites(); }, []);
+
+  const handleRemoveFavorite = (fav: any) => {
+    const businessId = fav.businessId || fav.business?.userId;
+    if (!businessId) return;
+    Alert.alert('Remove Favorite', `Remove ${fav.business?.businessName || 'this restaurant'} from favorites?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive', onPress: async () => {
+          setRemoving(fav.id);
+          try {
+            await favoritesAPI.remove(businessId);
+            setFavorites(prev => prev.filter(f => f.id !== fav.id));
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not remove favorite');
+          }
+          setRemoving(null);
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
@@ -50,73 +65,90 @@ export default function FavoritesScreen({ navigation }: any) {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.tabsWrapper}>
-        <View style={styles.tabs}>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.teal} />
+          <Text style={{ color: colors.textLight, marginTop: 12 }}>Loading favorites...</Text>
+        </View>
+      ) : favorites.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
+          <Ionicons name="heart-outline" size={56} color={colors.textLight} />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 16 }}>No Favorites Yet</Text>
+          <Text style={{ fontSize: 14, color: colors.textLight, textAlign: 'center', marginTop: 8 }}>
+            Tap the heart icon on any restaurant to save it here for quick access.
+          </Text>
           <TouchableOpacity
-            style={[styles.tab, tab === 'restaurants' && styles.tabActive]}
-            onPress={() => setTab('restaurants')}
+            style={{ backgroundColor: colors.teal, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 }}
+            onPress={() => navigation.navigate('HomeTabs', { screen: 'Search' })}
           >
-            <Ionicons name="storefront-outline" size={16} color={tab === 'restaurants' ? colors.textWhite : colors.textSecondary} />
-            <Text style={[styles.tabText, tab === 'restaurants' && styles.tabTextActive]}>Restaurants</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, tab === 'items' && styles.tabActive]}
-            onPress={() => setTab('items')}
-          >
-            <Ionicons name="fast-food-outline" size={16} color={tab === 'items' ? colors.textWhite : colors.textSecondary} />
-            <Text style={[styles.tabText, tab === 'items' && styles.tabTextActive]}>Food Items</Text>
+            <Text style={{ color: colors.textWhite, fontWeight: '700', fontSize: 15 }}>Browse Restaurants</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {tab === 'restaurants' ? (
-          favoriteRestaurants.map((r) => (
-            <TouchableOpacity key={r.id} style={styles.restaurantCard}>
-              <Image source={{ uri: r.image }} style={styles.restaurantImage} />
-              <TouchableOpacity style={styles.heartBtn}>
-                <Ionicons name="heart" size={20} color={colors.error} />
-              </TouchableOpacity>
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>{r.name}</Text>
-                <Text style={styles.restaurantCuisine}>{r.cuisine}</Text>
-                <View style={styles.restaurantMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="star" size={14} color={colors.warning} />
-                    <Text style={styles.metaText}>{r.rating}</Text>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadFavorites(true)} tintColor={colors.teal} />}
+        >
+          {favorites.map((fav) => {
+            const biz = fav.business;
+            if (!biz) return null;
+            const imageUri = biz.coverImageUrl || biz.logoUrl;
+            return (
+              <TouchableOpacity
+                key={fav.id}
+                style={styles.restaurantCard}
+                onPress={() => navigation.navigate('Restaurant', { businessId: biz.userId })}
+                activeOpacity={0.8}
+              >
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.restaurantImage} />
+                ) : (
+                  <View style={[styles.restaurantImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="storefront" size={36} color={colors.navy} />
                   </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={14} color={colors.textLight} />
-                    <Text style={styles.metaText}>{r.deliveryTime}</Text>
+                )}
+                <TouchableOpacity
+                  style={[styles.heartBtn, removing === fav.id && { opacity: 0.4 }]}
+                  onPress={() => handleRemoveFavorite(fav)}
+                  disabled={removing === fav.id}
+                >
+                  {removing === fav.id ? (
+                    <ActivityIndicator size="small" color={colors.error} />
+                  ) : (
+                    <Ionicons name="heart" size={20} color={colors.error} />
+                  )}
+                </TouchableOpacity>
+                <View style={styles.restaurantInfo}>
+                  <Text style={styles.restaurantName}>{biz.businessName}</Text>
+                  {biz.description ? <Text style={styles.restaurantCuisine} numberOfLines={1}>{biz.description}</Text> : null}
+                  <View style={styles.restaurantMeta}>
+                    {biz.rating != null && (
+                      <View style={styles.metaItem}>
+                        <Ionicons name="star" size={14} color={colors.warning} />
+                        <Text style={styles.metaText}>{Number(biz.rating).toFixed(1)}</Text>
+                      </View>
+                    )}
+                    {biz.averagePreparationTime != null && (
+                      <View style={styles.metaItem}>
+                        <Ionicons name="time-outline" size={14} color={colors.textLight} />
+                        <Text style={styles.metaText}>{biz.averagePreparationTime} min</Text>
+                      </View>
+                    )}
+                    {biz.deliveryFee != null && (
+                      <View style={styles.metaItem}>
+                        <Ionicons name="bicycle-outline" size={14} color={colors.textLight} />
+                        <Text style={styles.metaText}>₦{Number(biz.deliveryFee).toLocaleString()}</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.lastOrdered}>Last ordered {r.lastOrdered}</Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        ) : (
-          favoriteItems.map((item) => (
-            <View key={item.id} style={styles.itemCard}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemRestaurant}>{item.restaurant}</Text>
-                <Text style={styles.itemPrice}>₦{item.price.toFixed(2)}</Text>
-                <Text style={styles.itemOrdered}>Ordered {item.orderedCount} times</Text>
-              </View>
-              <View style={styles.itemActions}>
-                <TouchableOpacity style={styles.heartBtnSmall}>
-                  <Ionicons name="heart" size={18} color={colors.error} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.reorderBtn}>
-                  <Ionicons name="add" size={18} color={colors.textWhite} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -131,15 +163,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 5,
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  tabsWrapper: { paddingHorizontal: 10, paddingTop: 12 },
-  tabs: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: 14, padding: 4 },
-  tab: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, borderRadius: 12, gap: 6,
-  },
-  tabActive: { backgroundColor: colors.navy },
-  tabText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-  tabTextActive: { color: colors.textWhite },
   content: { flex: 1, paddingHorizontal: 10, paddingTop: 12 },
   restaurantCard: {
     backgroundColor: colors.white, borderRadius: 16, marginBottom: 12, overflow: 'hidden',
@@ -157,21 +180,4 @@ const styles = StyleSheet.create({
   restaurantMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  lastOrdered: { fontSize: 12, color: colors.textLight, marginLeft: 'auto' },
-  itemCard: {
-    flexDirection: 'row', backgroundColor: colors.white, borderRadius: 16, padding: 12, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
-  },
-  itemImage: { width: 70, height: 70, borderRadius: 12 },
-  itemInfo: { flex: 1, marginLeft: 12 },
-  itemName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  itemRestaurant: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-  itemPrice: { fontSize: 16, fontWeight: '700', color: colors.teal, marginTop: 4 },
-  itemOrdered: { fontSize: 11, color: colors.textLight, marginTop: 2 },
-  itemActions: { justifyContent: 'space-between', alignItems: 'center' },
-  heartBtnSmall: { padding: 4 },
-  reorderBtn: {
-    width: 32, height: 32, borderRadius: 10, backgroundColor: colors.teal,
-    justifyContent: 'center', alignItems: 'center',
-  },
 });

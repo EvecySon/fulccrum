@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,35 +6,112 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
-import { reviewsAPI } from '../../services/api';
+import { reviewsAPI, ordersAPI } from '../../services/api';
 
 const feedbackTags = ['Fast Delivery', 'Great Food', 'Good Packaging', 'Friendly Courier', 'Hot & Fresh', 'Accurate Order'];
 
+const getRatingLabel = (r: number) =>
+  r === 5 ? 'Excellent!' : r === 4 ? 'Great!' : r === 3 ? 'Good' : r === 2 ? 'Fair' : 'Poor';
+
 export default function FeedbackScreen({ navigation, route }: any) {
+  const order = route?.params?.order;
+  const orderId = order?.id || route?.params?.orderId;
+
+  const [orderData, setOrderData] = useState<any>(order || null);
   const [foodRating, setFoodRating] = useState(0);
   const [deliveryRating, setDeliveryRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [tipAmount, setTipAmount] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(!order);
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow access to your photo library.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setPhotos(prev => [...prev, result.assets[0].uri]);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open photo library.');
+    }
+  };
+
+  useEffect(() => {
+    if (order) { setLoadingOrder(false); return; }
+    if (orderId) {
+      (async () => {
+        try {
+          const res = await ordersAPI.getOrder(orderId);
+          if (res) setOrderData(res);
+        } catch { /* ignore */ }
+        setLoadingOrder(false);
+      })();
+    } else {
+      // Opened from Account tab without a specific order — fetch last delivered
+      (async () => {
+        try {
+          const res = await ordersAPI.getMyOrders(1, 20);
+          const orders = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+          const lastDelivered = orders.find((o: any) => o.status === 'delivered');
+          if (lastDelivered) setOrderData(lastDelivered);
+        } catch { /* ignore */ }
+        setLoadingOrder(false);
+      })();
+    }
+  }, [orderId]);
+
+  const restaurantName = orderData?.business?.businessName || orderData?.restaurantName || orderData?.businessName || 'Restaurant';
+  const orderNumber = orderData?.orderNumber || orderId?.slice(-6) || '';
+  const orderDate = orderData?.deliveredAt || orderData?.createdAt;
+  const formattedDate = orderDate ? new Date(orderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const driverName = orderData?.driver?.firstName || orderData?.driverName || '';
 
   const handleSubmit = async () => {
-    if (foodRating === 0) return;
+    if (foodRating === 0) {
+      Alert.alert('Rating Required', 'Please rate the food before submitting.');
+      return;
+    }
+    const resolvedOrderId = orderId || orderData?.id;
+    if (!resolvedOrderId) {
+      Alert.alert('Error', 'No order to review.');
+      return;
+    }
     setSubmitting(true);
     try {
       await reviewsAPI.create({
-        orderId: route?.params?.orderId,
+        orderId: resolvedOrderId,
         rating: foodRating,
-        deliveryRating,
-        comment,
-        tags: selectedTags,
+        foodQuality: foodRating,
+        deliverySpeed: deliveryRating || undefined,
+        serviceQuality: deliveryRating || undefined,
+        comment: comment || undefined,
+        images: photos.length > 0 ? photos : undefined,
       });
-      navigation.goBack();
-    } catch {
-      navigation.goBack();
+      Alert.alert('Thank you!', 'Your review has been submitted.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Could not submit review';
+      Alert.alert('Error', typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setSubmitting(false);
     }
@@ -71,12 +148,35 @@ export default function FeedbackScreen({ navigation, route }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+        {loadingOrder ? (
+          <View style={{ alignItems: 'center', paddingTop: 60 }}>
+            <ActivityIndicator size="large" color={colors.teal} />
+            <Text style={{ color: colors.textLight, marginTop: 12, fontSize: 14 }}>Loading order...</Text>
+          </View>
+        ) : !orderData ? (
+          <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 30 }}>
+            <Ionicons name="receipt-outline" size={56} color={colors.textLight} />
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 16 }}>No Orders to Rate</Text>
+            <Text style={{ fontSize: 14, color: colors.textLight, textAlign: 'center', marginTop: 8 }}>
+              You don't have any delivered orders yet. Place an order first, and come back to rate it after delivery!
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.teal, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 }}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={{ color: colors.textWhite, fontWeight: '700', fontSize: 15 }}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+        <View>
         {/* Order Info */}
         <View style={styles.orderInfo}>
           <Ionicons name="storefront" size={20} color={colors.navy} />
           <View style={styles.orderDetails}>
-            <Text style={styles.orderRestaurant}>Burger House</Text>
-            <Text style={styles.orderId}>Order #3242 · Feb 6, 2026</Text>
+            <Text style={styles.orderRestaurant}>{restaurantName}</Text>
+            <Text style={styles.orderId}>
+              {orderNumber ? `Order #${orderNumber}` : 'Order'}{formattedDate ? ` · ${formattedDate}` : ''}
+            </Text>
           </View>
         </View>
 
@@ -85,9 +185,7 @@ export default function FeedbackScreen({ navigation, route }: any) {
           <Text style={styles.ratingTitle}>How was the food?</Text>
           {renderStars(foodRating, setFoodRating)}
           {foodRating > 0 && (
-            <Text style={styles.ratingLabel}>
-              {foodRating === 5 ? 'Excellent!' : foodRating === 4 ? 'Great!' : foodRating === 3 ? 'Good' : foodRating === 2 ? 'Fair' : 'Poor'}
-            </Text>
+            <Text style={styles.ratingLabel}>{getRatingLabel(foodRating)}</Text>
           )}
         </View>
 
@@ -96,9 +194,7 @@ export default function FeedbackScreen({ navigation, route }: any) {
           <Text style={styles.ratingTitle}>How was the delivery?</Text>
           {renderStars(deliveryRating, setDeliveryRating)}
           {deliveryRating > 0 && (
-            <Text style={styles.ratingLabel}>
-              {deliveryRating === 5 ? 'Excellent!' : deliveryRating === 4 ? 'Great!' : deliveryRating === 3 ? 'Good' : deliveryRating === 2 ? 'Fair' : 'Poor'}
-            </Text>
+            <Text style={styles.ratingLabel}>{getRatingLabel(deliveryRating)}</Text>
           )}
         </View>
 
@@ -139,48 +235,75 @@ export default function FeedbackScreen({ navigation, route }: any) {
         </View>
 
         {/* Photo Upload */}
-        <TouchableOpacity style={styles.photoBtn}>
+        {photos.length > 0 && (
+          <View style={styles.photosRow}>
+            {photos.map((uri, i) => (
+              <View key={i} style={styles.photoThumb}>
+                <Image source={{ uri }} style={styles.photoImage} />
+                <TouchableOpacity
+                  style={styles.photoRemove}
+                  onPress={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+        <TouchableOpacity style={styles.photoBtn} onPress={pickImage}>
           <Ionicons name="camera-outline" size={22} color={colors.teal} />
-          <Text style={styles.photoBtnText}>Add Photo</Text>
+          <Text style={styles.photoBtnText}>{photos.length > 0 ? 'Add Another Photo' : 'Add Photo'}</Text>
         </TouchableOpacity>
 
         {/* Tip Courier */}
-        <View style={styles.tipCard}>
-          <View style={styles.tipHeader}>
-            <Ionicons name="heart-outline" size={20} color={colors.error} />
-            <Text style={styles.tipTitle}>Tip Your Courier</Text>
+        {driverName ? (
+          <View style={styles.tipCard}>
+            <View style={styles.tipHeader}>
+              <Ionicons name="heart-outline" size={20} color={colors.error} />
+              <Text style={styles.tipTitle}>Tip Your Courier</Text>
+            </View>
+            <Text style={styles.tipDesc}>{driverName} delivered your order. Show your appreciation!</Text>
+            <View style={styles.tipOptions}>
+              {[0, 200, 500, 1000].map((amount) => (
+                <TouchableOpacity
+                  key={amount}
+                  style={[styles.tipOption, tipAmount === amount && styles.tipOptionActive]}
+                  onPress={() => setTipAmount(amount)}
+                >
+                  <Text style={[styles.tipOptionText, tipAmount === amount && styles.tipOptionTextActive]}>
+                    {amount === 0 ? 'No tip' : `₦${amount}`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.customTipBtn}>
+              <Text style={styles.customTipText}>Custom amount</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.tipDesc}>Mike delivered your order. Show your appreciation!</Text>
-          <View style={styles.tipOptions}>
-            {[0, 2, 3, 5].map((amount) => (
-              <TouchableOpacity
-                key={amount}
-                style={[styles.tipOption, tipAmount === amount && styles.tipOptionActive]}
-                onPress={() => setTipAmount(amount)}
-              >
-                <Text style={[styles.tipOptionText, tipAmount === amount && styles.tipOptionTextActive]}>
-                  {amount === 0 ? 'No tip' : `$${amount}`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity style={styles.customTipBtn}>
-            <Text style={styles.customTipText}>Custom amount</Text>
-          </TouchableOpacity>
-        </View>
+        ) : null}
 
         <View style={{ height: 100 }} />
+        </View>
+        )}
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.submitBtn}>
-          <Text style={styles.submitText}>Submit Review</Text>
+      {orderData && <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color={colors.textWhite} />
+          ) : (
+            <Text style={styles.submitText}>Submit Review</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.skipText}>Skip for now</Text>
         </TouchableOpacity>
-      </View>
+      </View>}
     </View>
   );
 }
@@ -228,6 +351,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.teal + '25', borderStyle: 'dashed',
   },
   photoBtnText: { fontSize: 15, fontWeight: '600', color: colors.teal },
+  photosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  photoThumb: { position: 'relative', width: 80, height: 80, borderRadius: 12, overflow: 'hidden' },
+  photoImage: { width: 80, height: 80, borderRadius: 12 },
+  photoRemove: { position: 'absolute', top: -4, right: -4, backgroundColor: colors.white, borderRadius: 10 },
   tipCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 12 },
   tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   tipTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },

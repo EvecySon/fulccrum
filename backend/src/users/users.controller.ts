@@ -1,9 +1,10 @@
-import { Controller, Get, Patch, Delete, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -31,6 +32,11 @@ export class UsersController {
     console.log('[CONTROLLER] User ID:', req.user.sub);
     console.log('[CONTROLLER] Password provided:', dto.password ? 'YES' : 'NO');
     return this.usersService.deleteAccount(req.user.sub, dto.password);
+  }
+
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(req.user.sub, dto.currentPassword, dto.newPassword);
   }
 
   @Get('data-export')

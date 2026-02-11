@@ -11,19 +11,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockMenuItems } from '../../data/mockData';
 import { menuAPI } from '../../services/api';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [menuItems, setMenuItems] = useState(mockMenuItems);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await menuAPI.getItems(restaurant.id);
-        if (res?.length) setMenuItems(res);
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setMenuItems(data);
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, [restaurant.id]);

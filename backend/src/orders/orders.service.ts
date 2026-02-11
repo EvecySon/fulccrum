@@ -17,7 +17,29 @@ export class OrdersService {
 
   async createOrder(customerId: string, dto: CreateOrderDto) {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    
+
+    // Auto-inject allergy & dietary info into special instructions
+    const customer = await this.prisma.user.findUnique({
+      where: { id: customerId },
+      select: { dietaryPreferences: true, allergies: true, customAllergies: true },
+    });
+
+    let instructions = dto.specialInstructions || '';
+    const allergyParts: string[] = [];
+    if (customer?.allergies?.length) {
+      allergyParts.push(`ALLERGIES: ${customer.allergies.join(', ')}`);
+    }
+    if (customer?.customAllergies) {
+      allergyParts.push(`OTHER ALLERGIES: ${customer.customAllergies}`);
+    }
+    if (customer?.dietaryPreferences?.length) {
+      allergyParts.push(`DIETARY: ${customer.dietaryPreferences.join(', ')}`);
+    }
+    if (allergyParts.length) {
+      const allergyNote = `⚠️ ${allergyParts.join(' | ')}`;
+      instructions = instructions ? `${instructions}\n${allergyNote}` : allergyNote;
+    }
+
     const order = await this.prisma.order.create({
       data: {
         orderNumber,
@@ -31,7 +53,7 @@ export class OrdersService {
         tipAmount: dto.tipAmount || 0,
         discountAmount: dto.discountAmount || 0,
         totalAmount: dto.totalAmount,
-        specialInstructions: dto.specialInstructions,
+        specialInstructions: instructions || undefined,
         paymentMethod: dto.paymentMethod,
         paymentStatus: 'pending',
       },
@@ -64,6 +86,12 @@ export class OrdersService {
             lastName: true,
             email: true,
             phone: true,
+          },
+        },
+        business: {
+          select: {
+            userId: true,
+            businessName: true,
           },
         },
         driver: {
@@ -287,7 +315,22 @@ export class OrdersService {
           status: true,
           totalAmount: true,
           createdAt: true,
+          deliveredAt: true,
           estimatedDeliveryTime: true,
+          businessId: true,
+          business: {
+            select: {
+              userId: true,
+              businessName: true,
+            },
+          },
+          driver: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       }),
       this.prisma.order.count({ where: { customerId } }),

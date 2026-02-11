@@ -43,6 +43,7 @@ import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CourierFleetModule } from './courier-fleet/courier-fleet.module';
 import { CourierGamificationModule } from './courier-gamification/courier-gamification.module';
 import { CourierSafetyModule } from './courier-safety/courier-safety.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -103,6 +104,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     CourierFleetModule,
     CourierGamificationModule,
     CourierSafetyModule,
+    LoyaltyModule,
   ],
   controllers: [AppController],
   providers: [

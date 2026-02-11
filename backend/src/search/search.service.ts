@@ -79,6 +79,25 @@ export class SearchService {
     });
   }
 
+  async listBusinesses() {
+    return this.prisma.businessProfile.findMany({
+      where: { verificationStatus: 'approved' },
+      orderBy: { businessName: 'asc' },
+      take: 50,
+      select: {
+        userId: true,
+        businessName: true,
+        description: true,
+        logoUrl: true,
+        coverImageUrl: true,
+        rating: true,
+        deliveryFee: true,
+        minimumOrderAmount: true,
+        averagePreparationTime: true,
+      },
+    });
+  }
+
   async searchMenuItems(query: string, businessId?: string) {
     return this.prisma.menuItem.findMany({
       where: {

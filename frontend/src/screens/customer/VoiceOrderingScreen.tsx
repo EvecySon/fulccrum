@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -11,6 +11,7 @@ interface VoiceResult {
   items: string[];
   restaurant?: string;
   confidence: number;
+  suggestedAction?: string;
 }
 
 export default function VoiceOrderingScreen({ navigation }: any) {
@@ -45,15 +46,17 @@ export default function VoiceOrderingScreen({ navigation }: any) {
     setProcessing(true);
     try {
       const data = await aiAPI.processVoiceCommand(text);
-      setResult(data);
-    } catch {
-      // Fallback mock result
+      // Map backend shape to frontend shape
       setResult({
-        intent: 'order',
-        items: ['Jollof Rice', 'Plantain'],
-        restaurant: "Mama's Kitchen",
-        confidence: 0.93,
+        intent: data?.intent || 'order',
+        items: data?.parsedItems || data?.items || [],
+        restaurant: data?.restaurant || undefined,
+        confidence: data?.confidence || 0.9,
+        suggestedAction: data?.suggestedAction,
       });
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not process voice command');
+      setResult(null);
     } finally {
       setProcessing(false);
     }
@@ -133,14 +136,24 @@ export default function VoiceOrderingScreen({ navigation }: any) {
                   <Text style={styles.resultValue}>{result.restaurant}</Text>
                 </>
               )}
-              <Text style={styles.resultLabel}>Items</Text>
-              <View style={styles.itemChips}>
-                {result.items.map((item, i) => (
-                  <View key={i} style={styles.itemChip}>
-                    <Text style={styles.itemChipText}>{item}</Text>
+              {result.items.length > 0 && (
+                <>
+                  <Text style={styles.resultLabel}>Items</Text>
+                  <View style={styles.itemChips}>
+                    {result.items.map((item, i) => (
+                      <View key={i} style={styles.itemChip}>
+                        <Text style={styles.itemChipText}>{item}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
+                </>
+              )}
+              {result.suggestedAction && (
+                <>
+                  <Text style={styles.resultLabel}>Suggestion</Text>
+                  <Text style={styles.resultValue}>{result.suggestedAction}</Text>
+                </>
+              )}
             </View>
             <View style={styles.resultActions}>
               <TouchableOpacity style={styles.editBtn} onPress={() => setResult(null)}>

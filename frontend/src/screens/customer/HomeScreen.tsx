@@ -13,32 +13,52 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import {
-  mockUser,
-  mockCategories,
-  mockMoods,
-  mockRestaurants,
-  mockTrendingItems,
-} from '../../data/mockData';
-import { searchAPI } from '../../services/api';
+import { searchAPI, analyticsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+
+const categories = [
+  { id: '1', name: 'Restaurants', icon: 'restaurant' },
+  { id: '2', name: 'Grocery', icon: 'cart' },
+  { id: '3', name: 'Convenience', icon: 'storefront' },
+  { id: '4', name: 'Pharmacy', icon: 'medical' },
+];
+
+const moods = [
+  { id: '1', name: 'Craving Pizza?', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', color: '#ff6b35' },
+  { id: '2', name: 'Healthy Lunch', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop', color: '#2ecc71' },
+  { id: '3', name: 'Date Night', image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop', color: '#e74c3c' },
+  { id: '4', name: 'Comfort Food', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop', color: '#f39c12' },
+];
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [restaurants, setRestaurants] = useState(mockRestaurants);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [trendingItems, setTrendingItems] = useState<any[]>([]);
+  const [notifCount, setNotifCount] = useState(0);
+  const [defaultAddress, setDefaultAddress] = useState('');
 
   useEffect(() => {
     loadRestaurants();
+    loadTrending();
   }, []);
 
   const loadRestaurants = async () => {
     try {
       const res = await searchAPI.searchBusinesses('');
-      if (res?.data?.length) setRestaurants(res.data);
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setRestaurants(data);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load restaurants'); }
+  };
+
+  const loadTrending = async () => {
+    try {
+      const res = await analyticsAPI.topPerformers('menu_items', 5);
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setTrendingItems(data);
+    } catch { /* trending is optional */ }
   };
 
   const renderMoodCard = ({ item }: any) => (
@@ -120,18 +140,20 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.firstName || mockUser.firstName}!</Text>
+            <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}!</Text>
             <TouchableOpacity style={styles.addressRow}>
               <Ionicons name="location" size={16} color={colors.tealLight} />
-              <Text style={styles.addressText}>Delivering to: {mockUser.address}</Text>
+              <Text style={styles.addressText}>{defaultAddress || 'Set delivery address'}</Text>
               <Ionicons name="chevron-down" size={16} color={colors.tealLight} />
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.notificationBtn}>
             <Ionicons name="notifications-outline" size={24} color={colors.textWhite} />
-            <View style={styles.notificationBadge}>
-              <Text style={styles.badgeText}>2</Text>
-            </View>
+            {notifCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.badgeText}>{notifCount > 9 ? '9+' : notifCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -157,7 +179,7 @@ export default function HomeScreen({ navigation }: any) {
       >
         {/* Categories */}
         <FlatList
-          data={mockCategories}
+          data={categories}
           renderItem={renderCategory}
           keyExtractor={(item) => item.id}
           horizontal
@@ -169,7 +191,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
           <FlatList
-            data={mockMoods}
+            data={moods}
             renderItem={renderMoodCard}
             keyExtractor={(item) => item.id}
             horizontal
@@ -236,7 +258,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trending Now</Text>
           <FlatList
-            data={mockTrendingItems}
+            data={trendingItems}
             renderItem={renderTrending}
             keyExtractor={(item) => item.id}
             horizontal

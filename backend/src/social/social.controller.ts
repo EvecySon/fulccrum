@@ -61,4 +61,34 @@ export class SocialController {
   async createGroupOrder(@Request() req: any, @Body() body: any) {
     return this.socialService.createGroupOrder(req.user.sub, body);
   }
+
+  @Get('group-orders/:id')
+  async getGroupOrder(@Param('id') id: string) {
+    return this.socialService.getGroupOrder(id);
+  }
+
+  @Get('group-orders/join/:inviteCode')
+  async getGroupOrderByCode(@Param('inviteCode') inviteCode: string) {
+    return this.socialService.getGroupOrderByCode(inviteCode);
+  }
+
+  @Post('group-orders/join/:inviteCode')
+  async joinGroupOrder(@Request() req: any, @Param('inviteCode') inviteCode: string) {
+    return this.socialService.joinGroupOrder(req.user.sub, inviteCode);
+  }
+
+  @Post('group-orders/:id/items')
+  async updateMemberItems(@Request() req: any, @Param('id') id: string, @Body() body: { items: any[]; subtotal: number }) {
+    return this.socialService.updateMemberItems(req.user.sub, id, body.items, body.subtotal);
+  }
+
+  @Post('group-orders/:id/status')
+  async updateMemberStatus(@Request() req: any, @Param('id') id: string, @Body() body: { status: string }) {
+    return this.socialService.updateMemberStatus(req.user.sub, id, body.status);
+  }
+
+  @Delete('group-orders/:id/leave')
+  async leaveGroupOrder(@Request() req: any, @Param('id') id: string) {
+    return this.socialService.leaveGroupOrder(req.user.sub, id);
+  }
 }

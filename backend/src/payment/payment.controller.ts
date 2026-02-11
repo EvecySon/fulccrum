@@ -73,4 +73,19 @@ export class PaymentController {
   async deleteCard(@Request() req: any, @Param('id') id: string) {
     return this.paymentService.deleteCard(req.user.sub, id);
   }
+
+  @Post('topup')
+  async initializeTopUp(@Request() req: any, @Body('amount') amount: number) {
+    return this.paymentService.initializeTopUp(req.user.sub, amount);
+  }
+
+  @Get('topup/verify/:reference')
+  async verifyTopUp(@Request() req: any, @Param('reference') reference: string) {
+    return this.paymentService.verifyTopUp(req.user.sub, reference);
+  }
+
+  @Post('cards/add')
+  async initializeCardAdd(@Request() req: any) {
+    return this.paymentService.initializeCardAdd(req.user.sub);
+  }
 }

@@ -111,6 +111,13 @@ model User {
   savedCards         SavedCard[]
   crmCustomerNotes   CrmCustomerNote[] @relation("crm_customer_notes")
   merchantCustomerProfiles MerchantCustomerProfile[] @relation("merchant_customer_profiles")
+  hostedGroupOrders  GroupOrder[]      @relation("group_order_host")
+  groupOrderMemberships GroupOrderMember[] @relation("group_order_members")
+  customerLoyalty    CustomerLoyalty?
+
+  dietaryPreferences String[] @default([]) @map("dietary_preferences")
+  allergies          String[] @default([]) @map("allergies")
+  customAllergies    String?  @map("custom_allergies") @db.VarChar(500)
 
   @@map("users")
 }
@@ -199,6 +206,7 @@ model BusinessProfile {
   aiInsights     MerchantAiInsight[]
   customerProfiles MerchantCustomerProfile[]
   marketplaceListings MarketplaceListing[]
+  groupOrders        GroupOrder[]        @relation("group_order_business")
 
   @@map("business_profiles")
 }
@@ -261,8 +269,9 @@ model Order {
   customer User            @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
   business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
-  review   Review?
-  items    OrderItem[]
+  review     Review?
+  items      OrderItem[]
+  groupOrder GroupOrder? @relation("group_order_placed")
 
   @@index([customerId])
   @@index([businessId])
@@ -1030,6 +1039,55 @@ model LoyaltyProgram {
   @@map("loyalty_programs")
 }
 
+// Customer Loyalty System
+model CustomerLoyalty {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  points          Int      @default(0)
+  lifetimePoints  Int      @default(0) @map("lifetime_points")
+  tier            String   @default("Bronze") @db.VarChar(20) // 'Bronze', 'Silver', 'Gold', 'Platinum'
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([userId])
+  @@map("customer_loyalty")
+}
+
+model LoyaltyTransaction {
+  id              String   @id @default(uuid()) @db.Uuid
+  loyaltyId       String   @map("loyalty_id") @db.Uuid
+  type            String   @db.VarChar(20) // 'earned', 'redeemed', 'bonus', 'expired'
+  points          Int      // positive for earned/bonus, negative for redeemed
+  description     String   @db.VarChar(255)
+  orderId         String?  @map("order_id") @db.Uuid
+  rewardId        String?  @map("reward_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  loyalty CustomerLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyId])
+  @@index([createdAt])
+  @@map("loyalty_transactions")
+}
+
+model LoyaltyReward {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  description     String?  @db.VarChar(255)
+  pointsCost      Int      @map("points_cost")
+  icon            String   @default("gift-outline") @db.VarChar(50)
+  type            String   @default("discount") @db.VarChar(30) // 'discount', 'free_delivery', 'free_item', 'mystery'
+  value           Int      @default(0) // e.g. discount amount in minor currency
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("loyalty_rewards")
+}
+
 model MerchantInsightAction {
   id         String   @id @default(uuid()) @db.Uuid
   merchantId String   @map("merchant_id") @db.Uuid
@@ -1150,5 +1208,48 @@ model MarketplaceListing {
   @@index([isActive, expiresAt])
   @@index([category])
   @@map("marketplace_listings")
+}
+
+// Group Orders
+model GroupOrder {
+  id              String   @id @default(uuid()) @db.Uuid
+  hostId          String   @map("host_id") @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  inviteCode      String   @unique @map("invite_code")
+  status          String   @default("open") // open, locked, placed, delivered, cancelled
+  splitMethod     String   @default("individual") @map("split_method") // individual, equal, custom
+  deliveryFee     Float    @default(0) @map("delivery_fee")
+  expiresAt       DateTime? @map("expires_at")
+  orderId         String?  @unique @map("order_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  host     User             @relation("group_order_host", fields: [hostId], references: [id], onDelete: Cascade)
+  business BusinessProfile  @relation("group_order_business", fields: [businessId], references: [userId], onDelete: Cascade)
+  order    Order?           @relation("group_order_placed", fields: [orderId], references: [id], onDelete: SetNull)
+  members  GroupOrderMember[]
+
+  @@index([hostId])
+  @@index([businessId])
+  @@index([inviteCode])
+  @@map("group_orders")
+}
+
+model GroupOrderMember {
+  id            String   @id @default(uuid()) @db.Uuid
+  groupOrderId  String   @map("group_order_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  status        String   @default("pending") // pending, ordering, ready
+  items         Json     @default("[]")
+  subtotal      Float    @default(0)
+  joinedAt      DateTime @default(now()) @map("joined_at")
+
+  groupOrder GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  user       User       @relation("group_order_members", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupOrderId, userId])
+  @@index([groupOrderId])
+  @@index([userId])
+  @@map("group_order_members")
 }
 

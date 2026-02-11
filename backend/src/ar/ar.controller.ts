@@ -7,6 +7,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class ArController {
   constructor(private readonly arService: ArService) {}
 
+  @Get('models')
+  async getAvailableModels() {
+    return this.arService.getAvailableModels();
+  }
+
   @Get('food-preview/:itemId')
   async getFoodPreview(@Param('itemId') itemId: string) {
     return this.arService.getFoodPreview(itemId);

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaystackService } from './paystack.service';
 import axios from 'axios';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class PaymentService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private paystackService: PaystackService,
   ) {
     this.paystackSecretKey = this.config.get('PAYSTACK_SECRET_KEY') || 'sk_test_xxx';
   }
@@ -315,6 +317,108 @@ export class PaymentService {
     }
 
     return { success: true, message: 'Card removed' };
+  }
+
+  async initializeTopUp(userId: string, amount: number) {
+    if (amount < 100) {
+      throw new BadRequestException('Minimum top-up amount is ₦100');
+    }
+    if (amount > 500000) {
+      throw new BadRequestException('Maximum top-up amount is ₦500,000');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const reference = `TOPUP-${Date.now()}-${userId.substring(0, 8)}`;
+
+    const result = await this.paystackService.initializePayment({
+      email: user.email,
+      amount: Math.round(amount * 100), // kobo
+      metadata: { type: 'wallet_topup', userId },
+      callback_url: this.config.get('PAYSTACK_CALLBACK_URL') || 'https://fulccrum.com/payment/callback',
+    });
+
+    return {
+      authorizationUrl: result.authorization_url,
+      accessCode: result.access_code,
+      reference: result.reference,
+    };
+  }
+
+  async verifyTopUp(userId: string, reference: string) {
+    const result = await this.paystackService.verifyPayment(reference);
+
+    if (result.status !== 'success') {
+      return { success: false, message: 'Payment not successful' };
+    }
+
+    const metadata = result.metadata || {};
+    if (metadata.type !== 'wallet_topup' && metadata.type !== 'card_add') {
+      throw new BadRequestException('Invalid payment reference for top-up');
+    }
+
+    const amount = result.amount / 100; // kobo to naira
+
+    // Credit wallet
+    let wallet = await this.prisma.digitalWallet.findUnique({ where: { userId } });
+    if (!wallet) {
+      wallet = await this.prisma.digitalWallet.create({ data: { userId } });
+    }
+    await this.prisma.digitalWallet.update({
+      where: { id: wallet.id },
+      data: { balance: { increment: amount } },
+    });
+
+    // Auto-save card if authorization exists
+    const auth = result.authorization;
+    if (auth?.authorization_code && auth?.last4) {
+      const existing = await this.prisma.savedCard.findFirst({
+        where: { userId, authorizationCode: auth.authorization_code },
+      });
+      if (!existing) {
+        const isFirst = (await this.prisma.savedCard.count({ where: { userId } })) === 0;
+        await this.prisma.savedCard.create({
+          data: {
+            userId,
+            authorizationCode: auth.authorization_code,
+            cardType: auth.card_type || 'unknown',
+            last4: auth.last4,
+            expMonth: auth.exp_month || '00',
+            expYear: auth.exp_year || '00',
+            bank: auth.bank || 'Unknown',
+            isDefault: isFirst,
+          },
+        });
+      }
+    }
+
+    return {
+      success: true,
+      amount,
+      newBalance: Number(wallet.balance) + amount,
+      message: `₦${amount.toLocaleString()} added to wallet`,
+      cardSaved: !!auth?.authorization_code,
+    };
+  }
+
+  async initializeCardAdd(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Charge ₦50 to tokenize the card, then refund or credit to wallet
+    const result = await this.paystackService.initializePayment({
+      email: user.email,
+      amount: 5000, // ₦50 in kobo
+      metadata: { type: 'card_add', userId },
+      callback_url: this.config.get('PAYSTACK_CALLBACK_URL') || 'https://fulccrum.com/payment/callback',
+    });
+
+    return {
+      authorizationUrl: result.authorization_url,
+      accessCode: result.access_code,
+      reference: result.reference,
+    };
   }
 
   async chargeCard(userId: string, cardId: string, amount: number, email: string) {

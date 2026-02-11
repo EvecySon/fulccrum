@@ -10,18 +10,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockOrders } from '../../data/mockData';
 import { ordersAPI } from '../../services/api';
 
 export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
-  const [allOrders, setAllOrders] = useState(mockOrders);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadOrders = useCallback(async () => {
     try {
       const res = await ordersAPI.getMyOrders();
-      if (res?.data?.length) setAllOrders(res.data);
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setAllOrders(data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
 
@@ -164,7 +164,7 @@ export default function OrdersScreen({ navigation }: any) {
               </View>
 
               <View style={styles.orderItems}>
-                {order.items.map((item, index) => (
+                {order.items.map((item: any, index: number) => (
                   <Text key={index} style={styles.orderItemText}>
                     • {item}
                   </Text>
@@ -187,7 +187,7 @@ export default function OrdersScreen({ navigation }: any) {
                       <Ionicons name="refresh" size={16} color={colors.teal} />
                       <Text style={styles.reorderText}>Reorder</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.reviewBtn}>
+                    <TouchableOpacity style={styles.reviewBtn} onPress={() => navigation.navigate('Feedback', { order })}>
                       <Ionicons name="star-outline" size={16} color={colors.navy} />
                       <Text style={styles.reviewText}>Review</Text>
                     </TouchableOpacity>
