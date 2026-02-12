@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,57 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { searchAPI } from '../../services/api';
-
-const recentSearches = ['Pizza', 'Sushi', 'Burger', 'Thai Food'];
-const popularSearches = ['Fried Chicken', 'Tacos', 'Ramen', 'Salad', 'Ice Cream'];
+import { searchAPI, analyticsAPI } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SearchScreen({ navigation }: any) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [popularSearches, setPopularSearches] = useState<string[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    loadRecentSearches();
+    loadPopularSearches();
+  }, []);
+
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('recentSearches');
+      if (stored) setRecentSearches(JSON.parse(stored));
+    } catch {}
+  };
+
+  const loadPopularSearches = async () => {
+    try {
+      const res = await analyticsAPI.topPerformers('items', 10);
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const names = data.map((item: any) => item.name || item.menuItem?.name || item.itemName).filter(Boolean).slice(0, 5);
+      if (names.length > 0) setPopularSearches(names);
+      else setPopularSearches(['Fried Chicken', 'Tacos', 'Ramen', 'Salad', 'Ice Cream']);
+    } catch {
+      setPopularSearches(['Fried Chicken', 'Tacos', 'Ramen', 'Salad', 'Ice Cream']);
+    }
+  };
+
+  const saveRecentSearch = async (searchTerm: string) => {
+    try {
+      const trimmed = searchTerm.trim();
+      if (!trimmed) return;
+      const updated = [trimmed, ...recentSearches.filter(s => s !== trimmed)].slice(0, 10);
+      setRecentSearches(updated);
+      await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const clearRecentSearches = async () => {
+    try {
+      setRecentSearches([]);
+      await AsyncStorage.removeItem('recentSearches');
+    } catch {}
+  };
 
   const handleSearch = (text: string) => {
     setQuery(text);
@@ -36,6 +77,17 @@ export default function SearchScreen({ navigation }: any) {
         setResults([]);
       }
     }, 300);
+  };
+
+  const handleQuickSearch = (term: string) => {
+    setQuery(term);
+    handleSearch(term);
+    saveRecentSearch(term);
+  };
+
+  const handleSelectResult = (business: any) => {
+    saveRecentSearch(query);
+    navigation.navigate('Restaurant', { businessId: business.id });
   };
 
   return (
@@ -66,22 +118,26 @@ export default function SearchScreen({ navigation }: any) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Searches</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={clearRecentSearches}>
                 <Text style={styles.clearText}>Clear</Text>
               </TouchableOpacity>
             </View>
+            {recentSearches.length > 0 ? (
             <View style={styles.chipRow}>
               {recentSearches.map((item, index) => (
                 <TouchableOpacity
                   key={index}
                   style={styles.chip}
-                  onPress={() => handleSearch(item)}
+                  onPress={() => handleQuickSearch(item)}
                 >
                   <Ionicons name="time-outline" size={14} color={colors.textLight} />
                   <Text style={styles.chipText}>{item}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+            ) : (
+              <Text style={styles.emptyText}>No recent searches</Text>
+            )}
           </View>
 
           {/* Popular Searches */}
@@ -92,7 +148,7 @@ export default function SearchScreen({ navigation }: any) {
                 <TouchableOpacity
                   key={index}
                   style={[styles.chip, styles.popularChip]}
-                  onPress={() => handleSearch(item)}
+                  onPress={() => handleQuickSearch(item)}
                 >
                   <Ionicons name="trending-up" size={14} color={colors.teal} />
                   <Text style={[styles.chipText, { color: colors.teal }]}>{item}</Text>
@@ -107,7 +163,11 @@ export default function SearchScreen({ navigation }: any) {
             <View style={styles.chipRow}>
               {['Vegan', 'Gluten Free', 'Halal', 'Keto', 'Vegetarian'].map(
                 (item, index) => (
-                  <TouchableOpacity key={index} style={styles.dietChip}>
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.dietChip}
+                    onPress={() => handleQuickSearch(item)}
+                  >
                     <Text style={styles.dietChipText}>{item}</Text>
                   </TouchableOpacity>
                 )
@@ -123,9 +183,7 @@ export default function SearchScreen({ navigation }: any) {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.resultItem}
-              onPress={() =>
-                navigation.navigate('Restaurant', { restaurant: item })
-              }
+              onPress={() => handleSelectResult(item)}
             >
               <Image source={{ uri: item.image }} style={styles.resultImage} />
               <View style={styles.resultInfo}>
@@ -320,5 +378,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textLight,
     marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textLight,
+    fontStyle: 'italic',
+    paddingVertical: 12,
   },
 });

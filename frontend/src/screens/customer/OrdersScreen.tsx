@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -16,14 +17,32 @@ export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (pageNum = 1, append = false) => {
+    if (loading) return;
+    setLoading(true);
     try {
-      const res = await ordersAPI.getMyOrders();
+      const res = await ordersAPI.getMyOrders(pageNum, 20);
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      setAllOrders(data);
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-  }, []);
+      const meta = res?.meta;
+      
+      if (append) {
+        setAllOrders(prev => [...prev, ...data]);
+      } else {
+        setAllOrders(data);
+      }
+      
+      setHasMore(meta ? pageNum < meta.totalPages : false);
+      setPage(pageNum);
+    } catch (e: any) { 
+      Alert.alert('Error', e?.message || 'Something went wrong'); 
+    } finally {
+      setLoading(false);
+    }
+  }, [loading]);
 
   useEffect(() => {
     loadOrders();
@@ -31,8 +50,38 @@ export default function OrdersScreen({ navigation }: any) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadOrders();
+    setPage(1);
+    await loadOrders(1, false);
     setRefreshing(false);
+  };
+
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      loadOrders(page + 1, true);
+    }
+  };
+
+  const handleReorder = async (order: any) => {
+    try {
+      await ordersAPI.reorder(order.id);
+      Alert.alert('Success', 'Order added to cart!');
+      navigation.navigate('Cart');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not reorder');
+    }
+  };
+
+  const formatETA = (estimatedTime: string | null) => {
+    if (!estimatedTime) return null;
+    const eta = new Date(estimatedTime);
+    const now = new Date();
+    const diffMs = eta.getTime() - now.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins <= 0) return 'Soon';
+    if (diffMins < 60) return `${diffMins} min`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
   const activeOrders = allOrders.filter(
@@ -44,10 +93,15 @@ export default function OrdersScreen({ navigation }: any) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'pending':
+      case 'confirmed':
+        return colors.info;
+      case 'preparing':
+      case 'ready':
+        return colors.warning;
+      case 'picked_up':
       case 'in_transit':
         return colors.teal;
-      case 'preparing':
-        return colors.warning;
       case 'delivered':
         return colors.success;
       case 'cancelled':
@@ -59,16 +113,24 @@ export default function OrdersScreen({ navigation }: any) {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'in_transit':
-        return 'On the Way';
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+        return 'Confirmed';
       case 'preparing':
         return 'Preparing';
+      case 'ready':
+        return 'Ready';
+      case 'picked_up':
+        return 'Picked Up';
+      case 'in_transit':
+        return 'On the Way';
       case 'delivered':
         return 'Delivered';
       case 'cancelled':
         return 'Cancelled';
       default:
-        return status;
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -128,17 +190,17 @@ export default function OrdersScreen({ navigation }: any) {
               key={order.id}
               style={styles.orderCard}
               onPress={() => {
-                if (order.status !== 'delivered') {
-                  navigation.navigate('OrderTracking');
+                if (order.status !== 'delivered' && order.status !== 'cancelled') {
+                  navigation.navigate('OrderTracking', { orderId: order.id });
                 }
               }}
             >
               <View style={styles.orderHeader}>
                 <View>
                   <Text style={styles.orderRestaurant}>
-                    {order.restaurantName}
+                    {order.business?.businessName || 'Unknown Restaurant'}
                   </Text>
-                  <Text style={styles.orderId}>{order.id}</Text>
+                  <Text style={styles.orderId}>#{order.orderNumber || order.id.slice(0, 8)}</Text>
                 </View>
                 <View
                   style={[
@@ -164,30 +226,33 @@ export default function OrdersScreen({ navigation }: any) {
               </View>
 
               <View style={styles.orderItems}>
-                {order.items.map((item: any, index: number) => (
+                {(order.items || []).slice(0, 3).map((item: any, index: number) => (
                   <Text key={index} style={styles.orderItemText}>
-                    • {item}
+                    • {item.quantity}x {item.menuItem?.name || 'Item'}
                   </Text>
                 ))}
+                {(order.items?.length || 0) > 3 && (
+                  <Text style={styles.orderItemText}>• +{order.items.length - 3} more items</Text>
+                )}
               </View>
 
               <View style={styles.orderFooter}>
                 <Text style={styles.orderTotal}>
-                  ₦{order.total.toLocaleString()}
+                  ₦{(order.totalAmount || 0).toLocaleString()}
                 </Text>
-                {order.status === 'in_transit' && order.eta && (
+                {(order.status === 'in_transit' || order.status === 'picked_up') && formatETA(order.estimatedDeliveryTime) && (
                   <View style={styles.etaBadge}>
                     <Ionicons name="time" size={14} color={colors.teal} />
-                    <Text style={styles.etaText}>ETA: {order.eta}</Text>
+                    <Text style={styles.etaText}>ETA: {formatETA(order.estimatedDeliveryTime)}</Text>
                   </View>
                 )}
                 {order.status === 'delivered' && (
                   <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.reorderBtn}>
+                    <TouchableOpacity style={styles.reorderBtn} onPress={() => handleReorder(order)}>
                       <Ionicons name="refresh" size={16} color={colors.teal} />
                       <Text style={styles.reorderText}>Reorder</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.reviewBtn} onPress={() => navigation.navigate('Feedback', { order })}>
+                    <TouchableOpacity style={styles.reviewBtn} onPress={() => navigation.navigate('Feedback', { orderId: order.id })}>
                       <Ionicons name="star-outline" size={16} color={colors.navy} />
                       <Text style={styles.reviewText}>Review</Text>
                     </TouchableOpacity>
@@ -196,6 +261,22 @@ export default function OrdersScreen({ navigation }: any) {
               </View>
             </TouchableOpacity>
           ))
+        )}
+        {orders.length > 0 && hasMore && (
+          <TouchableOpacity 
+            style={styles.loadMoreBtn} 
+            onPress={loadMore}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.teal} />
+            ) : (
+              <>
+                <Text style={styles.loadMoreText}>Load More</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.teal} />
+              </>
+            )}
+          </TouchableOpacity>
         )}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -382,5 +463,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.navy,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.teal,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.teal,
   },
 });

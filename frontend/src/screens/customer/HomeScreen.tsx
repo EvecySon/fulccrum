@@ -92,7 +92,7 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   const renderCategory = ({ item }: any) => (
-    <TouchableOpacity style={styles.categoryItem} onPress={() => navigation.navigate('Search', { query: item.name })}>
+    <TouchableOpacity style={styles.categoryItem} onPress={() => navigation.navigate('CategoryBrowse', { category: item.name })}>
       <View style={styles.categoryIcon}>
         <Ionicons
           name={item.icon as any}

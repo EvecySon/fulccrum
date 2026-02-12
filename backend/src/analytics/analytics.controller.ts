@@ -27,7 +27,7 @@ export class AnalyticsController {
 
   @Get('top-performers')
   async getTopPerformers(
-    @Query('type') type: 'drivers' | 'businesses',
+    @Query('type') type: 'drivers' | 'businesses' | 'items',
     @Query('limit') limit?: string,
   ) {
     return this.analyticsService.getTopPerformers(type, limit ? parseInt(limit) : 10);
