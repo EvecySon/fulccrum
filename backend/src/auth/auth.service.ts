@@ -82,7 +82,7 @@ export class AuthService {
       });
 
       // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
@@ -155,6 +155,47 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      console.log('[LOGIN] Account not verified - sending new OTP');
+      
+      // Generate new OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+      // Store new OTP
+      await this.prisma.passwordReset.create({
+        data: {
+          userId: user.id,
+          otp,
+          resetToken: `verify_${Date.now()}`,
+          expiresAt,
+        },
+      });
+
+      // Send verification email
+      await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+
+      // Send SMS if phone exists
+      if (user.phone) {
+        await this.termiiService.sendSMS(
+          user.phone,
+          `Your Fulccrum verification code is: ${otp}. Valid for 10 minutes.`,
+        );
+      }
+
+      console.log('[LOGIN] New OTP sent to unverified account');
+
+      // Return special response for unverified account
+      return {
+        verified: false,
+        email: user.email,
+        phone: user.phone,
+        message: 'Please verify your account. A new verification code has been sent to your email.',
+      };
+    }
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
@@ -189,7 +230,7 @@ export class AuthService {
       };
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
     const resetToken = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -337,7 +378,7 @@ export class AuthService {
     }
 
     // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 

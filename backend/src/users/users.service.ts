@@ -136,7 +136,7 @@ export class UsersService {
           status: 'deleted',
           email: `deleted_${userId}@deleted.com`,
           phone: null,
-          passwordHash: null,
+          passwordHash: 'DELETED_ACCOUNT',
           firstName: 'Deleted',
           lastName: 'User',
           avatarUrl: null,

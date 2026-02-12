@@ -21,7 +21,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   biometricEnabled: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   register: (data: {
     email: string;
     password: string;
@@ -134,9 +134,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authAPI.login(email, password);
+    
+    // Check if account is unverified
+    if (response.verified === false) {
+      // Return the unverified response so UI can navigate to verification screen
+      return response;
+    }
+    
+    // Normal verified login
     await saveTokens(response.accessToken, response.refreshToken);
     setUser(response.user);
     registerPushToken();
+    return response;
   };
 
   const register = async (data: {
@@ -148,9 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role?: string;
   }) => {
     const response = await authAPI.register(data);
-    // Save tokens but do NOT set user — keep isAuthenticated false
-    // so the user stays in the auth flow for OTP and onboarding
-    await saveTokens(response.accessToken, response.refreshToken);
+    // Registration doesn't return tokens - user must verify OTP first
+    // Return the response so the UI can navigate to verification screen
+    return response;
   };
 
   const logout = async () => {
