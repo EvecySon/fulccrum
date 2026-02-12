@@ -56,6 +56,17 @@ export class OrdersService {
         specialInstructions: instructions || undefined,
         paymentMethod: dto.paymentMethod,
         paymentStatus: 'pending',
+        deliveryAddressId: dto.deliveryAddressId || undefined,
+        items: {
+          create: (dto.items || []).map(item => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            modifiers: item.modifiers || undefined,
+            notes: item.notes || undefined,
+          })),
+        },
       },
       include: {
         customer: {
@@ -64,6 +75,11 @@ export class OrdersService {
             firstName: true,
             lastName: true,
             email: true,
+          },
+        },
+        items: {
+          include: {
+            menuItem: { select: { id: true, name: true, images: true } },
           },
         },
       },

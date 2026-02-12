@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { arAPI } from '../../services/api';
+import { useCart } from '../../contexts/CartContext';
 
 interface ARModel {
   id: string;
@@ -19,6 +20,7 @@ interface ARModel {
 
 export default function ARFoodPreviewScreen({ navigation, route }: any) {
   const itemId = route?.params?.itemId;
+  const { addItem, clearCart } = useCart();
   const [arItems, setArItems] = useState<ARModel[]>([]);
   const [selectedItem, setSelectedItem] = useState<ARModel | null>(null);
   const [arActive, setArActive] = useState(false);
@@ -133,12 +135,17 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
       </View>
 
       {/* Add to Cart */}
+      {selectedItem && (
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addToCartBtn}>
-          <Ionicons name="cart" size={20} color={colors.textWhite} />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+        <TouchableOpacity style={styles.addToCartBtn} onPress={() => {
+          // Navigate to search so user can find the restaurant and add properly
+          navigation.navigate('Search', { query: selectedItem.name });
+        }}>
+          <Ionicons name="search" size={20} color={colors.textWhite} />
+          <Text style={styles.addToCartText}>Find & Order {selectedItem.name}</Text>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 }

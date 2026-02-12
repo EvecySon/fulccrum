@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
@@ -19,12 +21,24 @@ const RESTAURANT_COORDS = { latitude: 6.5244, longitude: 3.3792 };
 const CUSTOMER_COORDS = { latitude: 6.5344, longitude: 3.3892 };
 
 const stages = [
-  { key: 'confirmed', label: 'Order Confirmed', icon: 'checkmark-circle' },
+  { key: 'pending', label: 'Order Placed', icon: 'checkmark-circle' },
+  { key: 'accepted', label: 'Accepted', icon: 'checkmark-done-circle' },
   { key: 'preparing', label: 'Preparing', icon: 'restaurant' },
-  { key: 'picked_up', label: 'Picked Up', icon: 'bag-check' },
-  { key: 'in_transit', label: 'On the Way', icon: 'bicycle' },
+  { key: 'ready', label: 'Ready', icon: 'bag-check' },
+  { key: 'picked_up', label: 'Picked Up', icon: 'bicycle' },
   { key: 'delivered', label: 'Delivered', icon: 'home' },
 ];
+
+const statusMessages: Record<string, string> = {
+  pending: 'Waiting for restaurant to accept',
+  accepted: 'Restaurant accepted your order!',
+  preparing: 'Your food is being prepared',
+  ready: 'Your order is ready for pickup',
+  picked_up: 'Your food is on its way!',
+  in_transit: 'Your food is on its way!',
+  delivered: 'Order delivered!',
+  cancelled: 'Order was cancelled',
+};
 
 const getStageIndex = (status: string) => {
   const idx = stages.findIndex(s => s.key === status);
@@ -32,14 +46,22 @@ const getStageIndex = (status: string) => {
 };
 
 export default function OrderTrackingScreen({ navigation, route }: any) {
-  const orderId = route?.params?.orderId || '';
+  const orderId = route?.params?.orderId || route?.params?.order?.id || '';
   const [order, setOrder] = useState<any>(route?.params?.order || null);
-  const currentStageIndex = getStageIndex(order?.status || 'confirmed');
+  const [loading, setLoading] = useState(!route?.params?.order);
+  const currentStageIndex = getStageIndex(order?.status || 'pending');
   const mapRef = useRef<MapView>(null);
   const [driverLocation, setDriverLocation] = useState({
     latitude: 6.5294,
     longitude: 3.3842,
   });
+
+  // Derived fields from real order data
+  const restaurantName = order?.business?.businessName || 'Restaurant';
+  const driverName = order?.driver ? `${order.driver.firstName} ${order.driver.lastName || ''}`.trim() : 'Awaiting driver';
+  const driverAvatar = order?.driver?.avatarUrl;
+  const totalAmount = order?.totalAmount ? Number(order.totalAmount) : 0;
+  const orderItems = order?.items || [];
 
   useEffect(() => {
     if (!order && orderId) {
@@ -47,9 +69,24 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         try {
           const res = await ordersAPI.getOrder(orderId);
           if (res) setOrder(res);
-        } catch { /* order may not exist yet */ }
+        } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load order'); }
+        setLoading(false);
       })();
+    } else {
+      setLoading(false);
     }
+  }, [orderId]);
+
+  // Poll for order updates every 15s
+  useEffect(() => {
+    if (!orderId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await ordersAPI.getOrder(orderId);
+        if (res) setOrder(res);
+      } catch {}
+    }, 15000);
+    return () => clearInterval(interval);
   }, [orderId]);
 
   useEffect(() => {
@@ -79,6 +116,14 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
     }
   }, [driverLocation]);
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.teal} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -86,17 +131,17 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order {order.id}</Text>
-        <TouchableOpacity>
+        <Text style={styles.headerTitle}>Order #{order?.orderNumber || orderId.slice(0, 8)}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Chat')}>
           <Ionicons name="help-circle-outline" size={24} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
 
       {/* ETA Banner */}
       <View style={styles.etaBanner}>
-        <Text style={styles.etaLabel}>Estimated Arrival</Text>
-        <Text style={styles.etaTime}>{order.eta}</Text>
-        <Text style={styles.etaSubtext}>Your food is on its way!</Text>
+        <Text style={styles.etaLabel}>{order?.status === 'delivered' ? 'Delivered' : 'Order Status'}</Text>
+        <Text style={styles.etaTime}>{order?.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</Text>
+        <Text style={styles.etaSubtext}>{statusMessages[order?.status] || 'Processing your order'}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -116,7 +161,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
           showsMyLocationButton={false}
         >
           {/* Restaurant Marker */}
-          <Marker coordinate={RESTAURANT_COORDS} title={order.restaurantName}>
+          <Marker coordinate={RESTAURANT_COORDS} title={restaurantName}>
             <View style={styles.markerContainer}>
               <Ionicons name="restaurant" size={18} color={colors.textWhite} />
             </View>
@@ -130,7 +175,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
           </Marker>
 
           {/* Driver Marker */}
-          <Marker coordinate={driverLocation} title={order.driverName}>
+          <Marker coordinate={driverLocation} title={driverName}>
             <View style={[styles.markerContainer, { backgroundColor: colors.warning }]}>
               <Ionicons name="bicycle" size={18} color={colors.textWhite} />
             </View>
@@ -190,73 +235,59 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
             <Ionicons name="restaurant" size={20} color={colors.textWhite} />
           </View>
           <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{order.restaurantName}</Text>
+            <Text style={styles.driverName}>{restaurantName}</Text>
             <Text style={styles.contactRoleText}>Preparing your order</Text>
           </View>
-          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('OrderChat', {
-            orderId: order.id,
-            recipientName: order.restaurantName,
-            recipientRole: 'merchant',
-          })}>
+          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('Chat')}>
             <Ionicons name="chatbubble-ellipses" size={20} color={colors.navy} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.driverAction, styles.callAction]} onPress={() => navigation.navigate('Call', {
-            orderId: order.id,
-            recipientName: order.restaurantName,
-            recipientRole: 'merchant',
-            callType: 'voice',
-          })}>
+          <TouchableOpacity style={[styles.driverAction, styles.callAction]}>
             <Ionicons name="call" size={20} color={colors.textWhite} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Contact Driver */}
+      {order?.driver && (
       <View style={styles.contactSection}>
         <Text style={styles.contactLabel}>Delivery Driver</Text>
         <View style={styles.contactRow}>
-          <Image
-            source={{ uri: order.driverAvatar }}
-            style={styles.driverAvatar}
-          />
-          <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{order.driverName}</Text>
-            <View style={styles.driverRating}>
-              <Ionicons name="star" size={14} color={colors.warning} />
-              <Text style={styles.driverRatingText}>{order.driverRating}</Text>
+          {driverAvatar ? (
+            <Image source={{ uri: driverAvatar }} style={styles.driverAvatar} />
+          ) : (
+            <View style={[styles.contactAvatarWrap, { backgroundColor: colors.teal }]}>
+              <Ionicons name="bicycle" size={20} color={colors.textWhite} />
             </View>
+          )}
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{driverName}</Text>
+            {order.driver.phone && <Text style={styles.contactRoleText}>{order.driver.phone}</Text>}
           </View>
-          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('OrderChat', {
-            orderId: order.id,
-            recipientName: order.driverName,
-            recipientAvatar: order.driverAvatar,
-            recipientRole: 'courier',
-          })}>
+          <TouchableOpacity style={styles.driverAction} onPress={() => navigation.navigate('Chat')}>
             <Ionicons name="chatbubble-ellipses" size={20} color={colors.teal} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.driverAction, styles.callActionTeal]} onPress={() => navigation.navigate('Call', {
-            orderId: order.id,
-            recipientName: order.driverName,
-            recipientAvatar: order.driverAvatar,
-            recipientRole: 'courier',
-            callType: 'voice',
-          })}>
+          <TouchableOpacity style={[styles.driverAction, styles.callActionTeal]}>
             <Ionicons name="call" size={20} color={colors.textWhite} />
           </TouchableOpacity>
         </View>
       </View>
+      )}
 
       {/* Order Details */}
       <View style={styles.orderDetails}>
-        <Text style={styles.detailsTitle}>{order.restaurantName}</Text>
-        {order?.items?.map((item: any, index: number) => (
-          <Text key={index} style={styles.detailsItem}>
-            • {item}
-          </Text>
+        <Text style={styles.detailsTitle}>{restaurantName}</Text>
+        {orderItems.map((item: any, index: number) => (
+          <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={styles.detailsItem}>
+              {item.quantity}× {item.menuItem?.name || item.name || 'Item'}
+            </Text>
+            <Text style={styles.detailsItem}>₦{Number(item.totalPrice || 0).toLocaleString()}</Text>
+          </View>
         ))}
+        {orderItems.length === 0 && <Text style={styles.detailsItem}>Order details loading...</Text>}
         <View style={styles.detailsTotal}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>₦{order.total.toFixed(2)}</Text>
+          <Text style={styles.totalValue}>₦{totalAmount.toLocaleString()}</Text>
         </View>
       </View>
       <View style={{ height: 40 }} />

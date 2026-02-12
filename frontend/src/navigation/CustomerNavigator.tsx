@@ -30,6 +30,7 @@ import ARFoodPreviewScreen from '../screens/customer/ARFoodPreviewScreen';
 import SocialFeedScreen from '../screens/customer/SocialFeedScreen';
 import SustainabilityScreen from '../screens/customer/SustainabilityScreen';
 import VRRestaurantTourScreen from '../screens/customer/VRRestaurantTourScreen';
+import BlockchainScreen from '../screens/customer/BlockchainScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -114,6 +115,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="SocialFeed" component={SocialFeedScreen} />
       <Stack.Screen name="Sustainability" component={SustainabilityScreen} />
       <Stack.Screen name="VRRestaurantTour" component={VRRestaurantTourScreen} />
+      <Stack.Screen name="Blockchain" component={BlockchainScreen} />
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />
     </Stack.Navigator>

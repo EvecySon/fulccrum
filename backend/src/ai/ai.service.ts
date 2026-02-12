@@ -66,12 +66,87 @@ export class AiService {
   }
 
   async processVoiceCommand(userId: string, audioUri: string) {
+    // audioUri is actually the transcript text from the frontend
+    const text = (audioUri || '').toLowerCase().trim();
+
+    if (!text) {
+      return {
+        intent: 'unknown',
+        confidence: 0.3,
+        parsedItems: [],
+        suggestedAction: 'Please say or type what you would like to order.',
+        rawText: '',
+      };
+    }
+
+    // Determine intent
+    let intent = 'order';
+    if (text.includes('reorder') || text.includes('last meal') || text.includes('again')) {
+      intent = 'reorder';
+    } else if (text.includes('find') || text.includes('search') || text.includes('where')) {
+      intent = 'search';
+    } else if (text.includes('trending') || text.includes('popular') || text.includes('recommend')) {
+      intent = 'discover';
+    } else if (text.includes('cancel')) {
+      intent = 'cancel';
+    } else if (text.includes('track') || text.includes('status') || text.includes('where is')) {
+      intent = 'track';
+    }
+
+    // Extract restaurant name (after "from")
+    let restaurant: string | undefined;
+    const fromMatch = text.match(/from\s+(.+?)(?:\s*$|\s+and\s|\s+with\s)/i);
+    if (fromMatch) {
+      restaurant = fromMatch[1].replace(/['"]/g, '').trim();
+      // Capitalize each word
+      restaurant = restaurant.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    } else {
+      const fromEnd = text.match(/from\s+(.+)$/i);
+      if (fromEnd) {
+        restaurant = fromEnd[1].replace(/['"]/g, '').trim();
+        restaurant = restaurant.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+    }
+
+    // Extract food items — remove common filler words
+    const fillers = ['order', 'get', 'me', 'i', 'want', 'some', 'a', 'an', 'the', 'please', 'can', 'you', 'give', 'bring', 'need', 'would', 'like', 'of', 'with'];
+    let itemsText = text;
+    // Remove "from <restaurant>" part
+    if (restaurant) {
+      itemsText = itemsText.replace(/from\s+.+$/i, '').trim();
+    }
+    // Split by "and", commas
+    const rawItems = itemsText.split(/\s+and\s+|,\s*/).map(s => s.trim()).filter(Boolean);
+    const parsedItems = rawItems.map(item => {
+      const words = item.split(/\s+/).filter(w => !fillers.includes(w.toLowerCase()));
+      return words.join(' ');
+    }).filter(item => item.length > 1).map(item =>
+      item.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    );
+
+    // Build suggestion
+    let suggestedAction = '';
+    if (intent === 'reorder') {
+      suggestedAction = 'Reordering your last meal...';
+    } else if (intent === 'search') {
+      suggestedAction = `Searching for ${parsedItems.length > 0 ? parsedItems.join(', ') : 'restaurants'}...`;
+    } else if (intent === 'discover') {
+      suggestedAction = 'Showing trending items near you...';
+    } else if (parsedItems.length > 0 && restaurant) {
+      suggestedAction = `Order ${parsedItems.join(', ')} from ${restaurant}`;
+    } else if (parsedItems.length > 0) {
+      suggestedAction = `Search for ${parsedItems.join(', ')} nearby`;
+    } else {
+      suggestedAction = 'Browse the menu to find what you want.';
+    }
+
     return {
-      intent: 'order',
-      confidence: 0.9,
-      parsedItems: [],
-      suggestedAction: 'Please type your order or browse the menu.',
-      rawText: '',
+      intent,
+      confidence: parsedItems.length > 0 ? 0.92 : 0.7,
+      parsedItems,
+      restaurant,
+      suggestedAction,
+      rawText: audioUri,
     };
   }
 

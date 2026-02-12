@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { searchAPI, analyticsAPI } from '../../services/api';
+import { searchAPI, analyticsAPI, addressesAPI, notificationsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 
 const categories = [
   { id: '1', name: 'Restaurants', icon: 'restaurant' },
@@ -34,6 +35,7 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { itemCount } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [trendingItems, setTrendingItems] = useState<any[]>([]);
@@ -43,7 +45,26 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     loadRestaurants();
     loadTrending();
+    loadAddress();
+    loadNotifCount();
   }, []);
+
+  const loadAddress = async () => {
+    try {
+      const res = await addressesAPI.getAll();
+      const addrs = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const def = addrs.find((a: any) => a.isDefault) || addrs[0];
+      if (def) setDefaultAddress(`${def.streetAddress}${def.city ? `, ${def.city}` : ''}`);
+    } catch {}
+  };
+
+  const loadNotifCount = async () => {
+    try {
+      const res = await notificationsAPI.getAll();
+      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setNotifCount(data.filter((n: any) => !n.isRead).length);
+    } catch {}
+  };
 
   const loadRestaurants = async () => {
     try {
@@ -62,7 +83,7 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const renderMoodCard = ({ item }: any) => (
-    <TouchableOpacity style={styles.moodCard}>
+    <TouchableOpacity style={styles.moodCard} onPress={() => navigation.navigate('Search', { query: item.name })}>
       <Image source={{ uri: item.image }} style={styles.moodImage} />
       <View style={[styles.moodOverlay, { backgroundColor: item.color + '99' }]}>
         <Text style={styles.moodText}>{item.name}</Text>
@@ -71,7 +92,7 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   const renderCategory = ({ item }: any) => (
-    <TouchableOpacity style={styles.categoryItem}>
+    <TouchableOpacity style={styles.categoryItem} onPress={() => navigation.navigate('Search', { query: item.name })}>
       <View style={styles.categoryIcon}>
         <Ionicons
           name={item.icon as any}
@@ -97,7 +118,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.ratingText}>{item.rating}</Text>
           </View>
         </View>
-        <Text style={styles.cuisineText}>{item.cuisine}</Text>
+        {item.cuisine ? <Text style={styles.cuisineText}>{item.cuisine}</Text> : null}
         <View style={styles.restaurantMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="time-outline" size={14} color={colors.textLight} />
@@ -112,7 +133,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.metaText}>{item.distance}</Text>
           </View>
         </View>
-        {item.tags.length > 0 && (
+        {(item.tags?.length ?? 0) > 0 && (
           <View style={styles.tagsRow}>
             {item.tags.map((tag: string, index: number) => (
               <View key={index} style={styles.tag}>
@@ -141,20 +162,30 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}!</Text>
-            <TouchableOpacity style={styles.addressRow}>
+            <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Address')}>
               <Ionicons name="location" size={16} color={colors.tealLight} />
-              <Text style={styles.addressText}>{defaultAddress || 'Set delivery address'}</Text>
+              <Text style={styles.addressText} numberOfLines={1}>{defaultAddress || 'Set delivery address'}</Text>
               <Ionicons name="chevron-down" size={16} color={colors.tealLight} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.notificationBtn}>
-            <Ionicons name="notifications-outline" size={24} color={colors.textWhite} />
-            {notifCount > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.badgeText}>{notifCount > 9 ? '9+' : notifCount}</Text>
-              </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {itemCount > 0 && (
+              <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Cart')}>
+                <Ionicons name="cart" size={24} color={colors.textWhite} />
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>{itemCount > 9 ? '9+' : itemCount}</Text>
+                </View>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
+              <Ionicons name="notifications-outline" size={24} color={colors.textWhite} />
+              {notifCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>{notifCount > 9 ? '9+' : notifCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -165,7 +196,7 @@ export default function HomeScreen({ navigation }: any) {
             placeholder="Search for stores or items"
             placeholderTextColor={colors.textLight}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onFocus={() => { navigation.navigate('Search'); }}
           />
           <TouchableOpacity>
             <Ionicons name="options-outline" size={20} color={colors.teal} />
@@ -202,11 +233,11 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionBtn}>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => navigation.navigate('Orders')}>
             <Ionicons name="refresh" size={20} color={colors.teal} />
             <Text style={styles.quickActionText}>Reorder Last Meal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn}>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => navigation.navigate('GroupOrder')}>
             <Ionicons name="people" size={20} color={colors.teal} />
             <Text style={styles.quickActionText}>Group Order</Text>
           </TouchableOpacity>

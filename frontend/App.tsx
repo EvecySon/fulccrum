@@ -4,6 +4,7 @@ import { ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { CartProvider } from './src/contexts/CartContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppSwitcher from './src/navigation/AppSwitcher';
 
@@ -66,10 +67,12 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <NavigationContainer linking={linking}>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </NavigationContainer>
+        <CartProvider>
+          <NavigationContainer linking={linking}>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </NavigationContainer>
+        </CartProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

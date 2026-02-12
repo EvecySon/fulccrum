@@ -230,6 +230,7 @@ model Address {
 
   user     User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   business BusinessProfile? @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  orders   Order[]          @relation("order_delivery_address")
 
   @@map("addresses")
 }
@@ -262,6 +263,7 @@ model Order {
   paymentMethod  String?     @map("payment_method") @db.VarChar(50)
   paymentStatus  PaymentStatus @default(pending) @map("payment_status")
   paymentId      String?     @map("payment_id") @db.VarChar(255)
+  deliveryAddressId String?  @map("delivery_address_id") @db.Uuid
 
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -269,6 +271,7 @@ model Order {
   customer User            @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
   business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
+  deliveryAddress Address?  @relation("order_delivery_address", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
   review     Review?
   items      OrderItem[]
   groupOrder GroupOrder? @relation("group_order_placed")
@@ -277,6 +280,7 @@ model Order {
   @@index([businessId])
   @@index([driverId])
   @@index([status])
+  @@index([deliveryAddressId])
   @@map("orders")
 }
 

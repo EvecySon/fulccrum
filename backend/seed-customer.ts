@@ -10,8 +10,8 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 async function main() {
   const hash = await bcrypt.hash('Test1234!', 12);
 
-  // Delete if exists
-  await prisma.user.deleteMany({ where: { email: 'customer@fulccrum.com' } }).catch(() => {});
+  // Delete if exists (by email or phone)
+  await prisma.user.deleteMany({ where: { OR: [{ email: 'customer@fulccrum.com' }, { phone: '+2348012345678' }] } }).catch(() => {});
 
   const user = await prisma.user.create({
     data: {
