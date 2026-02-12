@@ -31,6 +31,7 @@ interface InventoryItem {
 export default function SmartKitchenScreen({ navigation }: any) {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [predictions, setPredictions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'predictions'>('orders');
@@ -39,9 +40,22 @@ export default function SmartKitchenScreen({ navigation }: any) {
 
   const loadData = async () => {
     try {
-      const [ops, inv] = await Promise.all([kitchenAPI.getOperations(), kitchenAPI.getInventory()]);
-      if (Array.isArray(ops)) setOrders(ops);
+      const [ops, inv, preds] = await Promise.all([
+        kitchenAPI.getOperations(),
+        kitchenAPI.getInventory(),
+        kitchenAPI.getPrepPredictions(),
+      ]);
+      if (Array.isArray(ops)) {
+        setOrders(ops.map((o: any) => ({
+          ...o,
+          status: o.status === 'pending' ? 'queued' : o.status,
+          estimatedTime: o.estimatedPrepTime || o.estimatedTime || 15,
+          station: o.station || 'Main',
+          priority: o.priority || 'normal',
+        })));
+      }
       if (Array.isArray(inv)) setInventory(inv);
+      if (preds) setPredictions(preds);
     } catch {
       // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
@@ -156,27 +170,41 @@ export default function SmartKitchenScreen({ navigation }: any) {
           ))}
 
           {activeTab === 'predictions' && (
-            <View style={styles.predictionsSection}>
-              <View style={styles.predCard}>
-                <Ionicons name="time" size={28} color={colors.warning} />
-                <Text style={styles.predTitle}>Peak Hour</Text>
-                <Text style={styles.predValue}>—</Text>
+            <View style={{ padding: 8 }}>
+              <View style={styles.predictionsSection}>
+                <View style={styles.predCard}>
+                  <Ionicons name="time" size={28} color={colors.warning} />
+                  <Text style={styles.predTitle}>Peak Hour</Text>
+                  <Text style={styles.predValue}>{predictions?.peakHours?.[0] || '—'}</Text>
+                </View>
+                <View style={styles.predCard}>
+                  <Ionicons name="receipt" size={28} color={colors.teal} />
+                  <Text style={styles.predTitle}>Expected Orders</Text>
+                  <Text style={styles.predValue}>{predictions?.predictedOrders ?? '—'}</Text>
+                </View>
               </View>
-              <View style={styles.predCard}>
-                <Ionicons name="receipt" size={28} color={colors.teal} />
-                <Text style={styles.predTitle}>Expected Orders</Text>
-                <Text style={styles.predValue}>—</Text>
-              </View>
-              <View style={styles.predCard}>
-                <Ionicons name="timer" size={28} color={colors.navy} />
-                <Text style={styles.predTitle}>Avg Prep Time</Text>
-                <Text style={styles.predValue}>—</Text>
-              </View>
-              <View style={styles.predCard}>
-                <Ionicons name="people" size={28} color={colors.success} />
-                <Text style={styles.predTitle}>Staff Needed</Text>
-                <Text style={styles.predValue}>—</Text>
-              </View>
+              {predictions?.suggestedPrepItems?.length > 0 && (
+                <View style={{ marginHorizontal: 4, marginTop: 8 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 10, marginLeft: 4 }}>Suggested Prep Items</Text>
+                  {predictions.suggestedPrepItems.map((item: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 6 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>{item.name}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.teal }}>~{item.estimatedQuantity}/day</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {predictions?.peakHours?.length > 1 && (
+                <View style={{ marginHorizontal: 4, marginTop: 12 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 10, marginLeft: 4 }}>All Peak Hours</Text>
+                  {predictions.peakHours.map((h: string, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 6 }}>
+                      <Ionicons name="time-outline" size={18} color={colors.warning} />
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>{h}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
           <View style={{ height: 100 }} />

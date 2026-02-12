@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsPhoneNumber } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsPhoneNumber, IsArray } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -20,4 +20,18 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  dietaryPreferences?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allergies?: string[];
+
+  @IsOptional()
+  @IsString()
+  customAllergies?: string;
 }

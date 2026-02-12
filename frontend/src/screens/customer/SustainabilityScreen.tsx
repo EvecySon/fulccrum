@@ -15,14 +15,6 @@ interface EcoOption {
   enabled: boolean;
 }
 
-const mockStats = {
-  totalOrders: 47,
-  carbonSaved: 12.4,
-  treesEquivalent: 2,
-  ecoScore: 78,
-  plasticAvoided: 23,
-  localOrders: 31,
-};
 
 const defaultEcoOptions: EcoOption[] = [
   { key: 'no_utensils', label: 'No Plastic Utensils', description: 'Skip disposable cutlery with your orders', icon: 'restaurant-outline', enabled: true },
@@ -35,7 +27,7 @@ const defaultEcoOptions: EcoOption[] = [
 export default function SustainabilityScreen({ navigation }: any) {
   const [ecoOptions, setEcoOptions] = useState<EcoOption[]>(defaultEcoOptions);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(mockStats);
+  const [stats, setStats] = useState<any>({ totalOrders: 0, carbonSaved: 0, treesEquivalent: 0, ecoScore: 0, plasticAvoided: 0, localOrders: 0 });
 
   useEffect(() => {
     loadData();
@@ -47,8 +39,26 @@ export default function SustainabilityScreen({ navigation }: any) {
         sustainabilityAPI.getCarbonFootprint(),
         sustainabilityAPI.getEcoOptions(),
       ]);
-      if (footprint) setStats(footprint);
-      if (Array.isArray(options)) setEcoOptions(options);
+      if (footprint) {
+        setStats({
+          totalOrders: footprint.totalOrders || 0,
+          carbonSaved: footprint.totalCO2Saved ?? footprint.carbonSaved ?? 0,
+          treesEquivalent: footprint.treesEquivalent || 0,
+          ecoScore: footprint.ecoScore ?? Math.min(Math.round((footprint.ecoOrdersPercent || 0) * 100), 100),
+          plasticAvoided: footprint.plasticAvoided ?? (footprint.totalOrders || 0) * 2,
+          localOrders: footprint.localOrders ?? Math.round((footprint.totalOrders || 0) * 0.6),
+        });
+      }
+      if (Array.isArray(options)) {
+        // Map backend eco options to frontend shape
+        setEcoOptions(options.map((o: any) => ({
+          key: o.key,
+          label: o.label,
+          description: o.description || o.impact || '',
+          icon: defaultEcoOptions.find(d => d.key === o.key)?.icon || 'leaf-outline',
+          enabled: o.enabled ?? false,
+        })));
+      }
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     setLoading(false);
   };

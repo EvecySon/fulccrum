@@ -6,25 +6,50 @@ export class MerchantInsightsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllInsights(merchantId: string) {
-    const allInsights = [
-      ...(await this.getDemandForecast(merchantId)),
-      ...(await this.getPricingOptimization(merchantId)),
-      ...(await this.getMenuOptimization(merchantId)),
+    // Generate fresh insights and persist them
+    const generated = [
+      ...(await this.generateDemandInsights(merchantId)),
+      ...(await this.generatePricingInsights(merchantId)),
+      ...(await this.generateMenuInsights(merchantId)),
     ];
 
-    // Filter out dismissed/implemented insights
-    const actions = await this.prisma.merchantInsightAction.findMany({
-      where: { merchantId },
-    });
-    const actionMap: Record<string, string> = {};
-    actions.forEach((a) => { actionMap[a.insightId] = a.action; });
+    // Upsert each insight into the persisted table
+    for (const insight of generated) {
+      await this.prisma.merchantAiInsight.upsert({
+        where: { id: insight.id },
+        create: {
+          id: insight.id,
+          businessId: merchantId,
+          insightType: insight.type,
+          insightData: { title: insight.title, description: insight.description, impact: insight.impact },
+          confidenceScore: insight.confidence,
+          potentialImpact: insight.potentialImpact || null,
+        },
+        update: {
+          insightData: { title: insight.title, description: insight.description, impact: insight.impact },
+          confidenceScore: insight.confidence,
+        },
+      });
+    }
 
-    return allInsights
-      .filter((i) => actionMap[i.id] !== 'dismissed')
-      .map((i) => ({ ...i, implemented: actionMap[i.id] === 'implemented' }));
+    // Return all non-dismissed insights from DB
+    const persisted = await this.prisma.merchantAiInsight.findMany({
+      where: { businessId: merchantId, dismissed: false },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return persisted.map((i) => ({
+      id: i.id,
+      type: i.insightType,
+      title: (i.insightData as any)?.title || '',
+      description: (i.insightData as any)?.description || '',
+      impact: (i.insightData as any)?.impact || 'medium',
+      confidence: i.confidenceScore,
+      implemented: i.implemented,
+    }));
   }
 
-  async getDemandForecast(merchantId: string) {
+  private async generateDemandInsights(merchantId: string) {
     const orderCount = await this.prisma.order.count({
       where: { businessId: merchantId, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
     });
@@ -36,10 +61,11 @@ export class MerchantInsightsService {
       description: `You had ${orderCount} orders this week.`,
       impact: 'medium',
       confidence: 0.8,
+      potentialImpact: orderCount * 50,
     }];
   }
 
-  async getPricingOptimization(merchantId: string) {
+  private async generatePricingInsights(merchantId: string) {
     return [{
       id: `pricing-${merchantId}`,
       type: 'pricing',
@@ -47,10 +73,11 @@ export class MerchantInsightsService {
       description: 'Review your menu pricing to stay competitive.',
       impact: 'medium',
       confidence: 0.75,
+      potentialImpact: null,
     }];
   }
 
-  async getMenuOptimization(merchantId: string) {
+  private async generateMenuInsights(merchantId: string) {
     const items = await this.prisma.menuItem.findMany({
       where: { category: { businessId: merchantId } },
       select: { id: true, name: true },
@@ -64,10 +91,29 @@ export class MerchantInsightsService {
       description: `You have ${items.length} menu items. Consider adding more variety.`,
       impact: 'low',
       confidence: 0.7,
+      potentialImpact: null,
     }];
   }
 
+  async getDemandForecast(merchantId: string) {
+    return this.generateDemandInsights(merchantId);
+  }
+
+  async getPricingOptimization(merchantId: string) {
+    return this.generatePricingInsights(merchantId);
+  }
+
+  async getMenuOptimization(merchantId: string) {
+    return this.generateMenuInsights(merchantId);
+  }
+
   async implementInsight(merchantId: string, insightId: string) {
+    // Update persisted insight
+    await this.prisma.merchantAiInsight.updateMany({
+      where: { id: insightId, businessId: merchantId },
+      data: { implemented: true },
+    });
+    // Also keep backward-compat action record
     await this.prisma.merchantInsightAction.upsert({
       where: { merchantId_insightId: { merchantId, insightId } },
       create: { merchantId, insightId, action: 'implemented' },
@@ -77,6 +123,10 @@ export class MerchantInsightsService {
   }
 
   async dismissInsight(merchantId: string, insightId: string) {
+    await this.prisma.merchantAiInsight.updateMany({
+      where: { id: insightId, businessId: merchantId },
+      data: { dismissed: true },
+    });
     await this.prisma.merchantInsightAction.upsert({
       where: { merchantId_insightId: { merchantId, insightId } },
       create: { merchantId, insightId, action: 'dismissed' },

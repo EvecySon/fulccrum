@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.18.2';
+const DEV_IP = '192.168.0.101';
 
 const getBaseUrl = () => {
   // In production, use your production API URL
@@ -216,9 +216,13 @@ export const authAPI = {
 // ─── Users API ───
 export const usersAPI = {
   getProfile: () => api.get('/users/profile'),
-  updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string }) =>
-    api.patch('/users/profile', data),
+  updateProfile: (data: {
+    firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string;
+    dietaryPreferences?: string[]; allergies?: string[]; customAllergies?: string;
+  }) => api.patch('/users/profile', data),
   updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/users/change-password', { currentPassword, newPassword }),
   deleteAccount: (password: string) => api.delete('/users/account', { password }),
   exportData: () => api.get('/users/data-export'),
 };
@@ -253,6 +257,7 @@ export const addressesAPI = {
 export const ordersAPI = {
   create: (data: any) => api.post('/orders', data),
   get: (id: string) => api.get(`/orders/${id}`),
+  getOrder: (id: string) => api.get(`/orders/${id}`),
   updateStatus: (id: string, status: string) => api.patch(`/orders/${id}/status`, { status }),
   getMyOrders: (page = 1, limit = 20) => api.get(`/orders/customer/my-orders?page=${page}&limit=${limit}`),
   getDriverOrders: (status?: string) => api.get(`/orders/driver/assigned${status ? `?status=${status}` : ''}`),
@@ -262,6 +267,8 @@ export const ordersAPI = {
     api.patch(`/orders/${orderId}/assign-driver`, { driverId }),
   getAvailableDeliveries: (page = 1, limit = 20) =>
     api.get(`/orders/available/deliveries?page=${page}&limit=${limit}`),
+  reorder: (orderId: string) => api.post(`/orders/${orderId}/reorder`),
+  cancel: (orderId: string, reason?: string) => api.post(`/orders/${orderId}/cancel`, { reason }),
 };
 
 // ─── Menu API ───
@@ -302,6 +309,10 @@ export const paymentAPI = {
     api.post('/payment/cards', data),
   setDefaultCard: (id: string) => api.patch(`/payment/cards/${id}/set-default`),
   deleteCard: (id: string) => api.delete(`/payment/cards/${id}`),
+  // Top-up & card add
+  topUp: (amount: number) => api.post('/payment/topup', { amount }),
+  verifyTopUp: (reference: string) => api.get(`/payment/topup/verify/${reference}`),
+  addCard: () => api.post('/payment/cards/add'),
 };
 
 // ─── Wallet API ───
@@ -347,6 +358,14 @@ export const promosAPI = {
   myUsage: (page = 1) => api.get(`/promos/my-usage?page=${page}`),
 };
 
+// ─── Loyalty API ───
+export const loyaltyAPI = {
+  getProfile: () => api.get('/loyalty/profile'),
+  getHistory: (page = 1) => api.get(`/loyalty/history?page=${page}`),
+  getRewards: () => api.get('/loyalty/rewards'),
+  redeem: (rewardId: string) => api.post(`/loyalty/redeem/${rewardId}`),
+};
+
 // ─── Flash Sales API ───
 export const flashSalesAPI = {
   getAll: () => api.get('/merchant/flash-sales'),
@@ -386,7 +405,7 @@ export const analyticsAPI = {
   merchantAnalytics: (period = 'today') => api.get(`/analytics/merchant?period=${period}`),
   dashboard: () => api.get('/analytics/dashboard'),
   revenue: (days = 30) => api.get(`/analytics/revenue?days=${days}`),
-  topPerformers: (type: 'drivers' | 'businesses', limit = 10) =>
+  topPerformers: (type: string, limit = 10) =>
     api.get(`/analytics/top-performers?type=${type}&limit=${limit}`),
   revenueForecast: (days = 30) => api.get(`/analytics/forecast/revenue?days=${days}`),
   orderTrends: (days = 30) => api.get(`/analytics/forecast/orders?days=${days}`),
@@ -431,6 +450,152 @@ export const adminAPI = {
   createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
     api.post('/admin/admins', data),
   removeAdmin: (userId: string) => api.delete(`/admin/admins/${userId}`),
+};
+
+// ─── Finance API ───
+export const financeAPI = {
+  // Commission endpoints
+  createCommissionTier: (data: any) => api.post('/admin/finance/commissions/tiers', data),
+  getCommissionTiers: (businessType?: string, isActive?: boolean) => 
+    api.get(`/admin/finance/commissions/tiers${businessType ? `?businessType=${businessType}` : ''}${isActive !== undefined ? `${businessType ? '&' : '?'}isActive=${isActive}` : ''}`),
+  updateCommissionTier: (id: string, data: any) => api.patch(`/admin/finance/commissions/tiers/${id}`, data),
+  assignCommission: (data: any) => api.post('/admin/finance/commissions/assign', data),
+  getMerchantCommissions: (businessId: string) => api.get(`/admin/finance/commissions/merchant/${businessId}`),
+  
+  // Revenue endpoints
+  getRevenueAnalytics: (startDate: string, endDate: string, groupBy?: string) => 
+    api.get(`/admin/finance/revenue/analytics?startDate=${startDate}&endDate=${endDate}${groupBy ? `&groupBy=${groupBy}` : ''}`),
+  getRevenueForecast: (days?: number) => api.get(`/admin/finance/revenue/forecast${days ? `?days=${days}` : ''}`),
+  getMerchantSettlements: (businessId?: string, status?: string) =>
+    api.get(`/admin/finance/revenue/settlements${businessId ? `?businessId=${businessId}` : ''}${status ? `${businessId ? '&' : '?'}status=${status}` : ''}`),
+  reconcileOrder: (orderId: string) => api.post(`/admin/finance/revenue/reconcile/${orderId}`),
+  
+  // Refund endpoints
+  createRefund: (data: any) => api.post('/admin/finance/refunds', data),
+  getRefunds: (status?: string, page = 1, limit = 50) => 
+    api.get(`/admin/finance/refunds?${status ? `status=${status}&` : ''}page=${page}&limit=${limit}`),
+  approveRefund: (id: string) => api.patch(`/admin/finance/refunds/${id}/approve`),
+  rejectRefund: (id: string, reason: string) => api.patch(`/admin/finance/refunds/${id}/reject`, { reason }),
+  getRefundStats: (startDate: string, endDate: string) => 
+    api.get(`/admin/finance/refunds/stats?startDate=${startDate}&endDate=${endDate}`),
+  
+  // Reports
+  exportFinancialReport: (startDate: string, endDate: string, format: 'csv' | 'json' = 'json') =>
+    api.get(`/admin/finance/reports/export?startDate=${startDate}&endDate=${endDate}&format=${format}`),
+};
+
+// ─── Operations API ───
+export const operationsAPI = {
+  getLiveMap: () => api.get('/admin/operations/live-map'),
+  
+  // Incidents
+  getIncidents: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/operations/incidents${query}`);
+  },
+  createIncident: (data: any) => api.post('/admin/operations/incidents', data),
+  resolveIncident: (id: string, resolution: string) => 
+    api.patch(`/admin/operations/incidents/${id}/resolve`, { resolution }),
+  assignIncident: (id: string, assignedTo: string) => 
+    api.patch(`/admin/operations/incidents/${id}/assign`, { assignedTo }),
+  
+  // SLA
+  getSLAConfigs: () => api.get('/admin/operations/sla/configs'),
+  createSLAConfig: (data: any) => api.post('/admin/operations/sla/configs', data),
+  getSLABreaches: (startDate: string, endDate: string) => 
+    api.get(`/admin/operations/sla/breaches?startDate=${startDate}&endDate=${endDate}`),
+  checkSLABreach: (orderId: string) => api.post(`/admin/operations/sla/check/${orderId}`),
+  
+  // Delivery Zones
+  getDeliveryZones: (city?: string) => api.get(`/admin/operations/delivery-zones${city ? `?city=${city}` : ''}`),
+  createDeliveryZone: (data: any) => api.post('/admin/operations/delivery-zones', data),
+  updateDeliveryZone: (id: string, data: any) => api.patch(`/admin/operations/delivery-zones/${id}`, data),
+};
+
+// ─── RBAC API ───
+export const rbacAPI = {
+  // Roles
+  createRole: (data: any) => api.post('/admin/rbac/roles', data),
+  getRoles: () => api.get('/admin/rbac/roles'),
+  updateRole: (id: string, data: any) => api.patch(`/admin/rbac/roles/${id}`, data),
+  assignRole: (data: { userId: string; roleId: string; department?: string }) => 
+    api.post('/admin/rbac/assign', data),
+  getUserPermissions: (userId: string) => api.get(`/admin/rbac/permissions/${userId}`),
+  
+  // Audit Logs
+  getAuditLogs: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/rbac/audit-logs${query}`);
+  },
+  getResourceHistory: (resource: string, resourceId: string) => 
+    api.get(`/admin/rbac/audit-logs/resource/${resource}/${resourceId}`),
+  exportAuditLogs: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/rbac/audit-logs/export${query}`);
+  },
+};
+
+// ─── Moderation API ───
+export const moderationAPI = {
+  // Content Moderation
+  getQueue: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/moderation/queue${query}`);
+  },
+  approveContent: (id: string) => api.patch(`/admin/moderation/${id}/approve`),
+  rejectContent: (id: string, reason: string) => api.patch(`/admin/moderation/${id}/reject`, { reason }),
+  getModerationStats: (startDate: string, endDate: string) => 
+    api.get(`/admin/moderation/stats?startDate=${startDate}&endDate=${endDate}`),
+  
+  // Compliance
+  getAllCompliance: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/moderation/compliance${query}`);
+  },
+  getCompliance: (businessId: string) => api.get(`/admin/moderation/compliance/${businessId}`),
+  updateCompliance: (businessId: string, data: any) => 
+    api.patch(`/admin/moderation/compliance/${businessId}`, data),
+  getComplianceStats: () => api.get('/admin/moderation/compliance/stats'),
+};
+
+// ─── Marketing API ───
+export const marketingAPI = {
+  // Campaigns
+  createCampaign: (data: any) => api.post('/admin/marketing/campaigns', data),
+  getCampaigns: (filters?: any) => {
+    const query = filters ? `?${new URLSearchParams(filters)}` : '';
+    return api.get(`/admin/marketing/campaigns${query}`);
+  },
+  updateCampaign: (id: string, data: any) => api.patch(`/admin/marketing/campaigns/${id}`, data),
+  launchCampaign: (id: string) => api.post(`/admin/marketing/campaigns/${id}/launch`),
+  pauseCampaign: (id: string) => api.post(`/admin/marketing/campaigns/${id}/pause`),
+  getCampaignAnalytics: (id: string) => api.get(`/admin/marketing/campaigns/${id}/analytics`),
+  
+  // Promo Codes
+  createPromoCode: (data: any) => api.post('/admin/marketing/promo-codes', data),
+  getPromoCodes: (isActive?: boolean, page = 1, limit = 50) => 
+    api.get(`/admin/marketing/promo-codes?${isActive !== undefined ? `isActive=${isActive}&` : ''}page=${page}&limit=${limit}`),
+  updatePromoCode: (id: string, data: any) => api.patch(`/admin/marketing/promo-codes/${id}`, data),
+  validatePromoCode: (data: { code: string; userId: string; orderAmount: number }) => 
+    api.post('/admin/marketing/promo-codes/validate', data),
+};
+
+// ─── Analytics API (Admin) ───
+export const adminAnalyticsAPI = {
+  // Custom Reports
+  createCustomReport: (data: any) => api.post('/admin/analytics/custom-reports', data),
+  getCustomReports: () => api.get('/admin/analytics/custom-reports'),
+  runReport: (id: string) => api.post(`/admin/analytics/custom-reports/${id}/run`),
+  
+  // Cohort Analysis
+  getCohorts: (cohortType: string, startDate?: string, endDate?: string) => 
+    api.get(`/admin/analytics/cohorts?cohortType=${cohortType}${startDate ? `&startDate=${startDate}` : ''}${endDate ? `&endDate=${endDate}` : ''}`),
+  generateCohortAnalysis: (data: { cohortType: 'customer' | 'merchant' | 'courier'; startDate: string; endDate: string }) =>
+    api.post('/admin/analytics/cohorts/generate', data),
+  
+  // Funnel Analysis
+  getFunnels: (startDate: string, endDate: string) => 
+    api.get(`/admin/analytics/funnels?startDate=${startDate}&endDate=${endDate}`),
 };
 
 // ─── Support API ───
@@ -499,6 +664,8 @@ export const aiAPI = {
 
 // ─── AR / VR API ───
 export const arAPI = {
+  getAvailableModels: () => api.get('/ar/models'),
+  getVRTours: () => api.get('/ar/tours'),
   getFoodPreview: (itemId: string) => api.get(`/ar/food-preview/${itemId}`),
   getRestaurantTour: (businessId: string) => api.get(`/ar/restaurant-tour/${businessId}`),
   getARNavigation: (orderId: string) => api.get(`/ar/navigation/${orderId}`),
@@ -517,6 +684,12 @@ export const socialAPI = {
   joinChallenge: (challengeId: string) => api.post(`/social/challenges/${challengeId}/join`),
   getGroupOrders: () => api.get('/social/group-orders'),
   createGroupOrder: (data: any) => api.post('/social/group-orders', data),
+  getGroupOrder: (id: string) => api.get(`/social/group-orders/${id}`),
+  getGroupOrderByCode: (code: string) => api.get(`/social/group-orders/join/${code}`),
+  joinGroupOrder: (inviteCode: string) => api.post(`/social/group-orders/join/${inviteCode}`),
+  updateMemberItems: (id: string, items: any[], subtotal: number) => api.post(`/social/group-orders/${id}/items`, { items, subtotal }),
+  updateMemberStatus: (id: string, status: string) => api.post(`/social/group-orders/${id}/status`, { status }),
+  leaveGroupOrder: (id: string) => api.delete(`/social/group-orders/${id}/leave`),
 };
 
 // ─── Blockchain API ───
@@ -594,6 +767,16 @@ export const dynamicPricingAPI = {
   deleteRule: (id: string) => api.delete(`/merchant/pricing/rules/${id}`),
   toggleRule: (id: string) => api.patch(`/merchant/pricing/rules/${id}/toggle`),
   getPreview: (ruleId: string) => api.get(`/merchant/pricing/rules/${ruleId}/preview`),
+};
+
+// ─── Community Marketplace API (Merchant) ───
+export const marketplaceAPI = {
+  getMyListings: () => api.get('/merchant/marketplace'),
+  browseAll: (page = 1) => api.get(`/merchant/marketplace/browse?page=${page}`),
+  createListing: (data: any) => api.post('/merchant/marketplace', data),
+  updateListing: (id: string, data: any) => api.patch(`/merchant/marketplace/${id}`, data),
+  toggleListing: (id: string) => api.patch(`/merchant/marketplace/${id}/toggle`),
+  deleteListing: (id: string) => api.delete(`/merchant/marketplace/${id}`),
 };
 
 // ─── Courier Performance / Fleet API ───

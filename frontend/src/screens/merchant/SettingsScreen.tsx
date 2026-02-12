@@ -537,6 +537,30 @@ export default function MerchantSettingsScreen({ navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('SupplyChain')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#06b6d4' + '15' }]}>
+                <Ionicons name="leaf-outline" size={18} color="#06b6d4" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Supply Chain</Text>
+                <Text style={styles.settingDesc}>Track sourcing & carbon footprint</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => navigation.navigate('Marketplace')}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#f59e0b' + '15' }]}>
+                <Ionicons name="storefront-outline" size={18} color="#f59e0b" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Community Marketplace</Text>
+                <Text style={styles.settingDesc}>List surplus food & special deals</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
         {/* Support & Legal */}

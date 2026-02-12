@@ -67,11 +67,126 @@ export class SocialService {
   }
 
   async getGroupOrders(userId: string) {
-    return [];
+    // Get group orders where user is host or member
+    const asHost = await this.prisma.groupOrder.findMany({
+      where: { hostId: userId, status: { in: ['open', 'locked'] } },
+      include: {
+        business: { select: { businessName: true } },
+        members: {
+          include: { user: { select: { id: true, firstName: true, lastName: true } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const asMember = await this.prisma.groupOrder.findMany({
+      where: {
+        members: { some: { userId } },
+        hostId: { not: userId },
+        status: { in: ['open', 'locked'] },
+      },
+      include: {
+        business: { select: { businessName: true } },
+        host: { select: { id: true, firstName: true } },
+        members: {
+          include: { user: { select: { id: true, firstName: true, lastName: true } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return [...asHost, ...asMember];
+  }
+
+  async getGroupOrder(groupOrderId: string) {
+    return this.prisma.groupOrder.findUnique({
+      where: { id: groupOrderId },
+      include: {
+        business: { select: { businessName: true } },
+        host: { select: { id: true, firstName: true, lastName: true } },
+        members: {
+          include: { user: { select: { id: true, firstName: true, lastName: true } } },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+    });
+  }
+
+  async getGroupOrderByCode(inviteCode: string) {
+    return this.prisma.groupOrder.findUnique({
+      where: { inviteCode },
+      include: {
+        business: { select: { businessName: true } },
+        host: { select: { id: true, firstName: true, lastName: true } },
+        members: {
+          include: { user: { select: { id: true, firstName: true, lastName: true } } },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+    });
   }
 
   async createGroupOrder(userId: string, data: any) {
-    return { id: `group-${Date.now()}`, ...data, hostId: userId, createdAt: new Date() };
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const group = await this.prisma.groupOrder.create({
+      data: {
+        hostId: userId,
+        businessId: data.businessId,
+        inviteCode,
+        deliveryFee: data.deliveryFee || 0,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : new Date(Date.now() + 30 * 60 * 1000), // 30 min default
+      },
+    });
+
+    // Auto-add host as first member
+    await this.prisma.groupOrderMember.create({
+      data: {
+        groupOrderId: group.id,
+        userId,
+        status: 'ordering',
+      },
+    });
+
+    return this.getGroupOrder(group.id);
+  }
+
+  async joinGroupOrder(userId: string, inviteCode: string) {
+    const group = await this.prisma.groupOrder.findUnique({
+      where: { inviteCode },
+      include: { members: true },
+    });
+    if (!group) throw new Error('Group order not found');
+    if (group.status !== 'open') throw new Error('Group order is no longer accepting members');
+    if (group.members.some(m => m.userId === userId)) throw new Error('You are already in this group');
+
+    await this.prisma.groupOrderMember.create({
+      data: { groupOrderId: group.id, userId, status: 'pending' },
+    });
+
+    return this.getGroupOrder(group.id);
+  }
+
+  async updateMemberItems(userId: string, groupOrderId: string, items: any[], subtotal: number) {
+    await this.prisma.groupOrderMember.updateMany({
+      where: { groupOrderId, userId },
+      data: { items: items as any, subtotal, status: 'ready' },
+    });
+    return this.getGroupOrder(groupOrderId);
+  }
+
+  async updateMemberStatus(userId: string, groupOrderId: string, status: string) {
+    await this.prisma.groupOrderMember.updateMany({
+      where: { groupOrderId, userId },
+      data: { status },
+    });
+    return this.getGroupOrder(groupOrderId);
+  }
+
+  async leaveGroupOrder(userId: string, groupOrderId: string) {
+    await this.prisma.groupOrderMember.deleteMany({
+      where: { groupOrderId, userId },
+    });
+    return { message: 'Left group order' };
   }
 }
 

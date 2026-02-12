@@ -326,7 +326,7 @@ export class AnalyticsService {
     }));
   }
 
-  async getTopPerformers(type: 'drivers' | 'businesses', limit = 10) {
+  async getTopPerformers(type: 'drivers' | 'businesses' | 'items', limit = 10) {
     if (type === 'drivers') {
       return this.prisma.driverProfile.findMany({
         take: limit,
@@ -339,6 +339,36 @@ export class AnalyticsService {
             },
           },
         },
+      });
+    }
+
+    if (type === 'items') {
+      // Get top menu items by order count
+      const items = await this.prisma.orderItem.groupBy({
+        by: ['menuItemId'],
+        _count: { menuItemId: true },
+        orderBy: { _count: { menuItemId: 'desc' } },
+        take: limit,
+      });
+
+      // Fetch full menu item details
+      const menuItemIds = items.map(item => item.menuItemId);
+      const menuItems = await this.prisma.menuItem.findMany({
+        where: { id: { in: menuItemIds } },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          images: true,
+          category: true,
+        },
+      });
+
+      // Merge counts with menu item data
+      return menuItems.map(item => {
+        const orderCount = items.find(i => i.menuItemId === item.id)?._count.menuItemId || 0;
+        return { ...item, orderCount };
       });
     }
 

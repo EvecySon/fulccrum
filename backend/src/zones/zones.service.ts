@@ -24,26 +24,28 @@ export class ZonesService {
   }
 
   async createZone(businessId: string, data: any) {
+    // Note: DeliveryZone is now platform-wide, not business-specific
+    // This method is deprecated - use admin operations service instead
     return this.prisma.deliveryZone.create({
       data: {
-        businessId,
         name: data.name,
-        description: data.description || null,
-        coordinates: Array.isArray(data.coordinates) && data.coordinates.length >= 3
+        polygon: Array.isArray(data.coordinates) && data.coordinates.length >= 3
           ? data.coordinates
           : [],
-        deliveryFee: data.deliveryFee,
-        minimumOrder: data.minimumOrder,
-        maxOrders: data.maxOrders,
-        estimatedDeliveryTime: data.estimatedDeliveryTime || 30,
+        baseFee: data.deliveryFee || 0,
+        perKmRate: data.perKmRate || 0,
+        maxDeliveryRadius: data.maxDeliveryRadius || 10,
+        city: data.city,
         isActive: data.isActive !== false,
       },
     });
   }
 
   async getBusinessZones(businessId: string) {
+    // Note: DeliveryZone is now platform-wide, not business-specific
+    // Return all active zones
     return this.prisma.deliveryZone.findMany({
-      where: { businessId },
+      where: { isActive: true },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -51,14 +53,6 @@ export class ZonesService {
   async getZone(zoneId: string) {
     const zone = await this.prisma.deliveryZone.findUnique({
       where: { id: zoneId },
-      include: {
-        business: {
-          select: {
-            businessName: true,
-            businessType: true,
-          },
-        },
-      },
     });
 
     if (!zone) {
@@ -111,9 +105,9 @@ export class ZonesService {
   }
 
   async checkDeliveryAvailability(businessId: string, latitude: number, longitude: number) {
+    // Note: DeliveryZone is now platform-wide
     const zones = await this.prisma.deliveryZone.findMany({
       where: {
-        businessId,
         isActive: true,
       },
     });
@@ -121,16 +115,16 @@ export class ZonesService {
     const point = { lat: latitude, lng: longitude };
 
     for (const zone of zones) {
-      const coordinates = zone.coordinates as any[];
-      if (this.isPointInPolygon(point, coordinates)) {
+      const polygon = zone.polygon as any[];
+      if (this.isPointInPolygon(point, polygon)) {
         return {
           available: true,
           zone: {
             id: zone.id,
             name: zone.name,
-            deliveryFee: zone.deliveryFee,
-            minimumOrder: zone.minimumOrder,
-            estimatedDeliveryTime: zone.estimatedDeliveryTime,
+            baseFee: zone.baseFee.toNumber(),
+            perKmRate: zone.perKmRate.toNumber(),
+            maxDeliveryRadius: zone.maxDeliveryRadius,
           },
         };
       }
@@ -157,7 +151,6 @@ export class ZonesService {
       zoneId,
       zoneName: zone.name,
       activeOrders: 0,
-      maxOrders: zone.maxOrders,
       capacityAvailable: true,
     };
   }

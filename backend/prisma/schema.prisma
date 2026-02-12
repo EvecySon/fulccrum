@@ -101,7 +101,6 @@ model User {
   driverLocations    DriverLocation[]
   customerReviews    Review[]         @relation("customer_reviews")
   driverReviews      Review[]         @relation("driver_reviews")
-  promoUsages        PromoUsage[]
   supportTickets     SupportTicket[]  @relation("user_tickets")
   assignedTickets    SupportTicket[]  @relation("assigned_tickets")
   supportMessages    SupportMessage[]
@@ -110,6 +109,15 @@ model User {
   bankAccounts       BankAccount[]
   savedCards         SavedCard[]
   crmCustomerNotes   CrmCustomerNote[] @relation("crm_customer_notes")
+  merchantCustomerProfiles MerchantCustomerProfile[] @relation("merchant_customer_profiles")
+  hostedGroupOrders  GroupOrder[]      @relation("group_order_host")
+  groupOrderMemberships GroupOrderMember[] @relation("group_order_members")
+  customerLoyalty    CustomerLoyalty?
+  adminUser          AdminUser?        @relation("admin_user_profile")
+
+  dietaryPreferences String[] @default([]) @map("dietary_preferences")
+  allergies          String[] @default([]) @map("allergies")
+  customAllergies    String?  @map("custom_allergies") @db.VarChar(500)
 
   @@map("users")
 }
@@ -185,7 +193,6 @@ model BusinessProfile {
   menuCategories MenuCategory[]
   businessHours  BusinessHours[]
   reviews        Review[]
-  deliveryZones  DeliveryZone[]
   favorites      Favorite[]
   crmCampaigns   CrmCampaign[]
   crmCustomerNotes CrmCustomerNote[]
@@ -193,6 +200,14 @@ model BusinessProfile {
   channels       MerchantChannel[]
   subscriptions  MerchantSubscription[]
   pricingRules   PricingRule[]
+  loyaltyProgram LoyaltyProgram?
+  kitchenOperations KitchenOperation[]
+  aiInsights     MerchantAiInsight[]
+  customerProfiles MerchantCustomerProfile[]
+  marketplaceListings MarketplaceListing[]
+  groupOrders        GroupOrder[]        @relation("group_order_business")
+  merchantCommissions MerchantCommission[]
+  merchantCompliance MerchantCompliance?
 
   @@map("business_profiles")
 }
@@ -216,6 +231,7 @@ model Address {
 
   user     User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   business BusinessProfile? @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  orders   Order[]          @relation("order_delivery_address")
 
   @@map("addresses")
 }
@@ -248,6 +264,7 @@ model Order {
   paymentMethod  String?     @map("payment_method") @db.VarChar(50)
   paymentStatus  PaymentStatus @default(pending) @map("payment_status")
   paymentId      String?     @map("payment_id") @db.VarChar(255)
+  deliveryAddressId String?  @map("delivery_address_id") @db.Uuid
 
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -255,13 +272,20 @@ model Order {
   customer User            @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
   business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver   User?           @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
-  review   Review?
-  items    OrderItem[]
+  deliveryAddress Address?  @relation("order_delivery_address", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
+  review     Review?
+  items      OrderItem[]
+  groupOrder GroupOrder? @relation("group_order_placed")
+  platformRevenue PlatformRevenue?
+  refunds    Refund[]
+  chargebacks Chargeback[]
+  incidents  Incident[]
 
   @@index([customerId])
   @@index([businessId])
   @@index([driverId])
   @@index([status])
+  @@index([deliveryAddressId])
   @@map("orders")
 }
 
@@ -529,6 +553,8 @@ model Inventory {
   unit          String    @default("pieces") @db.VarChar(50)
   costPerUnit   Decimal?  @map("cost_per_unit") @db.Decimal(8, 2)
   supplier      String?   @db.VarChar(255)
+  supplierId    String?   @map("supplier_id") @db.Uuid
+  autoReorder   Boolean   @default(false) @map("auto_reorder")
   lastRestocked DateTime? @map("last_restocked")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   
@@ -622,36 +648,7 @@ model PlatformSettings {
   @@map("platform_settings")
 }
 
-// Delivery Zones (Geofencing)
-model DeliveryZone {
-  id              String   @id @default(uuid()) @db.Uuid
-  businessId      String   @map("business_id") @db.Uuid
-  name            String   @db.VarChar(100)
-  description     String?  @db.Text
-  
-  // Polygon coordinates for geofencing (array of lat/lng points)
-  coordinates     Json     // [{lat: 6.5244, lng: 3.3792}, ...]
-  
-  // Zone-specific pricing
-  deliveryFee     Decimal? @map("delivery_fee") @db.Decimal(10, 2)
-  minimumOrder    Decimal? @map("minimum_order") @db.Decimal(10, 2)
-  
-  // Availability
-  isActive        Boolean  @default(true) @map("is_active")
-  maxOrders       Int?     @map("max_orders") // Max concurrent orders in zone
-  
-  // Timing
-  estimatedDeliveryTime Int @default(30) @map("estimated_delivery_time") // minutes
-  
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
-  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
-  
-  @@index([businessId])
-  @@index([isActive])
-  @@map("delivery_zones")
-}
+// Delivery Zones - Removed duplicate, using admin system version below
 
 // Support System
 model SupportTicket {
@@ -715,63 +712,7 @@ model SupportMessage {
   @@map("support_messages")
 }
 
-// Promotions & Discounts System
-model PromoCode {
-  id              String   @id @default(uuid()) @db.Uuid
-  code            String   @unique @db.VarChar(50)
-  description     String?  @db.Text
-  
-  // Discount configuration
-  discountType    String   @map("discount_type") @db.VarChar(20) // 'percentage' or 'fixed'
-  discountValue   Decimal  @map("discount_value") @db.Decimal(10, 2)
-  maxDiscount     Decimal? @map("max_discount") @db.Decimal(10, 2) // For percentage discounts
-  minimumOrder    Decimal  @default(0) @map("minimum_order") @db.Decimal(10, 2)
-  
-  // Usage limits
-  usageLimit      Int?     @map("usage_limit") // Total times code can be used
-  usageLimitPerUser Int?   @map("usage_limit_per_user") // Times per user
-  usedCount       Int      @default(0) @map("used_count")
-  
-  // Validity period
-  validFrom       DateTime @map("valid_from")
-  validUntil      DateTime @map("valid_until")
-  
-  // Applicability
-  applicableTo    String   @map("applicable_to") @db.VarChar(50) // 'all', 'first_order', 'specific_business'
-  businessId      String?  @map("business_id") @db.Uuid // If applicable to specific business
-  
-  // Status
-  isActive        Boolean  @default(true) @map("is_active")
-  
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
-  usages PromoUsage[]
-  
-  @@index([code])
-  @@index([isActive])
-  @@index([validFrom, validUntil])
-  @@index([businessId])
-  @@map("promo_codes")
-}
-
-model PromoUsage {
-  id             String   @id @default(uuid()) @db.Uuid
-  promoCodeId    String   @map("promo_code_id") @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
-  orderId        String   @map("order_id") @db.Uuid
-  discountAmount Decimal  @map("discount_amount") @db.Decimal(10, 2)
-  usedAt         DateTime @default(now()) @map("used_at")
-  
-  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([promoCodeId])
-  @@index([userId])
-  @@index([orderId])
-  @@index([usedAt])
-  @@map("promo_usages")
-}
+// Promotions & Discounts - Removed duplicate, using admin system version below
 
 // Favorites System
 model Favorite {
@@ -904,15 +845,18 @@ model OrderItem {
 
 // CRM Campaign for merchant marketing
 model CrmCampaign {
-  id          String   @id @default(uuid()) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
-  name        String   @db.VarChar(255)
-  type        String   @default("promotion") @db.VarChar(50)
-  targetCount Int      @default(0) @map("target_count")
-  status      String   @default("draft") @db.VarChar(20)
-  effectiveness Float  @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid()) @db.Uuid
+  merchantId           String   @map("merchant_id") @db.Uuid
+  name                 String   @db.VarChar(255)
+  type                 String   @default("promotion") @db.VarChar(50)
+  targetCount          Int      @default(0) @map("target_count")
+  status               String   @default("draft") @db.VarChar(20)
+  effectiveness        Float    @default(0)
+  targetSegment        Json?    @map("target_segment")
+  offerData            Json?    @map("offer_data")
+  personalizationLevel String   @default("basic") @map("personalization_level") @db.VarChar(20)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
@@ -963,15 +907,18 @@ model FlashSale {
 }
 
 model MerchantChannel {
-  id         String   @id @default(uuid()) @db.Uuid
-  merchantId String   @map("merchant_id") @db.Uuid
-  name       String   @db.VarChar(100)
-  type       String   @default("delivery") @db.VarChar(50)
-  enabled    Boolean  @default(false)
-  orders     Int      @default(0)
-  revenue    Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid()) @db.Uuid
+  merchantId    String   @map("merchant_id") @db.Uuid
+  name          String   @db.VarChar(100)
+  type          String   @default("delivery") @db.VarChar(50)
+  enabled       Boolean  @default(false)
+  orders        Int      @default(0)
+  revenue       Decimal  @default(0) @db.Decimal(12, 2)
+  channelConfig Json?    @map("channel_config")
+  pricingRules  Json?    @map("pricing_rules")
+  inventorySync Boolean  @default(true) @map("inventory_sync")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
@@ -981,21 +928,88 @@ model MerchantChannel {
 }
 
 model MerchantSubscription {
-  id          String   @id @default(uuid()) @db.Uuid
-  merchantId  String   @map("merchant_id") @db.Uuid
-  name        String   @db.VarChar(255)
-  type        String   @default("meal_plan") @db.VarChar(50)
-  price       Decimal  @default(0) @db.Decimal(10, 2)
-  schedule    String   @default("weekly") @db.VarChar(50)
-  subscribers Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid()) @db.Uuid
+  merchantId           String   @map("merchant_id") @db.Uuid
+  name                 String   @db.VarChar(255)
+  type                 String   @default("meal_plan") @db.VarChar(50)
+  price                Decimal  @default(0) @db.Decimal(10, 2)
+  schedule             String   @default("weekly") @db.VarChar(50)
+  subscribers          Int      @default(0)
+  isActive             Boolean  @default(true) @map("is_active")
+  deliverySchedule     Json?    @map("delivery_schedule")
+  customizationOptions Json?    @map("customization_options")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
 
   @@index([merchantId])
   @@map("merchant_subscriptions")
+}
+
+model LoyaltyProgram {
+  id              String   @id @default(uuid()) @db.Uuid
+  merchantId      String   @unique @map("merchant_id") @db.Uuid
+  enabled         Boolean  @default(false)
+  pointsPerOrder  Int      @default(10) @map("points_per_order")
+  rewardThreshold Int      @default(100) @map("reward_threshold")
+  rewardValue     Int      @default(500) @map("reward_value")
+  rewardType      String   @default("discount") @map("reward_type") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@map("loyalty_programs")
+}
+
+// Customer Loyalty System
+model CustomerLoyalty {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  points          Int      @default(0)
+  lifetimePoints  Int      @default(0) @map("lifetime_points")
+  tier            String   @default("Bronze") @db.VarChar(20) // 'Bronze', 'Silver', 'Gold', 'Platinum'
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([userId])
+  @@map("customer_loyalty")
+}
+
+model LoyaltyTransaction {
+  id              String   @id @default(uuid()) @db.Uuid
+  loyaltyId       String   @map("loyalty_id") @db.Uuid
+  type            String   @db.VarChar(20) // 'earned', 'redeemed', 'bonus', 'expired'
+  points          Int      // positive for earned/bonus, negative for redeemed
+  description     String   @db.VarChar(255)
+  orderId         String?  @map("order_id") @db.Uuid
+  rewardId        String?  @map("reward_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  loyalty CustomerLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyId])
+  @@index([createdAt])
+  @@map("loyalty_transactions")
+}
+
+model LoyaltyReward {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  description     String?  @db.VarChar(255)
+  pointsCost      Int      @map("points_cost")
+  icon            String   @default("gift-outline") @db.VarChar(50)
+  type            String   @default("discount") @db.VarChar(30) // 'discount', 'free_delivery', 'free_item', 'mystery'
+  value           Int      @default(0) // e.g. discount amount in minor currency
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("loyalty_rewards")
 }
 
 model MerchantInsightAction {
@@ -1015,7 +1029,7 @@ model PricingRule {
   merchantId    String   @map("merchant_id") @db.Uuid
   name          String   @db.VarChar(255)
   type          String   @default("surge") @db.VarChar(50)
-  condition     String?  @db.Text
+  condition     Json?
   adjustment    Float    @default(0)
   adjustmentType String  @default("percentage") @map("adjustment_type") @db.VarChar(20)
   active        Boolean  @default(true)
@@ -1027,3 +1041,496 @@ model PricingRule {
   @@index([merchantId])
   @@map("pricing_rules")
 }
+
+// Kitchen Operations - per-operation tracking per architecture
+model KitchenOperation {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  itemId          String?   @map("item_id") @db.Uuid
+  operationType   String    @map("operation_type") @db.VarChar(50)
+  stationId       String?   @map("station_id") @db.VarChar(50)
+  estimatedPrepTime Int?    @map("estimated_prep_time")
+  actualPrepTime  Int?      @map("actual_prep_time")
+  status          String    @default("pending") @db.VarChar(20)
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([orderId])
+  @@map("kitchen_operations")
+}
+
+// Persisted AI Insights per architecture
+model MerchantAiInsight {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  insightType     String   @map("insight_type") @db.VarChar(50)
+  insightData     Json     @map("insight_data")
+  confidenceScore Float    @default(0) @map("confidence_score")
+  potentialImpact Decimal? @map("potential_impact") @db.Decimal(10, 2)
+  implemented     Boolean  @default(false)
+  dismissed       Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([businessId, insightType])
+  @@map("merchant_ai_insights")
+}
+
+// Dedicated merchant customer profiles per architecture
+model MerchantCustomerProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  businessId     String   @map("business_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  totalOrders    Int      @default(0) @map("total_orders")
+  totalSpent     Decimal  @default(0) @map("total_spent") @db.Decimal(10, 2)
+  favoriteItems  Json?    @map("favorite_items")
+  orderFrequency String?  @map("order_frequency") @db.VarChar(20)
+  loyaltyScore   Int      @default(0) @map("loyalty_score")
+  lastVisit      DateTime? @map("last_visit")
+  tags           Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  customer User            @relation("merchant_customer_profiles", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, customerId])
+  @@index([businessId])
+  @@index([customerId])
+  @@map("merchant_customer_profiles")
+}
+
+// Community Marketplace - merchants list surplus/special items
+model MarketplaceListing {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  title           String    @db.VarChar(255)
+  description     String?   @db.Text
+  category        String    @default("surplus") @db.VarChar(50)
+  originalPrice   Decimal   @map("original_price") @db.Decimal(10, 2)
+  discountedPrice Decimal   @map("discounted_price") @db.Decimal(10, 2)
+  quantity        Int       @default(1)
+  quantitySold    Int       @default(0) @map("quantity_sold")
+  images          Json?
+  expiresAt       DateTime? @map("expires_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  tags            Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  merchant BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([isActive, expiresAt])
+  @@index([category])
+  @@map("marketplace_listings")
+}
+
+// Group Orders
+model GroupOrder {
+  id              String   @id @default(uuid()) @db.Uuid
+  hostId          String   @map("host_id") @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  inviteCode      String   @unique @map("invite_code")
+  status          String   @default("open") // open, locked, placed, delivered, cancelled
+  splitMethod     String   @default("individual") @map("split_method") // individual, equal, custom
+  deliveryFee     Float    @default(0) @map("delivery_fee")
+  expiresAt       DateTime? @map("expires_at")
+  orderId         String?  @unique @map("order_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  host     User             @relation("group_order_host", fields: [hostId], references: [id], onDelete: Cascade)
+  business BusinessProfile  @relation("group_order_business", fields: [businessId], references: [userId], onDelete: Cascade)
+  order    Order?           @relation("group_order_placed", fields: [orderId], references: [id], onDelete: SetNull)
+  members  GroupOrderMember[]
+
+  @@index([hostId])
+  @@index([businessId])
+  @@index([inviteCode])
+  @@map("group_orders")
+}
+
+model GroupOrderMember {
+  id            String   @id @default(uuid()) @db.Uuid
+  groupOrderId  String   @map("group_order_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  status        String   @default("pending") // pending, ordering, ready
+  items         Json     @default("[]")
+  subtotal      Float    @default(0)
+  joinedAt      DateTime @default(now()) @map("joined_at")
+
+  groupOrder GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  user       User       @relation("group_order_members", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupOrderId, userId])
+  @@index([groupOrderId])
+  @@index([userId])
+  @@map("group_order_members")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - FINANCIAL CONTROLS
+// ============================================================================
+
+model CommissionTier {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(100)
+  businessType  String   @db.VarChar(50) // restaurant, grocery, pharmacy, convenience
+  minOrders     Int      @default(0)
+  maxOrders     Int?     // null = unlimited
+  percentage    Decimal  @db.Decimal(5,2) // 15.50%
+  flatFee       Decimal? @db.Decimal(10,2)
+  isActive      Boolean  @default(true) @map("is_active")
+  description   String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  merchantCommissions MerchantCommission[]
+
+  @@index([businessType, isActive])
+  @@map("commission_tiers")
+}
+
+model MerchantCommission {
+  id            String   @id @default(uuid()) @db.Uuid
+  businessId    String   @map("business_id") @db.Uuid
+  tierId        String   @map("tier_id") @db.Uuid
+  percentage    Decimal  @db.Decimal(5,2)
+  flatFee       Decimal? @db.Decimal(10,2) @map("flat_fee")
+  effectiveFrom DateTime @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  tier     CommissionTier  @relation(fields: [tierId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, effectiveFrom, effectiveTo])
+  @@index([tierId])
+  @@map("merchant_commissions")
+}
+
+model PlatformRevenue {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @map("order_id") @db.Uuid
+  orderTotal      Decimal  @db.Decimal(10,2) @map("order_total")
+  merchantRevenue Decimal  @db.Decimal(10,2) @map("merchant_revenue")
+  courierRevenue  Decimal  @db.Decimal(10,2) @map("courier_revenue")
+  platformFee     Decimal  @db.Decimal(10,2) @map("platform_fee")
+  commissionRate  Decimal  @db.Decimal(5,2) @map("commission_rate")
+  taxAmount       Decimal  @db.Decimal(10,2) @map("tax_amount")
+  paymentFee      Decimal  @db.Decimal(10,2) @map("payment_fee")
+  netRevenue      Decimal  @db.Decimal(10,2) @map("net_revenue")
+  currency        String   @default("NGN") @db.VarChar(3)
+  reconciledAt    DateTime? @map("reconciled_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([reconciledAt])
+  @@map("platform_revenue")
+}
+
+model Refund {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  amount        Decimal  @db.Decimal(10,2)
+  reason        String   @db.Text
+  type          String   @db.VarChar(50) // full, partial, goodwill
+  status        String   @default("pending") @db.VarChar(50) // pending, approved, rejected, processed
+  requestedBy   String   @map("requested_by") @db.Uuid // userId
+  approvedBy    String?  @map("approved_by") @db.Uuid
+  rejectionReason String? @db.Text @map("rejection_reason")
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@map("refunds")
+}
+
+model Chargeback {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  amount        Decimal  @db.Decimal(10,2)
+  reason        String   @db.Text
+  status        String   @default("pending") @db.VarChar(50) // pending, won, lost, under_review
+  evidenceUrl   String?  @db.Text @map("evidence_url")
+  notes         String?  @db.Text
+  resolvedAt    DateTime? @map("resolved_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@map("chargebacks")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - RBAC & SECURITY
+// ============================================================================
+
+model AdminRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(100) // super_admin, finance_admin, ops_admin, support_admin
+  displayName String   @db.VarChar(100) @map("display_name")
+  description String?  @db.Text
+  permissions Json     // { "orders": ["view", "edit"], "finance": ["view"], ... }
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  adminUsers AdminUser[]
+
+  @@map("admin_roles")
+}
+
+model AdminUser {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  roleId          String   @map("role_id") @db.Uuid
+  department      String?  @db.VarChar(100)
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorSecret String?  @db.VarChar(255) @map("two_factor_secret")
+  allowedIPs      String[] @map("allowed_ips") // ["192.168.1.1", "10.0.0.0/24"]
+  lastLoginIP     String?  @db.VarChar(50) @map("last_login_ip")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user      User       @relation("admin_user_profile", fields: [userId], references: [id], onDelete: Cascade)
+  role      AdminRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  auditLogs AuditLog[]
+
+  @@index([userId])
+  @@index([roleId])
+  @@map("admin_users")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  action      String   @db.VarChar(100) // "approved_payout", "suspended_user", "updated_commission"
+  resource    String   @db.VarChar(100) // "withdrawal", "user", "commission"
+  resourceId  String   @db.Uuid @map("resource_id")
+  changes     Json?    // before/after values
+  ipAddress   String   @db.VarChar(50) @map("ip_address")
+  userAgent   String?  @db.Text @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, createdAt])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - OPERATIONS
+// ============================================================================
+
+model DeliveryZone {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @db.VarChar(100)
+  polygon          Json     // GeoJSON polygon coordinates
+  isActive         Boolean  @default(true) @map("is_active")
+  baseFee          Decimal  @db.Decimal(10,2) @map("base_fee")
+  perKmRate        Decimal  @db.Decimal(10,2) @map("per_km_rate")
+  surgeMultiplier  Decimal  @default(1.00) @db.Decimal(3,2) @map("surge_multiplier")
+  maxDeliveryRadius Float   @map("max_delivery_radius") // km
+  city             String?  @db.VarChar(100)
+  country          String   @default("Nigeria") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, city])
+  @@map("delivery_zones")
+}
+
+model SLAConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  orderType       String   @db.VarChar(50) // food, grocery, pharmacy
+  maxPrepTime     Int      // minutes
+  maxDeliveryTime Int      // minutes
+  maxTotalTime    Int      // minutes
+  breachAction    String   @db.VarChar(50) // alert, auto_refund, escalate
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([orderType, isActive])
+  @@map("sla_configs")
+}
+
+model Incident {
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String   @db.VarChar(100) // late_delivery, missing_driver, merchant_offline
+  severity    String   @db.VarChar(50) // low, medium, high, critical
+  orderId     String?  @db.Uuid @map("order_id")
+  businessId  String?  @db.Uuid @map("business_id")
+  driverId    String?  @db.Uuid @map("driver_id")
+  description String   @db.Text
+  status      String   @default("open") @db.VarChar(50) // open, investigating, resolved, closed
+  assignedTo  String?  @db.Uuid @map("assigned_to")
+  resolution  String?  @db.Text
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, severity, createdAt])
+  @@index([orderId])
+  @@map("incidents")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - CONTENT MODERATION & COMPLIANCE
+// ============================================================================
+
+model ContentModerationQueue {
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String   @db.VarChar(50) // menu_item, photo, review, business_profile
+  resourceId  String   @db.Uuid @map("resource_id")
+  resourceData Json    @map("resource_data") // snapshot of the content
+  status      String   @default("pending") @db.VarChar(50) // pending, approved, rejected
+  reason      String?  @db.Text
+  flags       String[] // ["inappropriate", "low_quality", "pricing_issue"]
+  reviewedBy  String?  @db.Uuid @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status, type, createdAt])
+  @@index([resourceId])
+  @@map("content_moderation_queue")
+}
+
+model MerchantCompliance {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @unique @map("business_id") @db.Uuid
+  licenseNumber   String?  @db.VarChar(100) @map("license_number")
+  licenseExpiry   DateTime? @map("license_expiry") @db.Date
+  healthPermit    String?  @db.VarChar(100) @map("health_permit")
+  permitExpiry    DateTime? @map("permit_expiry") @db.Date
+  insurancePolicy String?  @db.VarChar(100) @map("insurance_policy")
+  insuranceExpiry DateTime? @map("insurance_expiry") @db.Date
+  taxId           String?  @db.VarChar(100) @map("tax_id")
+  status          String   @default("pending") @db.VarChar(50) // compliant, expiring_soon, expired, pending
+  documents       Json?    // URLs to uploaded documents
+  lastChecked     DateTime @map("last_checked")
+  nextCheckDue    DateTime? @map("next_check_due") @db.Date
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  business BusinessProfile @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+
+  @@index([status, nextCheckDue])
+  @@map("merchant_compliance")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - MARKETING & CAMPAIGNS
+// ============================================================================
+
+model Campaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(200)
+  type        String   @db.VarChar(50) // discount, referral, loyalty, push_notification
+  status      String   @default("draft") @db.VarChar(50) // draft, scheduled, active, paused, completed
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  budget      Decimal? @db.Decimal(10,2)
+  spent       Decimal  @default(0) @db.Decimal(10,2)
+  targetAudience Json  @map("target_audience") // { "userType": "customer", "minOrders": 5, "city": "Lagos" }
+  config      Json     // campaign-specific settings
+  metrics     Json?    // { "impressions": 1000, "clicks": 50, "conversions": 10 }
+  createdBy   String   @db.Uuid @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status, startDate, endDate])
+  @@index([type, status])
+  @@map("campaigns")
+}
+
+model PromoCode {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String   @unique @db.VarChar(50)
+  type          String   @db.VarChar(50) // percentage, fixed_amount, free_delivery
+  value         Decimal  @db.Decimal(10,2)
+  minOrderValue Decimal? @db.Decimal(10,2) @map("min_order_value")
+  maxDiscount   Decimal? @db.Decimal(10,2) @map("max_discount")
+  usageLimit    Int?     @map("usage_limit")
+  usageCount    Int      @default(0) @map("usage_count")
+  perUserLimit  Int      @default(1) @map("per_user_limit")
+  validFrom     DateTime @map("valid_from")
+  validUntil    DateTime @map("valid_until")
+  isActive      Boolean  @default(true) @map("is_active")
+  applicableTo  Json?    @map("applicable_to") // { "businessTypes": ["restaurant"], "cities": ["Lagos"] }
+  createdBy     String   @db.Uuid @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([code, isActive])
+  @@index([validFrom, validUntil])
+  @@map("promo_codes")
+}
+
+// ============================================================================
+// ADMIN SYSTEM - ANALYTICS & REPORTING
+// ============================================================================
+
+model CustomReport {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+  type        String   @db.VarChar(50) // revenue, orders, users, merchants, couriers
+  filters     Json     // date range, status, region, etc.
+  columns     String[] // fields to include
+  schedule    String?  @db.VarChar(50) // daily, weekly, monthly, null = one-time
+  recipients  String[] // email addresses
+  format      String   @default("csv") @db.VarChar(10) // csv, excel, pdf
+  lastRun     DateTime? @map("last_run")
+  nextRun     DateTime? @map("next_run")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String   @db.Uuid @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([schedule, nextRun])
+  @@map("custom_reports")
+}
+
+model CohortAnalysis {
+  id          String   @id @default(uuid()) @db.Uuid
+  cohortDate  DateTime @map("cohort_date") @db.Date
+  cohortType  String   @db.VarChar(50) // customer, merchant, courier
+  userCount   Int      @map("user_count")
+  metrics     Json     // retention rates, LTV, order frequency by period
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([cohortDate, cohortType])
+  @@index([cohortDate, cohortType])
+  @@map("cohort_analysis")
+}
+

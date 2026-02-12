@@ -31,71 +31,23 @@ interface RestaurantTour {
   description: string;
 }
 
-const mockTours: RestaurantTour[] = [
-  {
-    id: '1',
-    name: 'Mama\'s Kitchen',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&h=400&fit=crop',
-    rating: 4.8,
-    cuisine: 'Nigerian',
-    duration: '2:30',
-    description: 'Experience the warm, vibrant atmosphere of Mama\'s Kitchen. See the open kitchen where traditional Nigerian dishes are prepared with love.',
-    hotspots: [
-      { id: 'h1', label: 'Main Dining', icon: 'restaurant', description: 'Spacious dining area with traditional decor' },
-      { id: 'h2', label: 'Open Kitchen', icon: 'flame', description: 'Watch chefs prepare your meal in real-time' },
-      { id: 'h3', label: 'Outdoor Patio', icon: 'sunny', description: 'Al fresco dining under string lights' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Sushi Palace',
-    image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=600&h=400&fit=crop',
-    rating: 4.6,
-    cuisine: 'Japanese',
-    duration: '3:00',
-    description: 'Step into the serene world of Sushi Palace. From the conveyor belt to the private tatami rooms, experience authentic Japanese dining.',
-    hotspots: [
-      { id: 'h1', label: 'Sushi Bar', icon: 'fish', description: 'Watch master chefs craft sushi before your eyes' },
-      { id: 'h2', label: 'Tatami Room', icon: 'bed', description: 'Private traditional Japanese dining rooms' },
-      { id: 'h3', label: 'Sake Lounge', icon: 'wine', description: 'Curated selection of premium sake' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'The Urban Spoon',
-    image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&h=400&fit=crop',
-    rating: 4.9,
-    cuisine: 'Fine Dining',
-    duration: '4:00',
-    description: 'Tour the award-winning Urban Spoon. Elegant interiors, a world-class wine cellar, and the chef\'s table experience await.',
-    hotspots: [
-      { id: 'h1', label: 'Wine Cellar', icon: 'wine', description: 'Over 500 bottles from around the world' },
-      { id: 'h2', label: 'Chef\'s Table', icon: 'star', description: 'Exclusive 8-seat dining with the head chef' },
-      { id: 'h3', label: 'Rooftop Bar', icon: 'moon', description: 'Cocktails with panoramic city views' },
-      { id: 'h4', label: 'Garden Terrace', icon: 'leaf', description: 'Farm-to-table herb garden on site' },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Pizza Roma',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=400&fit=crop',
-    rating: 4.5,
-    cuisine: 'Italian',
-    duration: '2:00',
-    description: 'A rustic Italian trattoria with a wood-fired oven imported from Naples. See where the magic happens.',
-    hotspots: [
-      { id: 'h1', label: 'Wood-Fire Oven', icon: 'flame', description: 'Authentic Neapolitan pizza oven at 450°C' },
-      { id: 'h2', label: 'Pasta Station', icon: 'restaurant', description: 'Fresh pasta made daily by hand' },
-    ],
-  },
-];
-
 export default function VRRestaurantTourScreen({ navigation, route }: any) {
   const businessId = route?.params?.businessId;
+  const [tours, setTours] = useState<RestaurantTour[]>([]);
   const [selectedTour, setSelectedTour] = useState<RestaurantTour | null>(null);
   const [vrActive, setVrActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<TourHotspot | null>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await arAPI.getVRTours();
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setTours(data);
+      } catch { /* VR tours optional */ }
+    })();
+  }, []);
 
   const handleStartTour = async (tour: RestaurantTour) => {
     setSelectedTour(tour);
@@ -231,7 +183,7 @@ export default function VRRestaurantTourScreen({ navigation, route }: any) {
         </View>
 
         {/* Tour cards */}
-        {mockTours.map((tour) => (
+        {tours.map((tour) => (
           <TouchableOpacity
             key={tour.id}
             style={styles.tourCard}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -11,6 +11,7 @@ interface VoiceResult {
   items: string[];
   restaurant?: string;
   confidence: number;
+  suggestedAction?: string;
 }
 
 export default function VoiceOrderingScreen({ navigation }: any) {
@@ -28,32 +29,74 @@ export default function VoiceOrderingScreen({ navigation }: any) {
     'What\'s trending today?',
   ];
 
+  const [textInput, setTextInput] = useState('');
+
   const handleStartListening = async () => {
     setIsListening(true);
     setError('');
     setResult(null);
     setTranscript('');
-    // Simulate voice recording — in production, use expo-av or speech recognition
-    setTimeout(() => {
+
+    // Use Web Speech API on browser
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setIsListening(false);
+        Alert.alert('Not Supported', 'Speech recognition is not supported in this browser. Use the text input below instead.');
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event: any) => {
+        const spokenText = event.results[0][0].transcript;
+        setIsListening(false);
+        setTranscript(spokenText);
+        handleProcessVoice(spokenText);
+      };
+      recognition.onerror = (event: any) => {
+        setIsListening(false);
+        if (event.error === 'no-speech') {
+          Alert.alert('No Speech', 'No speech was detected. Please try again.');
+        } else {
+          Alert.alert('Speech Error', `Could not recognize speech: ${event.error}`);
+        }
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      recognition.start();
+    } else {
+      // Native fallback — no real speech recognition without native module
+      Alert.alert('Use Text Input', 'Voice recognition requires a browser. Please type your order below.');
       setIsListening(false);
-      setTranscript('Order jollof rice and plantain from Mama\'s Kitchen');
-      handleProcessVoice('Order jollof rice and plantain from Mama\'s Kitchen');
-    }, 3000);
+    }
+  };
+
+  const handleTextSubmit = () => {
+    if (!textInput.trim()) return;
+    setTranscript(textInput.trim());
+    handleProcessVoice(textInput.trim());
+    setTextInput('');
   };
 
   const handleProcessVoice = async (text: string) => {
     setProcessing(true);
     try {
       const data = await aiAPI.processVoiceCommand(text);
-      setResult(data);
-    } catch {
-      // Fallback mock result
+      // Map backend shape to frontend shape
       setResult({
-        intent: 'order',
-        items: ['Jollof Rice', 'Plantain'],
-        restaurant: "Mama's Kitchen",
-        confidence: 0.93,
+        intent: data?.intent || 'order',
+        items: data?.parsedItems || data?.items || [],
+        restaurant: data?.restaurant || undefined,
+        confidence: data?.confidence || 0.9,
+        suggestedAction: data?.suggestedAction,
       });
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not process voice command');
+      setResult(null);
     } finally {
       setProcessing(false);
     }
@@ -133,22 +176,61 @@ export default function VoiceOrderingScreen({ navigation }: any) {
                   <Text style={styles.resultValue}>{result.restaurant}</Text>
                 </>
               )}
-              <Text style={styles.resultLabel}>Items</Text>
-              <View style={styles.itemChips}>
-                {result.items.map((item, i) => (
-                  <View key={i} style={styles.itemChip}>
-                    <Text style={styles.itemChipText}>{item}</Text>
+              {result.items.length > 0 && (
+                <>
+                  <Text style={styles.resultLabel}>Items</Text>
+                  <View style={styles.itemChips}>
+                    {result.items.map((item, i) => (
+                      <View key={i} style={styles.itemChip}>
+                        <Text style={styles.itemChipText}>{item}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
+                </>
+              )}
+              {result.suggestedAction && (
+                <>
+                  <Text style={styles.resultLabel}>Suggestion</Text>
+                  <Text style={styles.resultValue}>{result.suggestedAction}</Text>
+                </>
+              )}
             </View>
             <View style={styles.resultActions}>
               <TouchableOpacity style={styles.editBtn} onPress={() => setResult(null)}>
                 <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn}>
-                <Text style={styles.confirmBtnText}>Confirm Order</Text>
+              <TouchableOpacity style={styles.confirmBtn} onPress={() => {
+                if (result.items.length > 0) {
+                  navigation.navigate('Search', { query: result.items.join(' ') });
+                } else if (result.restaurant) {
+                  navigation.navigate('Search', { query: result.restaurant });
+                } else {
+                  navigation.navigate('Search', { query: transcript });
+                }
+              }}>
+                <Text style={styles.confirmBtnText}>Find Items</Text>
                 <Ionicons name="arrow-forward" size={16} color={colors.textWhite} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Text Input Fallback */}
+        {!processing && !isListening && (
+          <View style={styles.textInputSection}>
+            <Text style={styles.textInputLabel}>Or type your order</Text>
+            <View style={styles.textInputRow}>
+              <TextInput
+                style={styles.textInputField}
+                placeholder="e.g. Get me 2 shawarmas..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={textInput}
+                onChangeText={setTextInput}
+                onSubmitEditing={handleTextSubmit}
+                returnKeyType="send"
+              />
+              <TouchableOpacity style={styles.textSendBtn} onPress={handleTextSubmit} disabled={!textInput.trim()}>
+                <Ionicons name="send" size={20} color={textInput.trim() ? colors.teal : 'rgba(255,255,255,0.2)'} />
               </TouchableOpacity>
             </View>
           </View>
@@ -204,6 +286,11 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
   confirmBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.teal },
   confirmBtnText: { fontSize: 15, fontWeight: '700', color: colors.textWhite },
+  textInputSection: { paddingHorizontal: 20, marginTop: 8, marginBottom: 16 },
+  textInputLabel: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
+  textInputRow: { flexDirection: 'row', gap: 10 },
+  textInputField: { flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textWhite },
+  textSendBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
   suggestionsSection: { paddingHorizontal: 20, marginTop: 8 },
   suggestionsTitle: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)', marginBottom: 12 },
   suggestionCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: 16, marginBottom: 8 },

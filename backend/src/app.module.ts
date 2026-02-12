@@ -39,9 +39,11 @@ import { MerchantCrmModule } from './merchant-crm/merchant-crm.module';
 import { FlashSalesModule } from './flash-sales/flash-sales.module';
 import { MerchantChannelsModule } from './merchant-channels/merchant-channels.module';
 import { MerchantPricingModule } from './merchant-pricing/merchant-pricing.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CourierFleetModule } from './courier-fleet/courier-fleet.module';
 import { CourierGamificationModule } from './courier-gamification/courier-gamification.module';
 import { CourierSafetyModule } from './courier-safety/courier-safety.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 @Module({
@@ -98,9 +100,11 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     FlashSalesModule,
     MerchantChannelsModule,
     MerchantPricingModule,
+    MarketplaceModule,
     CourierFleetModule,
     CourierGamificationModule,
     CourierSafetyModule,
+    LoyaltyModule,
   ],
   controllers: [AppController],
   providers: [

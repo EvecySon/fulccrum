@@ -22,6 +22,32 @@ import AddMerchantScreen from '../screens/admin/AddMerchantScreen';
 import AddCourierScreen from '../screens/admin/AddCourierScreen';
 import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
 
+// Finance Screens
+import CommissionTiersScreen from '../screens/admin/finance/CommissionTiersScreen';
+import RevenueAnalyticsScreen from '../screens/admin/finance/RevenueAnalyticsScreen';
+import RefundManagementScreen from '../screens/admin/finance/RefundManagementScreen';
+
+// Operations Screens
+import LiveOperationsMapScreen from '../screens/admin/operations/LiveOperationsMapScreen';
+import IncidentManagementScreen from '../screens/admin/operations/IncidentManagementScreen';
+import SLAMonitoringScreen from '../screens/admin/operations/SLAMonitoringScreen';
+
+// RBAC Screens
+import RolesManagementScreen from '../screens/admin/rbac/RolesManagementScreen';
+import AuditLogsScreen from '../screens/admin/rbac/AuditLogsScreen';
+
+// Content & Compliance Screens
+import ContentModerationScreen from '../screens/admin/content/ContentModerationScreen';
+import MerchantComplianceScreen from '../screens/admin/content/MerchantComplianceScreen';
+
+// Marketing Screens
+import CampaignManagementScreen from '../screens/admin/marketing/CampaignManagementScreen';
+import PromoCodeManagerScreen from '../screens/admin/marketing/PromoCodeManagerScreen';
+
+// Analytics Screens
+import CustomReportsScreen from '../screens/admin/analytics/CustomReportsScreen';
+import CohortAnalysisScreen from '../screens/admin/analytics/CohortAnalysisScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -101,6 +127,32 @@ export default function AdminNavigator() {
       <Stack.Screen name="AddMerchant" component={AddMerchantScreen} />
       <Stack.Screen name="AddCourier" component={AddCourierScreen} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
+      
+      {/* Finance Screens */}
+      <Stack.Screen name="CommissionTiers" component={CommissionTiersScreen} />
+      <Stack.Screen name="RevenueAnalytics" component={RevenueAnalyticsScreen} />
+      <Stack.Screen name="RefundManagement" component={RefundManagementScreen} />
+      
+      {/* Operations Screens */}
+      <Stack.Screen name="LiveOperationsMap" component={LiveOperationsMapScreen} />
+      <Stack.Screen name="IncidentManagement" component={IncidentManagementScreen} />
+      <Stack.Screen name="SLAMonitoring" component={SLAMonitoringScreen} />
+      
+      {/* RBAC Screens */}
+      <Stack.Screen name="RolesManagement" component={RolesManagementScreen} />
+      <Stack.Screen name="AuditLogs" component={AuditLogsScreen} />
+      
+      {/* Content & Compliance Screens */}
+      <Stack.Screen name="ContentModeration" component={ContentModerationScreen} />
+      <Stack.Screen name="MerchantCompliance" component={MerchantComplianceScreen} />
+      
+      {/* Marketing Screens */}
+      <Stack.Screen name="CampaignManagement" component={CampaignManagementScreen} />
+      <Stack.Screen name="PromoCodeManager" component={PromoCodeManagerScreen} />
+      
+      {/* Analytics Screens */}
+      <Stack.Screen name="CustomReports" component={CustomReportsScreen} />
+      <Stack.Screen name="CohortAnalysis" component={CohortAnalysisScreen} />
     </Stack.Navigator>
   );
 }

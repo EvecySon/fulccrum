@@ -19,20 +19,6 @@ interface Recommendation {
   reason: string;
 }
 
-const mockRecommendations: Recommendation[] = [
-  { id: '1', type: 'meal', title: 'Jollof Rice & Chicken', subtitle: "Mama's Kitchen", image: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=300&h=200&fit=crop', confidence: 0.94, price: 3500, reason: 'Based on your Friday lunch pattern' },
-  { id: '2', type: 'restaurant', title: 'Suya Republic', subtitle: '4.8 ★ · 15 min delivery', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=300&h=200&fit=crop', confidence: 0.89, reason: 'Similar to restaurants you love' },
-  { id: '3', type: 'reorder', title: 'Your usual order', subtitle: 'Burger House · 3 items', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&h=200&fit=crop', confidence: 0.92, price: 4200, reason: 'You order this every Tuesday' },
-  { id: '4', type: 'meal', title: 'Pepper Soup', subtitle: 'Calabar Kitchen', image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=300&h=200&fit=crop', confidence: 0.85, price: 2800, reason: 'Trending in your area' },
-  { id: '5', type: 'meal', title: 'Shawarma Combo', subtitle: 'Wrap King', image: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=300&h=200&fit=crop', confidence: 0.87, price: 3200, reason: 'People like you also enjoy this' },
-];
-
-const mockPredictive = {
-  nextOrderTime: '12:30 PM today',
-  predictedItems: ['Jollof Rice', 'Plantain', 'Chapman'],
-  predictedRestaurant: "Mama's Kitchen",
-  confidence: 0.91,
-};
 
 export default function AIRecommendationsScreen({ navigation }: any) {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -44,9 +30,9 @@ export default function AIRecommendationsScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const data = await aiAPI.getRecommendations();
-      setRecommendations(Array.isArray(data) ? data : mockRecommendations);
+      setRecommendations(Array.isArray(data) ? data : []);
     } catch {
-      setRecommendations(mockRecommendations);
+      setRecommendations([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,19 +82,13 @@ export default function AIRecommendationsScreen({ navigation }: any) {
                 <Ionicons name="bulb" size={14} color={colors.warning} />
                 <Text style={styles.aiChipText}>AI Prediction</Text>
               </View>
-              <Text style={styles.confidenceText}>{Math.round(mockPredictive.confidence * 100)}% match</Text>
+              <Text style={styles.confidenceText}>AI-powered</Text>
             </View>
             <Text style={styles.predictiveTitle}>Your next order</Text>
             <Text style={styles.predictiveSubtitle}>
-              We think you'll order from {mockPredictive.predictedRestaurant} around {mockPredictive.nextOrderTime}
+              Order more to unlock personalized predictions
             </Text>
-            <View style={styles.predictiveItems}>
-              {mockPredictive.predictedItems.map((item, i) => (
-                <View key={i} style={styles.predictiveItemChip}>
-                  <Text style={styles.predictiveItemText}>{item}</Text>
-                </View>
-              ))}
-            </View>
+            <View style={styles.predictiveItems} />
             <TouchableOpacity style={styles.orderNowBtn}>
               <Text style={styles.orderNowText}>Order Now</Text>
               <Ionicons name="arrow-forward" size={16} color={colors.textWhite} />
@@ -117,6 +97,15 @@ export default function AIRecommendationsScreen({ navigation }: any) {
 
           {/* Recommendations */}
           <Text style={styles.sectionTitle}>Recommended for you</Text>
+          {recommendations.length === 0 && !loading && (
+            <View style={{ alignItems: 'center', padding: 30 }}>
+              <Ionicons name="sparkles-outline" size={48} color={colors.textLight} />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 14 }}>No Recommendations Yet</Text>
+              <Text style={{ fontSize: 13, color: colors.textLight, textAlign: 'center', marginTop: 6 }}>
+                Place a few orders and we'll learn your preferences to suggest meals you'll love.
+              </Text>
+            </View>
+          )}
           {recommendations.map(rec => (
             <View key={rec.id} style={styles.recCard}>
               <Image source={{ uri: rec.image }} style={styles.recImage} />

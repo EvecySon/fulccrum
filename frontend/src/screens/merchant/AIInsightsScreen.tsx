@@ -46,9 +46,9 @@ export default function AIInsightsScreen({ navigation }: any) {
 
   const typeConfig = (type: string) => {
     switch (type) {
-      case 'demand_forecast': return { icon: 'trending-up', color: colors.teal, label: 'Demand Forecast' };
-      case 'pricing_optimization': return { icon: 'pricetag', color: colors.warning, label: 'Pricing' };
-      case 'menu_optimization': return { icon: 'restaurant', color: colors.navy, label: 'Menu' };
+      case 'demand': case 'demand_forecast': return { icon: 'trending-up', color: colors.teal, label: 'Demand Forecast' };
+      case 'pricing': case 'pricing_optimization': return { icon: 'pricetag', color: colors.warning, label: 'Pricing' };
+      case 'menu': case 'menu_optimization': return { icon: 'restaurant', color: colors.navy, label: 'Menu' };
       default: return { icon: 'bulb', color: colors.teal, label: 'Insight' };
     }
   };

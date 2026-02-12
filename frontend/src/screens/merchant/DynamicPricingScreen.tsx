@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch,
-  ActivityIndicator, RefreshControl, TextInput, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Alert, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -14,6 +14,7 @@ interface PricingRule {
   adjustment: number;
   active: boolean;
   type: 'surge' | 'discount' | 'happy_hour';
+  adjustmentType?: string;
 }
 
 
@@ -21,16 +22,37 @@ export default function DynamicPricingScreen({ navigation }: any) {
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newRule, setNewRule] = useState({ name: '', type: 'surge', adjustment: '', condition: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const data = await dynamicPricingAPI.getRules();
-      setRules(Array.isArray(data?.rules || data) ? (data?.rules || data) : []);
+      const raw = Array.isArray(data?.rules || data) ? (data?.rules || data) : [];
+      setRules(raw.map((r: any) => ({ ...r, conditions: r.conditions || r.condition || '' })));
     } catch {
       // API not available yet
     } finally { setLoading(false); setRefreshing(false); }
+  };
+
+  const handleCreateRule = async () => {
+    if (!newRule.name.trim()) return;
+    setSaving(true);
+    try {
+      await dynamicPricingAPI.createRule({
+        name: newRule.name,
+        type: newRule.type,
+        adjustment: parseFloat(newRule.adjustment) || 0,
+        condition: newRule.condition,
+      });
+      setShowCreate(false);
+      setNewRule({ name: '', type: 'surge', adjustment: '', condition: '' });
+      loadData();
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Could not create rule'); }
+    finally { setSaving(false); }
   };
 
   const toggleRule = async (id: string) => {
@@ -66,7 +88,7 @@ export default function DynamicPricingScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dynamic Pricing</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowCreate(true)}>
           <Ionicons name="add-circle-outline" size={24} color={colors.tealLight} />
         </TouchableOpacity>
       </View>
@@ -144,6 +166,54 @@ export default function DynamicPricingScreen({ navigation }: any) {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+
+      {/* Create Rule Modal */}
+      <Modal visible={showCreate} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setShowCreate(false)} />
+          <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.navy, textAlign: 'center', marginBottom: 20 }}>New Pricing Rule</Text>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}
+              placeholder="Rule name *"
+              placeholderTextColor={colors.textLight}
+              value={newRule.name}
+              onChangeText={v => setNewRule(p => ({ ...p, name: v }))}
+            />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 }}>Type</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {['surge', 'discount', 'happy_hour'].map(t => (
+                <TouchableOpacity key={t} style={[{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.lightGray, borderWidth: 1, borderColor: colors.border }, newRule.type === t && { backgroundColor: colors.navy + '15', borderColor: colors.navy }]} onPress={() => setNewRule(p => ({ ...p, type: t }))}>
+                  <Text style={[{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, textTransform: 'capitalize' }, newRule.type === t && { color: colors.navy }]}>{t.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}
+              placeholder="Adjustment % (e.g. 15 or -10)"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+              value={newRule.adjustment}
+              onChangeText={v => setNewRule(p => ({ ...p, adjustment: v }))}
+            />
+            <TextInput
+              style={{ backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}
+              placeholder="Condition (e.g. weekday 12-2pm)"
+              placeholderTextColor={colors.textLight}
+              value={newRule.condition}
+              onChangeText={v => setNewRule(p => ({ ...p, condition: v }))}
+            />
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center' }} onPress={() => setShowCreate(false)}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.navy, alignItems: 'center' }, saving && { opacity: 0.6 }]} onPress={handleCreateRule} disabled={saving}>
+                {saving ? <ActivityIndicator color={colors.textWhite} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textWhite }}>Create</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

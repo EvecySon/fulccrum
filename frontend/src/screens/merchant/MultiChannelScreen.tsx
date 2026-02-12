@@ -158,6 +158,18 @@ export default function MultiChannelScreen({ navigation }: any) {
             </View>
           ))}
 
+          {/* Catering Quick Link */}
+          <TouchableOpacity style={styles.cateringLink} onPress={() => navigation.navigate('Catering')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="fast-food-outline" size={20} color={colors.navy} />
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>Catering Orders</Text>
+                <Text style={{ fontSize: 12, color: colors.textLight }}>Manage catering requests</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+
           {/* Subscriptions */}
           <View style={styles.subHeader}>
             <Text style={styles.sectionTitle}>Subscription Plans</Text>
@@ -293,4 +305,5 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
   modalSave: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center' },
   modalSaveText: { fontSize: 15, fontWeight: '700', color: colors.white },
+  cateringLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: colors.white, borderRadius: 14, padding: 14 },
 });

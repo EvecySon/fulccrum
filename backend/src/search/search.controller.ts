@@ -16,7 +16,7 @@ export class SearchController {
   @Get('businesses')
   async searchBusinesses(@Query('q') query: string) {
     if (!query || query.trim().length === 0) {
-      return [];
+      return this.searchService.listBusinesses();
     }
     return this.searchService.searchBusinesses(query);
   }

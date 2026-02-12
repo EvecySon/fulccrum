@@ -11,65 +11,27 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
+import { useCart } from '../../contexts/CartContext';
 
-// Modifier groups matching backend ItemModifier + ModifierOption structure
-const mockModifierGroups = [
-  {
-    id: 'm1',
-    name: 'Size',
-    type: 'single',
-    isRequired: true,
-    options: [
-      { id: 'o1', name: 'Regular', priceAdjustment: 0 },
-      { id: 'o2', name: 'Large', priceAdjustment: 500 },
-      { id: 'o3', name: 'Extra Large', priceAdjustment: 1000 },
-    ],
-  },
-  {
-    id: 'm2',
-    name: 'Toppings',
-    type: 'multiple',
-    isRequired: false,
-    options: [
-      { id: 'o4', name: 'Extra Cheese', priceAdjustment: 300 },
-      { id: 'o5', name: 'Bacon', priceAdjustment: 500 },
-      { id: 'o6', name: 'Avocado', priceAdjustment: 400 },
-      { id: 'o7', name: 'Jalapeños', priceAdjustment: 200 },
-      { id: 'o8', name: 'Caramelized Onions', priceAdjustment: 250 },
-    ],
-  },
-  {
-    id: 'm3',
-    name: 'Sauce',
-    type: 'single',
-    isRequired: false,
-    options: [
-      { id: 'o9', name: 'Ketchup', priceAdjustment: 0 },
-      { id: 'o10', name: 'Mayo', priceAdjustment: 0 },
-      { id: 'o11', name: 'BBQ Sauce', priceAdjustment: 0 },
-      { id: 'o12', name: 'Spicy Sauce', priceAdjustment: 100 },
-    ],
-  },
-];
 
 export default function MenuItemScreen({ route, navigation }: any) {
   const { item, restaurant } = route.params;
+  const { addItem, clearCart, itemCount } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomizations, setSelectedCustomizations] = useState<string[]>([]);
-  const [modifierGroups, setModifierGroups] = useState(mockModifierGroups);
+  const [modifierGroups, setModifierGroups] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await menuAPI.getModifiers(restaurant?.id || 'me');
-        if (res?.length) setModifierGroups(res);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setModifierGroups(data);
+      } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load modifiers'); }
     })();
   }, [restaurant?.id]);
-  // Modifier selections: { [groupId]: optionId } for single, { [groupId]: optionId[] } for multiple
-  const [modifierSelections, setModifierSelections] = useState<Record<string, string | string[]>>({
-    m1: 'o1', // Default to Regular size
-  });
+
+  const [modifierSelections, setModifierSelections] = useState<Record<string, string | string[]>>({});
 
   const toggleCustomization = (id: string) => {
     setSelectedCustomizations((prev) =>
@@ -100,13 +62,13 @@ export default function MenuItemScreen({ route, navigation }: any) {
     const selection = modifierSelections[group.id];
     if (!selection) return sum;
     if (group.type === 'single') {
-      const opt = group.options.find((o) => o.id === selection);
+      const opt = group.options.find((o: any) => o.id === selection);
       return sum + (opt?.priceAdjustment || 0);
     } else {
       const selectedIds = selection as string[];
       return sum + group.options
-        .filter((o) => selectedIds.includes(o.id))
-        .reduce((s, o) => s + o.priceAdjustment, 0);
+        .filter((o: any) => selectedIds.includes(o.id))
+        .reduce((s: number, o: any) => s + o.priceAdjustment, 0);
     }
   }, 0);
 
@@ -166,7 +128,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
 
             {group.type === 'single' ? (
               // Radio buttons for single-select
-              group.options.map((option) => {
+              group.options.map((option: any) => {
                 const isSelected = modifierSelections[group.id] === option.id;
                 return (
                   <TouchableOpacity
@@ -190,7 +152,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
               })
             ) : (
               // Checkboxes for multi-select
-              group.options.map((option) => {
+              group.options.map((option: any) => {
                 const selectedIds = (modifierSelections[group.id] as string[]) || [];
                 const isSelected = selectedIds.includes(option.id);
                 return (
@@ -284,7 +246,54 @@ export default function MenuItemScreen({ route, navigation }: any) {
         </View>
         <TouchableOpacity
           style={styles.addToCartBtn}
-          onPress={() => navigation.navigate('Cart')}
+          onPress={() => {
+            // Build selected modifiers
+            const selectedModifiers: any[] = [];
+            modifierGroups.forEach(group => {
+              const sel = modifierSelections[group.id];
+              if (!sel) return;
+              if (group.type === 'single') {
+                const opt = group.options.find((o: any) => o.id === sel);
+                if (opt) selectedModifiers.push({ groupId: group.id, groupName: group.name, optionId: opt.id, optionName: opt.name, priceAdjustment: opt.priceAdjustment || 0 });
+              } else {
+                (sel as string[]).forEach(optId => {
+                  const opt = group.options.find((o: any) => o.id === optId);
+                  if (opt) selectedModifiers.push({ groupId: group.id, groupName: group.name, optionId: opt.id, optionName: opt.name, priceAdjustment: opt.priceAdjustment || 0 });
+                });
+              }
+            });
+
+            // Build selected customizations
+            const selectedCusts = (item.customizations || [])
+              .filter((c: any) => selectedCustomizations.includes(c.id))
+              .map((c: any) => ({ id: c.id, name: c.name, price: c.price }));
+
+            const cartItem = {
+              menuItemId: item.id,
+              name: item.name,
+              price: item.price,
+              quantity,
+              image: item.image || (Array.isArray(item.images) ? item.images[0] : ''),
+              modifiers: selectedModifiers.length > 0 ? selectedModifiers : undefined,
+              customizations: selectedCusts.length > 0 ? selectedCusts : undefined,
+            };
+
+            const rest = { id: restaurant?.id || restaurant?.userId, name: restaurant?.businessName || restaurant?.name || 'Restaurant', image: restaurant?.logoUrl };
+
+            const added = addItem(rest, cartItem);
+            if (!added) {
+              Alert.alert(
+                'Different Restaurant',
+                'Your cart has items from another restaurant. Clear it and add this item?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Clear & Add', style: 'destructive', onPress: () => { clearCart(); addItem(rest, cartItem); navigation.goBack(); } },
+                ]
+              );
+              return;
+            }
+            navigation.goBack();
+          }}
         >
           <Text style={styles.addToCartText}>
             Add to Cart · ₦{totalPrice.toFixed(2)}

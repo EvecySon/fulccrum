@@ -102,8 +102,8 @@ export default function MerchantDashboardScreen({ navigation }: any) {
       }
 
       // Business name from user profile
-      if (user?.businessProfile?.businessName) {
-        setBusinessName(user.businessProfile.businessName);
+      if ((user as any)?.businessProfile?.businessName) {
+        setBusinessName((user as any).businessProfile.businessName);
       } else if (user?.firstName) {
         setBusinessName(user.firstName + "'s Store");
       }

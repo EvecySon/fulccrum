@@ -14,6 +14,9 @@ interface User {
   lastName: string;
   role: UserRole;
   avatarUrl?: string;
+  dietaryPreferences?: string[];
+  allergies?: string[];
+  customAllergies?: string;
 }
 
 interface AuthContextType {

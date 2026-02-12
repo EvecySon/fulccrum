@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { arAPI } from '../../services/api';
+import { useCart } from '../../contexts/CartContext';
 
 interface ARModel {
   id: string;
@@ -17,17 +18,24 @@ interface ARModel {
   allergens: string[];
 }
 
-const mockARItems: ARModel[] = [
-  { id: '1', name: 'Jollof Rice & Chicken', image: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400&h=300&fit=crop', arModelUrl: '', calories: 650, servingSize: 'Regular', allergens: [] },
-  { id: '2', name: 'Gourmet Cheeseburger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop', arModelUrl: '', calories: 780, servingSize: 'Large', allergens: ['Gluten', 'Dairy'] },
-  { id: '3', name: 'Caesar Salad', image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400&h=300&fit=crop', arModelUrl: '', calories: 320, servingSize: 'Regular', allergens: ['Dairy'] },
-];
-
 export default function ARFoodPreviewScreen({ navigation, route }: any) {
   const itemId = route?.params?.itemId;
-  const [selectedItem, setSelectedItem] = useState<ARModel>(mockARItems[0]);
+  const { addItem, clearCart } = useCart();
+  const [arItems, setArItems] = useState<ARModel[]>([]);
+  const [selectedItem, setSelectedItem] = useState<ARModel | null>(null);
   const [arActive, setArActive] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await arAPI.getAvailableModels();
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setArItems(data);
+        if (data.length > 0) setSelectedItem(data[0]);
+      } catch { /* AR models optional */ }
+    })();
+  }, []);
 
   const handleActivateAR = async () => {
     setLoading(true);
@@ -54,7 +62,7 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
       <View style={styles.arViewport}>
         {arActive ? (
           <View style={styles.arActiveView}>
-            <Image source={{ uri: selectedItem.image }} style={styles.arImage} />
+            <Image source={{ uri: selectedItem?.image }} style={styles.arImage} />
             <View style={styles.arOverlay}>
               <View style={styles.arBadge}>
                 <Ionicons name="cube-outline" size={14} color={colors.textWhite} />
@@ -64,21 +72,21 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
             </View>
             {/* Nutrition overlay */}
             <View style={styles.nutritionOverlay}>
-              <Text style={styles.nutritionTitle}>{selectedItem.name}</Text>
+              <Text style={styles.nutritionTitle}>{selectedItem?.name}</Text>
               <View style={styles.nutritionRow}>
                 <View style={styles.nutritionItem}>
                   <Ionicons name="flame" size={14} color={colors.warning} />
-                  <Text style={styles.nutritionValue}>{selectedItem.calories} cal</Text>
+                  <Text style={styles.nutritionValue}>{selectedItem?.calories} cal</Text>
                 </View>
                 <View style={styles.nutritionItem}>
                   <Ionicons name="resize" size={14} color={colors.teal} />
-                  <Text style={styles.nutritionValue}>{selectedItem.servingSize}</Text>
+                  <Text style={styles.nutritionValue}>{selectedItem?.servingSize}</Text>
                 </View>
               </View>
-              {selectedItem.allergens.length > 0 && (
+              {(selectedItem?.allergens?.length ?? 0) > 0 && (
                 <View style={styles.allergenRow}>
                   <Ionicons name="warning" size={12} color={colors.error} />
-                  <Text style={styles.allergenText}>{selectedItem.allergens.join(', ')}</Text>
+                  <Text style={styles.allergenText}>{selectedItem?.allergens?.join(', ')}</Text>
                 </View>
               )}
             </View>
@@ -105,15 +113,20 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
       {/* Item Selector */}
       <View style={styles.selectorSection}>
         <Text style={styles.selectorTitle}>Select a dish to preview</Text>
+        {arItems.length === 0 && !loading && (
+          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 13, color: colors.textLight }}>No dishes available for AR preview yet.</Text>
+          </View>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>
-          {mockARItems.map(item => (
+          {arItems.map(item => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.selectorCard, selectedItem.id === item.id && styles.selectorCardActive]}
+              style={[styles.selectorCard, selectedItem?.id === item.id && styles.selectorCardActive]}
               onPress={() => { setSelectedItem(item); setArActive(false); }}
             >
               <Image source={{ uri: item.image }} style={styles.selectorImage} />
-              <Text style={[styles.selectorName, selectedItem.id === item.id && styles.selectorNameActive]} numberOfLines={1}>
+              <Text style={[styles.selectorName, selectedItem?.id === item.id && styles.selectorNameActive]} numberOfLines={1}>
                 {item.name}
               </Text>
             </TouchableOpacity>
@@ -122,12 +135,17 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
       </View>
 
       {/* Add to Cart */}
+      {selectedItem && (
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addToCartBtn}>
-          <Ionicons name="cart" size={20} color={colors.textWhite} />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+        <TouchableOpacity style={styles.addToCartBtn} onPress={() => {
+          // Navigate to search so user can find the restaurant and add properly
+          navigation.navigate('Search', { query: selectedItem.name });
+        }}>
+          <Ionicons name="search" size={20} color={colors.textWhite} />
+          <Text style={styles.addToCartText}>Find & Order {selectedItem.name}</Text>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 }
