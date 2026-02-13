@@ -55,7 +55,7 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
       setDeliveryCountdown(prev => Math.max(prev - 1, 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentStep >= 2]);
+  }, [currentStep]);
 
   // Waiting time at restaurant
   useEffect(() => {

@@ -1,16 +1,14 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
   PanResponder,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 0.65;
 const BUTTON_SIZE = 56;
 const TRACK_PADDING = 4;
@@ -25,28 +23,31 @@ interface Props {
 
 export default function SwipeToConfirm({ label, icon = 'checkmark', color = colors.teal, onConfirm, disabled }: Props) {
   const translateX = useRef(new Animated.Value(0)).current;
-  const trackWidth = useRef(SCREEN_WIDTH - 80);
-  const maxSlide = trackWidth.current - BUTTON_SIZE - TRACK_PADDING * 2;
+  const maxSlideRef = useRef(200);
+  const [ready, setReady] = useState(false);
 
-  const panResponder = useRef(
+  const panResponder = useMemo(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => !disabled,
       onMoveShouldSetPanResponder: (_, gs) => !disabled && Math.abs(gs.dx) > 5,
       onPanResponderMove: (_, gs) => {
-        const x = Math.max(0, Math.min(gs.dx, maxSlide));
+        const ms = maxSlideRef.current;
+        if (ms <= 0) return;
+        const x = Math.max(0, Math.min(gs.dx, ms));
         translateX.setValue(x);
       },
       onPanResponderRelease: (_, gs) => {
-        const pct = gs.dx / maxSlide;
+        const ms = maxSlideRef.current;
+        if (ms <= 0) return;
+        const pct = gs.dx / ms;
         if (pct >= SWIPE_THRESHOLD) {
           Animated.spring(translateX, {
-            toValue: maxSlide,
+            toValue: ms,
             useNativeDriver: true,
             tension: 50,
             friction: 8,
           }).start(() => {
             onConfirm();
-            // Reset after a short delay
             setTimeout(() => {
               Animated.spring(translateX, {
                 toValue: 0,
@@ -63,16 +64,28 @@ export default function SwipeToConfirm({ label, icon = 'checkmark', color = colo
           }).start();
         }
       },
-    })
-  ).current;
+    }),
+  [disabled, onConfirm]);
+
+  const handleLayout = (e: any) => {
+    const w = e.nativeEvent.layout.width;
+    const ms = w - BUTTON_SIZE - TRACK_PADDING * 2;
+    if (ms > 0) {
+      maxSlideRef.current = ms;
+      setReady(true);
+    }
+  };
+
+  // Safe interpolation — only use positive maxSlide
+  const ms = Math.max(maxSlideRef.current, 1);
 
   const opacity = translateX.interpolate({
-    inputRange: [0, maxSlide * 0.5, maxSlide],
+    inputRange: [0, ms * 0.5, ms],
     outputRange: [1, 0.3, 0],
   });
 
   const checkOpacity = translateX.interpolate({
-    inputRange: [maxSlide * 0.8, maxSlide],
+    inputRange: [ms * 0.8, ms],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -80,7 +93,7 @@ export default function SwipeToConfirm({ label, icon = 'checkmark', color = colo
   return (
     <View
       style={[styles.track, { backgroundColor: color + '15', borderColor: color + '30' }, disabled && { opacity: 0.5 }]}
-      onLayout={(e) => { trackWidth.current = e.nativeEvent.layout.width; }}
+      onLayout={handleLayout}
     >
       {/* Label */}
       <Animated.View style={[styles.labelContainer, { opacity }]}>
