@@ -58,10 +58,11 @@ export default function QuestsScreen({ navigation }: any) {
     try {
       const res = await courierGamificationAPI.getAchievements();
       const data = res?.data ?? res;
-      if (Array.isArray(data) && data.length) setQuests(data);
-      else setQuests(mockQuests);
+      if (Array.isArray(data) && data.length && data[0]?.type) {
+        setQuests(data);
+      }
     } catch {
-      setQuests(mockQuests);
+      // Keep existing mock data
     }
     setRefreshing(false);
   };
@@ -133,6 +134,7 @@ export default function QuestsScreen({ navigation }: any) {
         {/* Quest Cards */}
         <View style={styles.questsList}>
           {filtered.map((quest) => {
+            if (!quest || !quest.type) return null;
             const pct = Math.min((quest.progress / quest.target) * 100, 100);
             return (
               <View key={quest.id} style={[styles.questCard, quest.claimed && { opacity: 0.5 }]}>
