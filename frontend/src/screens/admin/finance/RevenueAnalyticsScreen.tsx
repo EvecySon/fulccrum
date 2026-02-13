@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { financeAPI } from '../../../services/api';
 
-export default function RevenueAnalyticsScreen() {
+export default function RevenueAnalyticsScreen({ navigation }: any) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export default function RevenueAnalyticsScreen() {
       setAnalytics(analyticsRes.data);
       setForecast(forecastRes.data);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load revenue analytics');
+      showAlert('Error', error.response?.data?.message || 'Failed to load revenue analytics');
     } finally {
       setLoading(false);
     }
@@ -56,6 +58,9 @@ export default function RevenueAnalyticsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Revenue Analytics</Text>
       </View>
 
@@ -153,16 +158,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   dateRangeSelector: {
     flexDirection: 'row',

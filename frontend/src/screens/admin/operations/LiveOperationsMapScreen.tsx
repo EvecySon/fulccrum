@@ -1,34 +1,56 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-export default function LiveOperationsMapScreen() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+const MOCK_DATA = {
+  activeOrders: 24,
+  activeDrivers: 18,
+  openIncidents: 3,
+  orders: [
+    {
+      id: '1', orderNumber: 'ORD-2026-4821', customer: 'Adebayo Johnson',
+      status: 'in_transit', business: 'Chicken Republic - Lekki', driver: 'Emeka Obi',
+      estimatedDeliveryTime: new Date(Date.now() + 15 * 60000).toISOString(),
+      deliveryAddress: { streetAddress: '14 Admiralty Way', apartment: 'Suite 3B', city: 'Lekki', state: 'Lagos' },
+    },
+    {
+      id: '2', orderNumber: 'ORD-2026-4822', customer: 'Funke Adeyemi',
+      status: 'preparing', business: 'The Place - Victoria Island', driver: null,
+      estimatedDeliveryTime: new Date(Date.now() + 35 * 60000).toISOString(),
+      deliveryAddress: { streetAddress: '25 Adeola Odeku St', apartment: null, city: 'Victoria Island', state: 'Lagos' },
+    },
+    {
+      id: '3', orderNumber: 'ORD-2026-4823', customer: 'Chidi Nwosu',
+      status: 'picked_up', business: 'Dominos Pizza - Ikeja', driver: 'Tunde Bakare',
+      estimatedDeliveryTime: new Date(Date.now() + 10 * 60000).toISOString(),
+      deliveryAddress: { streetAddress: '8 Allen Avenue', apartment: 'Flat 12', city: 'Ikeja', state: 'Lagos' },
+    },
+    {
+      id: '4', orderNumber: 'ORD-2026-4824', customer: 'Ngozi Eze',
+      status: 'ready', business: 'KFC - Surulere', driver: 'Ibrahim Musa',
+      estimatedDeliveryTime: new Date(Date.now() + 25 * 60000).toISOString(),
+      deliveryAddress: { streetAddress: '3 Bode Thomas St', apartment: null, city: 'Surulere', state: 'Lagos' },
+    },
+    {
+      id: '5', orderNumber: 'ORD-2026-4825', customer: 'Yemi Alade',
+      status: 'delivered', business: 'Bukka Hut - Ikoyi', driver: 'Segun Adewale',
+      estimatedDeliveryTime: null,
+      deliveryAddress: { streetAddress: '1 Bourdillon Rd', apartment: 'Penthouse', city: 'Ikoyi', state: 'Lagos' },
+    },
+  ],
+};
+
+export default function LiveOperationsMapScreen({ navigation }: any) {
+  const [data, setData] = useState<any>(MOCK_DATA);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const response = await operationsAPI.getLiveMap();
-      setData(response.data);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load live operations data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    setTimeout(() => setRefreshing(false), 800);
   };
 
   const getStatusColor = (status: string) => {
@@ -55,88 +77,93 @@ export default function LiveOperationsMapScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Live Operations</Text>
-        <Text style={styles.subtitle}>Real-time order tracking</Text>
-      </View>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.navy} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Live Operations</Text>
+          <Text style={styles.subtitle}>Real-time order tracking</Text>
+        </View>
 
-      {data && (
-        <>
-          <View style={styles.statsCards}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{data.activeOrders}</Text>
-              <Text style={styles.statLabel}>Active Orders</Text>
+        {data && (
+          <>
+            <View style={styles.statsCards}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{data.activeOrders}</Text>
+                <Text style={styles.statLabel}>Active Orders</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{data.activeDrivers}</Text>
+                <Text style={styles.statLabel}>Active Drivers</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={[styles.statValue, { color: colors.error }]}>{data.openIncidents}</Text>
+                <Text style={styles.statLabel}>Open Incidents</Text>
+              </View>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{data.activeDrivers}</Text>
-              <Text style={styles.statLabel}>Active Drivers</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: colors.error }]}>{data.openIncidents}</Text>
-              <Text style={styles.statLabel}>Open Incidents</Text>
-            </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Orders</Text>
-            {data.orders.map((order: any) => (
-              <View key={order.id} style={styles.orderCard}>
-                <View style={styles.orderHeader}>
-                  <View>
-                    <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-                    <Text style={styles.orderCustomer}>{order.customer}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
-                      {order.status.replace('_', ' ')}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.orderDetails}>
-                  <View style={styles.orderDetail}>
-                    <Text style={styles.orderDetailLabel}>Business:</Text>
-                    <Text style={styles.orderDetailValue}>{order.business}</Text>
-                  </View>
-                  {order.driver && (
-                    <View style={styles.orderDetail}>
-                      <Text style={styles.orderDetailLabel}>Driver:</Text>
-                      <Text style={styles.orderDetailValue}>{order.driver}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Active Orders</Text>
+              {data.orders.map((order: any) => (
+                <View key={order.id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <View>
+                      <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+                      <Text style={styles.orderCustomer}>{order.customer}</Text>
                     </View>
-                  )}
-                  {order.estimatedDeliveryTime && (
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
+                      <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+                        {order.status.replace('_', ' ')}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.orderDetails}>
                     <View style={styles.orderDetail}>
-                      <Text style={styles.orderDetailLabel}>ETA:</Text>
-                      <Text style={styles.orderDetailValue}>
-                        {new Date(order.estimatedDeliveryTime).toLocaleTimeString()}
+                      <Text style={styles.orderDetailLabel}>Business:</Text>
+                      <Text style={styles.orderDetailValue}>{order.business}</Text>
+                    </View>
+                    {order.driver && (
+                      <View style={styles.orderDetail}>
+                        <Text style={styles.orderDetailLabel}>Driver:</Text>
+                        <Text style={styles.orderDetailValue}>{order.driver}</Text>
+                      </View>
+                    )}
+                    {order.estimatedDeliveryTime && (
+                      <View style={styles.orderDetail}>
+                        <Text style={styles.orderDetailLabel}>ETA:</Text>
+                        <Text style={styles.orderDetailValue}>
+                          {new Date(order.estimatedDeliveryTime).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {order.deliveryAddress && (
+                    <View style={styles.addressContainer}>
+                      <Text style={styles.addressLabel}>Delivery Address:</Text>
+                      <Text style={styles.addressText}>
+                        {order.deliveryAddress.streetAddress}
+                        {order.deliveryAddress.apartment ? `, ${order.deliveryAddress.apartment}` : ''}
+                      </Text>
+                      <Text style={styles.addressText}>
+                        {order.deliveryAddress.city}, {order.deliveryAddress.state}
                       </Text>
                     </View>
                   )}
                 </View>
+              ))}
 
-                {order.deliveryAddress && (
-                  <View style={styles.addressContainer}>
-                    <Text style={styles.addressLabel}>Delivery Address:</Text>
-                    <Text style={styles.addressText}>
-                      {order.deliveryAddress.streetAddress}
-                      {order.deliveryAddress.apartment ? `, ${order.deliveryAddress.apartment}` : ''}
-                    </Text>
-                    <Text style={styles.addressText}>
-                      {order.deliveryAddress.city}, {order.deliveryAddress.state}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-
-            {data.orders.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No active orders</Text>
-              </View>
-            )}
-          </View>
-        </>
-      )}
+              {data.orders.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No active orders</Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -151,16 +178,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   subtitle: {
     fontSize: 14,

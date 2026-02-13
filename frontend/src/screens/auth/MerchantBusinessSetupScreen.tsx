@@ -10,15 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { getActiveCategories } from '../../config/businessCategories';
 
-const businessCategories = [
-  { key: 'restaurant', label: 'Restaurant', icon: 'restaurant' },
-  { key: 'fast_food', label: 'Fast Food', icon: 'fast-food' },
-  { key: 'grocery', label: 'Grocery Store', icon: 'cart' },
-  { key: 'bakery', label: 'Bakery & Pastry', icon: 'cafe' },
-  { key: 'pharmacy', label: 'Pharmacy', icon: 'medkit' },
-  { key: 'other', label: 'Other', icon: 'storefront' },
-];
+const businessCategories = getActiveCategories().map(c => ({
+  key: c.key,
+  label: c.label,
+  icon: c.icon,
+}));
 
 export default function MerchantBusinessSetupScreen({ navigation, route }: any) {
   const { email, role } = route?.params || {};

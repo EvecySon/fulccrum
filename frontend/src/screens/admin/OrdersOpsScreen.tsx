@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -57,7 +58,7 @@ export default function OrdersOpsScreen() {
       try {
         const res = await adminAPI.getOrders();
         if (res?.data?.length) setOrders(res.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

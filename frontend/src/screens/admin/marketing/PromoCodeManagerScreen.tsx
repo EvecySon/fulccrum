@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { marketingAPI } from '../../../services/api';
 
-export default function PromoCodeManagerScreen() {
+export default function PromoCodeManagerScreen({ navigation }: any) {
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -28,7 +30,7 @@ export default function PromoCodeManagerScreen() {
       const response = await marketingAPI.getPromoCodes();
       setPromoCodes(response.data.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load promo codes');
+      showAlert('Error', error.response?.data?.message || 'Failed to load promo codes');
     } finally {
       setLoading(false);
     }
@@ -36,7 +38,7 @@ export default function PromoCodeManagerScreen() {
 
   const handleCreate = async () => {
     if (!formData.code || !formData.value) {
-      Alert.alert('Error', 'Please fill in required fields');
+      showAlert('Error', 'Please fill in required fields');
       return;
     }
 
@@ -53,7 +55,7 @@ export default function PromoCodeManagerScreen() {
         validUntil: new Date(formData.validUntil),
         applicableTo: {},
       });
-      Alert.alert('Success', 'Promo code created successfully');
+      showAlert('Success', 'Promo code created successfully');
       setShowCreateModal(false);
       setFormData({
         code: '',
@@ -67,17 +69,17 @@ export default function PromoCodeManagerScreen() {
       });
       loadPromoCodes();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create promo code');
+      showAlert('Error', error.response?.data?.message || 'Failed to create promo code');
     }
   };
 
   const togglePromoStatus = async (promoId: string, currentStatus: boolean) => {
     try {
       await marketingAPI.updatePromoCode(promoId, { isActive: !currentStatus });
-      Alert.alert('Success', 'Promo code status updated');
+      showAlert('Success', 'Promo code status updated');
       loadPromoCodes();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update promo code');
+      showAlert('Error', error.response?.data?.message || 'Failed to update promo code');
     }
   };
 
@@ -92,6 +94,9 @@ export default function PromoCodeManagerScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Promo Code Manager</Text>
         <TouchableOpacity style={styles.createButton} onPress={() => setShowCreateModal(true)}>
           <Text style={styles.createButtonText}>+ New Code</Text>
@@ -249,8 +254,9 @@ export default function PromoCodeManagerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, flex: 1 },
   createButton: { backgroundColor: colors.navy, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   createButtonText: { color: colors.white, fontWeight: '600' },
   promoList: { flex: 1, padding: 16 },

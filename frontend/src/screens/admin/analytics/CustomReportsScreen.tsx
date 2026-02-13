@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { adminAnalyticsAPI } from '../../../services/api';
 
-export default function CustomReportsScreen() {
+export default function CustomReportsScreen({ navigation }: any) {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -23,7 +25,7 @@ export default function CustomReportsScreen() {
       const response = await adminAnalyticsAPI.getCustomReports();
       setReports(response.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load reports');
+      showAlert('Error', error.response?.data?.message || 'Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -31,7 +33,7 @@ export default function CustomReportsScreen() {
 
   const handleCreate = async () => {
     if (!formData.name) {
-      Alert.alert('Error', 'Please enter report name');
+      showAlert('Error', 'Please enter report name');
       return;
     }
 
@@ -45,21 +47,21 @@ export default function CustomReportsScreen() {
         recipients: [],
         format: 'csv',
       });
-      Alert.alert('Success', 'Report created successfully');
+      showAlert('Success', 'Report created successfully');
       setShowCreateModal(false);
       setFormData({ name: '', type: 'revenue', schedule: 'manual' });
       loadReports();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create report');
+      showAlert('Error', error.response?.data?.message || 'Failed to create report');
     }
   };
 
   const handleRunReport = async (reportId: string) => {
     try {
       const response = await adminAnalyticsAPI.runReport(reportId);
-      Alert.alert('Success', 'Report generated successfully');
+      showAlert('Success', 'Report generated successfully');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to run report');
+      showAlert('Error', error.response?.data?.message || 'Failed to run report');
     }
   };
 
@@ -74,6 +76,9 @@ export default function CustomReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Custom Reports</Text>
         <TouchableOpacity style={styles.createButton} onPress={() => setShowCreateModal(true)}>
           <Text style={styles.createButtonText}>+ New Report</Text>
@@ -200,8 +205,9 @@ export default function CustomReportsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, flex: 1 },
   createButton: { backgroundColor: colors.navy, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   createButtonText: { color: colors.white, fontWeight: '600' },
   reportsList: { flex: 1, padding: 16 },

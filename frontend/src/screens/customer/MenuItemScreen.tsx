@@ -12,12 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
+import ReportContentModal from '../../components/ReportContentModal';
 
 
 export default function MenuItemScreen({ route, navigation }: any) {
   const { item, restaurant } = route.params;
   const { addItem, clearCart, itemCount } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [showReport, setShowReport] = useState(false);
   const [selectedCustomizations, setSelectedCustomizations] = useState<string[]>([]);
   const [modifierGroups, setModifierGroups] = useState<any[]>([]);
 
@@ -85,6 +87,9 @@ export default function MenuItemScreen({ route, navigation }: any) {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.backBtn, { left: undefined, right: 16 }]} onPress={() => setShowReport(true)}>
+            <Ionicons name="flag-outline" size={22} color={colors.textWhite} />
           </TouchableOpacity>
         </View>
 
@@ -300,6 +305,14 @@ export default function MenuItemScreen({ route, navigation }: any) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <ReportContentModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        contentType="menu_item"
+        resourceId={item.id}
+        resourceName={item.name}
+      />
     </View>
   );
 }

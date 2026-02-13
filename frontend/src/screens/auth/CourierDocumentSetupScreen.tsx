@@ -10,18 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { getCourierDocuments } from '../../config/documentRequirements';
 
 const vehicleTypes = [
   { key: 'bicycle', label: 'Bicycle', icon: 'bicycle' },
   { key: 'motorcycle', label: 'Motorcycle', icon: 'speedometer' },
   { key: 'car', label: 'Car', icon: 'car' },
   { key: 'van', label: 'Van', icon: 'bus' },
-];
-
-const documentTypes = [
-  { key: 'id_card', label: 'National ID / Passport', icon: 'card', required: true },
-  { key: 'drivers_license', label: "Driver's License", icon: 'document', required: true },
-  { key: 'vehicle_papers', label: 'Vehicle Registration', icon: 'reader', required: false },
 ];
 
 export default function CourierDocumentSetupScreen({ navigation, route }: any) {
@@ -142,7 +137,7 @@ export default function CourierDocumentSetupScreen({ navigation, route }: any) {
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Documents</Text>
         <Text style={styles.inputHint}>Tap to mark documents you have ready to upload</Text>
-        {documentTypes.map((doc) => (
+        {getCourierDocuments(vehicleType || 'motorcycle').map((doc) => (
           <TouchableOpacity
             key={doc.key}
             style={[styles.docRow, uploadedDocs.includes(doc.key) && styles.docRowActive]}

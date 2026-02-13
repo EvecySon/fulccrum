@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -30,7 +31,7 @@ export default function DeliveryZonesManagementScreen({ navigation }: any) {
       try {
         const res = await zonesAPI.getBusinessZones('all');
         if (res?.length) setZones(res);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   const [expandedId, setExpandedId] = useState<string | null>(null);

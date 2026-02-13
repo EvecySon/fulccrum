@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { financeAPI } from '../../../services/api';
 
-export default function CommissionTiersScreen() {
+export default function CommissionTiersScreen({ navigation }: any) {
   const [tiers, setTiers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -27,7 +29,7 @@ export default function CommissionTiersScreen() {
       const response = await financeAPI.getCommissionTiers();
       setTiers(response.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load commission tiers');
+      showAlert('Error', error.response?.data?.message || 'Failed to load commission tiers');
     } finally {
       setLoading(false);
     }
@@ -35,7 +37,7 @@ export default function CommissionTiersScreen() {
 
   const handleCreate = async () => {
     if (!formData.name || !formData.percentage) {
-      Alert.alert('Error', 'Please fill in required fields');
+      showAlert('Error', 'Please fill in required fields');
       return;
     }
 
@@ -49,7 +51,7 @@ export default function CommissionTiersScreen() {
         flatFee: formData.flatFee ? parseFloat(formData.flatFee) : null,
         description: formData.description,
       });
-      Alert.alert('Success', 'Commission tier created successfully');
+      showAlert('Success', 'Commission tier created successfully');
       setShowCreateForm(false);
       setFormData({
         name: '',
@@ -62,17 +64,17 @@ export default function CommissionTiersScreen() {
       });
       loadTiers();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create tier');
+      showAlert('Error', error.response?.data?.message || 'Failed to create tier');
     }
   };
 
   const toggleTierStatus = async (tierId: string, currentStatus: boolean) => {
     try {
       await financeAPI.updateCommissionTier(tierId, { isActive: !currentStatus });
-      Alert.alert('Success', 'Tier status updated');
+      showAlert('Success', 'Tier status updated');
       loadTiers();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update tier');
+      showAlert('Error', error.response?.data?.message || 'Failed to update tier');
     }
   };
 
@@ -85,8 +87,11 @@ export default function CommissionTiersScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Commission Tiers</Text>
         <TouchableOpacity
           style={styles.createButton}
@@ -181,7 +186,7 @@ export default function CommissionTiersScreen() {
         </View>
       )}
 
-      <View style={styles.tiersList}>
+      <ScrollView style={styles.tiersList}>
         {tiers.map((tier) => (
           <View key={tier.id} style={styles.tierCard}>
             <View style={styles.tierHeader}>
@@ -217,8 +222,8 @@ export default function CommissionTiersScreen() {
             )}
           </View>
         ))}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -232,19 +237,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   createButton: {
     backgroundColor: colors.navy,
@@ -365,7 +379,7 @@ const styles = StyleSheet.create({
   },
   tierType: {
     fontSize: 14,
-    color: colors.textPrimarySecondary,
+    color: colors.textSecondary,
     marginTop: 4,
     textTransform: 'capitalize',
   },
@@ -378,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success + '20',
   },
   statusInactive: {
-    backgroundColor: colors.textPrimarySecondary + '20',
+    backgroundColor: colors.textSecondary + '20',
   },
   statusText: {
     fontSize: 12,
@@ -394,7 +408,7 @@ const styles = StyleSheet.create({
   },
   tierDetailLabel: {
     fontSize: 12,
-    color: colors.textPrimarySecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   tierDetailValue: {
@@ -404,7 +418,7 @@ const styles = StyleSheet.create({
   },
   tierDescription: {
     fontSize: 14,
-    color: colors.textPrimarySecondary,
+    color: colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
   },

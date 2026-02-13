@@ -12,11 +12,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
+import ReportContentModal from '../../components/ReportContentModal';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -78,6 +80,9 @@ export default function RestaurantScreen({ route, navigation }: any) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.shareBtn}>
             <Ionicons name="share-outline" size={24} color={colors.textWhite} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.shareBtn, { right: 60 }]} onPress={() => setShowReport(true)}>
+            <Ionicons name="flag-outline" size={22} color={colors.textWhite} />
           </TouchableOpacity>
         </View>
 
@@ -165,6 +170,14 @@ export default function RestaurantScreen({ route, navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <ReportContentModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        contentType="business_profile"
+        resourceId={restaurant.id}
+        resourceName={restaurant.name}
+      />
     </View>
   );
 }

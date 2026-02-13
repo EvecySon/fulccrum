@@ -119,13 +119,89 @@ export class AdminController {
     return this.adminService.inviteMerchant(dto.email, dto.businessName, dto.ownerName, dto.phone, dto.commission);
   }
 
-  // @Post('invite/courier')
-  // async inviteCourier(@Body() dto: InviteCourierDto) {
-  //   return this.adminService.inviteCourier(dto.email, dto.firstName, dto.lastName);
-  // }
+  @Post('invite/courier')
+  async inviteCourier(@Body() dto: InviteCourierDto) {
+    return this.adminService.inviteCourier(dto.email, dto.firstName, dto.lastName);
+  }
 
-  // @Patch('couriers/:id/approve')
-  // async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
-  //   return this.adminService.approveCourier(id, dto.approved, dto.notes);
-  // }
+  @Patch('couriers/:id/approve')
+  async approveCourier(@Param('id') id: string, @Body() dto: ApproveCourierDto) {
+    return this.adminService.approveCourier(id, dto.approved, dto.notes);
+  }
+
+  @Get('couriers')
+  async getAllCouriers(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getAllCouriers(
+      req.user.role,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
+  @Get('couriers/pending')
+  async getPendingCouriers(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getPendingCouriers(
+      req.user.role,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
+  @Patch('couriers/:id/reject')
+  async rejectCourier(@Param('id') id: string, @Body('reason') reason: string) {
+    return this.adminService.approveCourier(id, false, reason);
+  }
+
+  @Patch('couriers/:id/suspend')
+  async suspendCourier(@Request() req: any, @Param('id') id: string, @Body('reason') reason?: string) {
+    return this.adminService.suspendUser(req.user.role, id);
+  }
+
+  @Patch('couriers/:id/reactivate')
+  async reactivateCourier(@Request() req: any, @Param('id') id: string) {
+    return this.adminService.activateUser(req.user.role, id);
+  }
+
+  @Get('merchants/:merchantId/application')
+  async getMerchantApplication(@Request() req: any, @Param('merchantId') merchantId: string) {
+    return this.adminService.getMerchantApplication(req.user.role, merchantId);
+  }
+
+  @Get('merchants/:merchantId/documents')
+  async getMerchantDocuments(@Request() req: any, @Param('merchantId') merchantId: string) {
+    return this.adminService.getMerchantDocuments(req.user.role, merchantId);
+  }
+
+  @Patch('merchants/:merchantId/documents/:docId/verify')
+  async verifyMerchantDocument(@Request() req: any, @Param('merchantId') merchantId: string, @Param('docId') docId: string) {
+    return this.adminService.verifyDocument(req.user.role, merchantId, docId);
+  }
+
+  @Patch('merchants/:merchantId/documents/:docId/reject')
+  async rejectMerchantDocument(@Request() req: any, @Param('merchantId') merchantId: string, @Param('docId') docId: string, @Body('reason') reason: string) {
+    return this.adminService.rejectDocument(req.user.role, merchantId, docId, reason);
+  }
+
+  @Post('merchants/:merchantId/request-documents')
+  async requestMerchantDocuments(@Request() req: any, @Param('merchantId') merchantId: string, @Body('documentTypes') documentTypes: string[]) {
+    return this.adminService.requestDocuments(req.user.role, merchantId, documentTypes);
+  }
+
+  @Get('couriers/:id/documents')
+  async getCourierDocuments(@Request() req: any, @Param('id') id: string) {
+    return this.adminService.getCourierDocuments(req.user.role, id);
+  }
+
+  @Patch('couriers/:id/documents/:docId/verify')
+  async verifyCourierDocument(@Request() req: any, @Param('id') id: string, @Param('docId') docId: string) {
+    return this.adminService.verifyDocument(req.user.role, id, docId);
+  }
 }

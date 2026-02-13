@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { showAlert } from '../../utils/alert';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,20 +7,21 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { adminAPI } from '../../services/api';
 
 const mockMerchants = [
-  { id: '1', name: 'Burger House', owner: 'Mike Chen', email: 'mike@burgerhouse.com', status: 'active', rating: 4.7, orders: 182, revenue: 12500, commission: 10, joined: 'Nov 20, 2025', category: 'American' },
-  { id: '2', name: 'Sushi Palace', owner: 'Anna Park', email: 'anna@sushipalace.com', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 12, joined: 'Feb 4, 2026', category: 'Japanese' },
-  { id: '3', name: 'Pizza Roma', owner: 'Marco Rossi', email: 'marco@pizzaroma.com', status: 'active', rating: 4.5, orders: 143, revenue: 9800, commission: 10, joined: 'Oct 15, 2025', category: 'Italian' },
-  { id: '4', name: 'Thai Garden', owner: 'Siri Patel', email: 'siri@thaigarden.com', status: 'active', rating: 4.6, orders: 98, revenue: 6200, commission: 12, joined: 'Dec 1, 2025', category: 'Thai' },
-  { id: '5', name: 'Seoul Kitchen', owner: 'Jin Kim', email: 'jin@seoulkitchen.com', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 10, joined: 'Feb 5, 2026', category: 'Korean' },
-  { id: '6', name: 'Taco Fiesta', owner: 'Carlos Diaz', email: 'carlos@tacofiesta.com', status: 'suspended', rating: 3.2, orders: 45, revenue: 2100, commission: 10, joined: 'Jan 10, 2026', category: 'Mexican' },
-  { id: '7', name: 'The Urban Spoon', owner: 'James Wright', email: 'james@urbanspoon.com', status: 'active', rating: 4.9, orders: 210, revenue: 18900, commission: 15, joined: 'Sep 5, 2025', category: 'Fine Dining' },
+  { id: '1', name: 'Chicken Republic - Lekki', owner: 'Adewale Johnson', email: 'adewale@chickenrep.ng', status: 'active', rating: 4.7, orders: 1842, revenue: 2450000, commission: 8, joined: 'Sep 15, 2025', category: 'Fast Food' },
+  { id: '2', name: 'The Place - Victoria Island', owner: 'Funke Adeyemi', email: 'funke@theplace.ng', status: 'active', rating: 4.5, orders: 1230, revenue: 1890000, commission: 8, joined: 'Oct 1, 2025', category: 'Nigerian' },
+  { id: '3', name: 'Mama Put Kitchen - Surulere', owner: 'Ngozi Okafor', email: 'ngozi@mamaput.ng', status: 'active', rating: 4.8, orders: 956, revenue: 780000, commission: 10, joined: 'Nov 20, 2025', category: 'Local Cuisine' },
+  { id: '4', name: 'Dominos Pizza - Ikeja', owner: 'Chidi Nnamdi', email: 'chidi@dominos.ng', status: 'active', rating: 4.3, orders: 2100, revenue: 3200000, commission: 7, joined: 'Aug 5, 2025', category: 'Pizza' },
+  { id: '5', name: 'Seoul Kitchen - Lekki Phase 2', owner: 'Jin Kim', email: 'jin@seoulkitchen.ng', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 10, joined: 'Feb 8, 2026', category: 'Korean' },
+  { id: '6', name: 'Kilimanjaro - Ajah', owner: 'Yusuf Mohammed', email: 'yusuf@kilimanjaro.ng', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 10, joined: 'Feb 10, 2026', category: 'Fast Food' },
+  { id: '7', name: 'Buka Hut - Ikoyi', owner: 'Bola Akinwale', email: 'bola@bukahut.ng', status: 'suspended', rating: 3.1, orders: 312, revenue: 245000, commission: 10, joined: 'Dec 1, 2025', category: 'Local Cuisine' },
+  { id: '8', name: 'Tantalizers - Festac', owner: 'Emeka Obi', email: 'emeka@tantalizers.ng', status: 'suspended', rating: 3.4, orders: 187, revenue: 156000, commission: 10, joined: 'Jan 5, 2026', category: 'Fast Food' },
+  { id: '9', name: 'KFC - Surulere', owner: 'Amara Eze', email: 'amara@kfc.ng', status: 'active', rating: 4.4, orders: 1567, revenue: 2100000, commission: 7, joined: 'Jul 20, 2025', category: 'Fast Food' },
+  { id: '10', name: 'Sweet Sensation - Ikeja', owner: 'Tunde Bakare', email: 'tunde@sweetsensation.ng', status: 'active', rating: 4.6, orders: 890, revenue: 1120000, commission: 8, joined: 'Oct 10, 2025', category: 'Bakery & Fast Food' },
 ];
 
 const filters = ['All', 'Active', 'Pending', 'Suspended'];
@@ -28,18 +30,6 @@ export default function MerchantsScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [merchants, setMerchants] = useState(mockMerchants);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminAPI.getUsers(1, 100);
-        if (res?.data?.length) {
-          const m = res.data.filter((u: any) => u.role === 'business_owner' || u.role === 'merchant');
-          if (m.length) setMerchants(m);
-        }
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
-  }, []);
 
   const filtered = merchants.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.owner.toLowerCase().includes(search.toLowerCase());
@@ -154,30 +144,30 @@ export default function MerchantsScreen({ navigation }: any) {
               )}
 
               <View style={styles.merchantActions}>
-                <TouchableOpacity style={styles.actionBtn}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => showAlert('Merchant Details', `${merchant.name}\nOwner: ${merchant.owner}\nEmail: ${merchant.email}\nJoined: ${merchant.joined}`)}>
                   <Ionicons name="eye-outline" size={16} color={colors.navy} />
                   <Text style={styles.actionBtnText}>View</Text>
                 </TouchableOpacity>
                 {merchant.status === 'pending' && (
                   <>
-                    <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => { setMerchants(prev => prev.map(m => m.id === merchant.id ? { ...m, status: 'active' } : m)); showAlert('Success', `${merchant.name} approved`); }}>
                       <Ionicons name="checkmark" size={16} color={colors.textWhite} />
                       <Text style={styles.approveBtnText}>Approve</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={() => { setMerchants(prev => prev.filter(m => m.id !== merchant.id)); showAlert('Done', `${merchant.name} rejected and removed`); }}>
                       <Ionicons name="close" size={16} color={colors.error} />
                       <Text style={styles.rejectBtnText}>Reject</Text>
                     </TouchableOpacity>
                   </>
                 )}
                 {merchant.status === 'active' && (
-                  <TouchableOpacity style={[styles.actionBtn, styles.editBtn]}>
+                  <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => showAlert('Edit', `Editing ${merchant.name} — commission: ${merchant.commission}%`)}>
                     <Ionicons name="create-outline" size={16} color={colors.teal} />
                     <Text style={styles.editBtnText}>Edit</Text>
                   </TouchableOpacity>
                 )}
                 {merchant.status === 'suspended' && (
-                  <TouchableOpacity style={[styles.actionBtn, styles.reactivateBtn]}>
+                  <TouchableOpacity style={[styles.actionBtn, styles.reactivateBtn]} onPress={() => { setMerchants(prev => prev.map(m => m.id === merchant.id ? { ...m, status: 'active' } : m)); showAlert('Success', `${merchant.name} reactivated`); }}>
                     <Ionicons name="refresh" size={16} color={colors.success} />
                     <Text style={styles.reactivateBtnText}>Reactivate</Text>
                   </TouchableOpacity>

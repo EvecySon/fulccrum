@@ -259,14 +259,21 @@ export default function CourierProfileScreen({ navigation }: any) {
             { icon: 'trophy-outline', label: 'Achievements & Rewards', color: '#f59e0b', screen: 'Gamification' },
             { icon: 'shield-checkmark-outline', label: 'Safety Center', color: '#ef4444', screen: 'Safety' },
             { icon: 'car-outline', label: 'Vehicle & Delivery', color: '#3b82f6', screen: 'VehicleManagement' },
-          ].map((item, index) => (
+            { icon: 'map-outline', label: 'Surge & Heat Map', color: '#dc2626', screen: 'HeatMap' },
+            { icon: 'calendar-outline', label: 'Schedule Shifts', color: '#0ea5e9', screen: 'Scheduling' },
+            { icon: 'flame-outline', label: 'Quests & Bonuses', color: '#f97316', screen: 'Quests' },
+            { icon: 'options-outline', label: 'Delivery Preferences', color: '#6366f1', screen: 'DeliveryPreferences' },
+            { icon: 'school-outline', label: 'Training Center', color: '#10b981', screen: 'Training' },
+            { icon: 'shield-outline', label: 'Insurance', color: '#0891b2', screen: 'Insurance' },
+            { icon: 'build-outline', label: 'Maintenance & Docs', color: '#78716c', screen: 'MaintenanceReminders' },
+          ].map((item, index, arr) => (
             <React.Fragment key={'adv-' + index}>
               <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate(item.screen)}>
                 <Ionicons name={item.icon as any} size={20} color={item.color} />
                 <Text style={styles.actionLabel}>{item.label}</Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
               </TouchableOpacity>
-              {index < 3 && <View style={styles.settingDivider} />}
+              {index < arr.length - 1 && <View style={styles.settingDivider} />}
             </React.Fragment>
           ))}
         </View>
@@ -275,9 +282,9 @@ export default function CourierProfileScreen({ navigation }: any) {
         <View style={styles.actionsCard}>
           {[
             { icon: 'wallet-outline', label: 'Wallet & Withdrawals', color: colors.navy, screen: 'Wallet' },
-            { icon: 'document-text-outline', label: 'Tax Documents', color: colors.navy, screen: null },
+            { icon: 'document-text-outline', label: 'Tax & Earnings', color: colors.navy, screen: 'TaxSummary' },
             { icon: 'help-circle-outline', label: 'Help & Support', color: colors.navy, screen: null },
-            { icon: 'star-outline', label: 'Refer a Friend', color: colors.teal, screen: null },
+            { icon: 'star-outline', label: 'Refer a Friend', color: colors.teal, screen: 'Referral' },
           ].map((item, index) => (
             <React.Fragment key={index}>
               <TouchableOpacity style={styles.actionRow} onPress={() => item.screen && navigation.navigate(item.screen)}>
@@ -286,6 +293,24 @@ export default function CourierProfileScreen({ navigation }: any) {
                 <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
               </TouchableOpacity>
               {index < 4 && <View style={styles.settingDivider} />}
+            </React.Fragment>
+          ))}
+        </View>
+
+        {/* Settings */}
+        <View style={styles.actionsCard}>
+          <Text style={styles.cardTitle}>Settings</Text>
+          {[
+            { icon: 'moon-outline', label: 'Appearance', color: '#6366f1', screen: 'ThemeSettings' },
+            { icon: 'language-outline', label: 'Language', color: '#0ea5e9', screen: 'LanguageSettings' },
+          ].map((item, index, arr) => (
+            <React.Fragment key={'set-' + index}>
+              <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate(item.screen)}>
+                <Ionicons name={item.icon as any} size={20} color={item.color} />
+                <Text style={styles.actionLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+              {index < arr.length - 1 && <View style={styles.settingDivider} />}
             </React.Fragment>
           ))}
         </View>

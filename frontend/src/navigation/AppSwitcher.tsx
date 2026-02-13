@@ -13,6 +13,7 @@ import CustomerNavigator from './CustomerNavigator';
 import MerchantNavigator from './MerchantNavigator';
 import CourierNavigator from './CourierNavigator';
 import AdminNavigator from './AdminNavigator';
+import GlobalToast from '../components/GlobalToast';
 
 type AppMode = 'customer' | 'merchant' | 'courier' | 'admin';
 
@@ -36,6 +37,8 @@ export default function AppSwitcher() {
   return (
     <View style={styles.container}>
       {mode === 'customer' ? <CustomerNavigator /> : mode === 'merchant' ? <MerchantNavigator /> : mode === 'courier' ? <CourierNavigator /> : <AdminNavigator />}
+
+      <GlobalToast />
 
       {/* Floating Mode Switcher Button — DEV ONLY */}
       {__DEV__ && (

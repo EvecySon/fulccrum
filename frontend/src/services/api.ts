@@ -556,6 +556,17 @@ export const moderationAPI = {
   updateCompliance: (businessId: string, data: any) => 
     api.patch(`/admin/moderation/compliance/${businessId}`, data),
   getComplianceStats: () => api.get('/admin/moderation/compliance/stats'),
+
+  // Customer-facing content reporting (feeds into moderation queue)
+  reportContent: (data: { type: 'menu_item' | 'review' | 'business_profile'; resourceId: string; reason: string; details?: string }) =>
+    api.post('/report/content', data),
+};
+
+// ─── Report API (Customer-facing) ───
+export const reportAPI = {
+  reportContent: (data: { type: 'menu_item' | 'review' | 'business_profile'; resourceId: string; reason: string; details?: string }) =>
+    api.post('/report/content', data),
+  getMyReports: () => api.get('/report/my-reports'),
 };
 
 // ─── Marketing API ───

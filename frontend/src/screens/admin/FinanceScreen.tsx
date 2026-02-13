@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -57,7 +58,7 @@ export default function FinanceScreen({ navigation }: any) {
         ]);
         if (revRes?.length) setMonthlyRevenue(revRes);
         if (txRes?.data?.length) setTransactions(txRes.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

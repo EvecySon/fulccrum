@@ -14,6 +14,9 @@ import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import * as Location from 'expo-location';
 import { colors } from '../../theme/colors';
 import { locationAPI } from '../../services/api';
+import SwipeToConfirm from '../../components/courier/SwipeToConfirm';
+import DeliveryProofModal from '../../components/courier/DeliveryProofModal';
+import RateCustomerModal from '../../components/courier/RateCustomerModal';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +41,33 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
     latitude: 6.5220,
     longitude: 3.3770,
   });
+  const [showDeliveryProof, setShowDeliveryProof] = useState(false);
+  const [showRateCustomer, setShowRateCustomer] = useState(false);
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [deliveryCountdown, setDeliveryCountdown] = useState(0);
+
+  // Delivery countdown timer
+  useEffect(() => {
+    if (currentStep < 2) return; // only after pickup
+    setDeliveryCountdown(order.estimatedTime * 60);
+    const interval = setInterval(() => {
+      setDeliveryCountdown(prev => Math.max(prev - 1, 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [currentStep >= 2]);
+
+  // Waiting time at restaurant
+  useEffect(() => {
+    if (steps[currentStep]?.key === 'at_pickup') {
+      setIsWaiting(true);
+      setWaitingSeconds(0);
+      const interval = setInterval(() => setWaitingSeconds(prev => prev + 1), 1000);
+      return () => clearInterval(interval);
+    } else {
+      setIsWaiting(false);
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     let locationSub: Location.LocationSubscription | null = null;
@@ -95,8 +125,32 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
   };
 
   const advanceStep = () => {
+    if (steps[currentStep].key === 'arrived') {
+      // Show delivery proof modal before completing
+      setShowDeliveryProof(true);
+      return;
+    }
     if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
   };
+
+  const handleDeliveryComplete = () => {
+    setShowDeliveryProof(false);
+    setShowRateCustomer(true);
+  };
+
+  const handleRateComplete = () => {
+    setShowRateCustomer(false);
+    navigation.goBack();
+  };
+
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const waitingMinutes = Math.floor(waitingSeconds / 60);
+  const waitingCompensation = waitingMinutes >= 10 ? Math.floor((waitingMinutes - 10) * 50) : 0;
 
   const getActionLabel = () => {
     switch (steps[currentStep].key) {
@@ -303,13 +357,62 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Bottom Action */}
+      {/* Waiting Time Compensation */}
+      {isWaiting && waitingSeconds > 0 && (
+        <View style={styles.waitingBanner}>
+          <View style={styles.waitingInfo}>
+            <Ionicons name="timer" size={18} color={waitingMinutes >= 10 ? colors.error : colors.warning} />
+            <Text style={styles.waitingTime}>
+              Waiting: {waitingMinutes}m {waitingSeconds % 60}s
+            </Text>
+          </View>
+          {waitingCompensation > 0 && (
+            <Text style={styles.waitingComp}>+₦{waitingCompensation} compensation</Text>
+          )}
+          {waitingMinutes < 10 && (
+            <Text style={styles.waitingNote}>Extra pay starts after 10 min wait</Text>
+          )}
+        </View>
+      )}
+
+      {/* Delivery Countdown */}
+      {currentStep >= 2 && deliveryCountdown > 0 && (
+        <View style={[styles.countdownBanner, deliveryCountdown < 300 && { backgroundColor: colors.error + '10', borderColor: colors.error + '25' }]}>
+          <Ionicons name="time" size={16} color={deliveryCountdown < 300 ? colors.error : colors.teal} />
+          <Text style={[styles.countdownText, deliveryCountdown < 300 && { color: colors.error }]}>
+            ETA: {formatCountdown(deliveryCountdown)}
+          </Text>
+        </View>
+      )}
+
+      {/* Bottom Action — Swipe to Confirm */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.actionBtn} onPress={advanceStep}>
-          <Text style={styles.actionText}>{getActionLabel()}</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
-        </TouchableOpacity>
+        <SwipeToConfirm
+          label={getActionLabel()}
+          icon={steps[currentStep].key === 'arrived' ? 'camera' : 'checkmark'}
+          color={steps[currentStep].key === 'arrived' ? colors.success : colors.teal}
+          onConfirm={advanceStep}
+        />
       </View>
+
+      {/* Delivery Proof Modal */}
+      <DeliveryProofModal
+        visible={showDeliveryProof}
+        orderId={order.id}
+        customerName={order.customer}
+        deliveryType="leave_at_door"
+        onComplete={handleDeliveryComplete}
+        onClose={() => setShowDeliveryProof(false)}
+      />
+
+      {/* Rate Customer Modal */}
+      <RateCustomerModal
+        visible={showRateCustomer}
+        orderId={order.id}
+        customerName={order.customer}
+        onSubmit={handleRateComplete}
+        onSkip={handleRateComplete}
+      />
     </View>
   );
 }
@@ -422,4 +525,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.teal, borderRadius: 14, paddingVertical: 16, gap: 8,
   },
   actionText: { fontSize: 17, fontWeight: '700', color: colors.textWhite },
+  waitingBanner: {
+    position: 'absolute', top: 200, left: 10, right: 10,
+    backgroundColor: colors.warning + '10', borderRadius: 12, padding: 10,
+    borderWidth: 1, borderColor: colors.warning + '25', zIndex: 10,
+  },
+  waitingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  waitingTime: { fontSize: 14, fontWeight: '700', color: colors.warning },
+  waitingComp: { fontSize: 13, fontWeight: '700', color: colors.success, marginTop: 4 },
+  waitingNote: { fontSize: 11, color: colors.textLight, marginTop: 2 },
+  countdownBanner: {
+    position: 'absolute', top: 200, right: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.teal + '10', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 6, zIndex: 10,
+    borderWidth: 1, borderColor: colors.teal + '20',
+  },
+  countdownText: { fontSize: 14, fontWeight: '700', color: colors.teal },
 });

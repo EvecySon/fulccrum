@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState } from 'react';
 import {
   View,
@@ -39,7 +40,7 @@ export default function AddCourierScreen({ navigation }: any) {
     setLoading(true);
     try {
       await adminAPI.inviteCourier({ email, fullName, phone: phone || undefined, vehicleType });
-      Alert.alert(
+      showAlert(
         'Invitation Sent!',
         `An invite has been sent to ${email}. ${fullName} will receive instructions to complete registration and document verification${waiveFee ? ' (registration fee waived)' : ''}.`,
         [{ text: 'OK', onPress: () => navigation.goBack() }],

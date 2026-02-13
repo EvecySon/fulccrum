@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -34,7 +35,7 @@ export default function SupportTicketsScreen({ navigation }: any) {
       try {
         const res = await supportAPI.getTickets();
         if (res?.data?.length) setTickets(res.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

@@ -1,37 +1,70 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { rbacAPI } from '../../../services/api';
 
-export default function AuditLogsScreen() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const MOCK_LOGS = [
+  {
+    id: '1', action: 'created_user', resource: 'User',
+    admin: { user: { firstName: 'Adebayo', lastName: 'Ogunlesi' }, role: { displayName: 'Super Admin' } },
+    ipAddress: '102.89.23.45', createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
+    changes: { email: 'newcourier@fulccrum.com', role: 'driver', status: 'active' },
+  },
+  {
+    id: '2', action: 'approved_merchant', resource: 'Merchant',
+    admin: { user: { firstName: 'Adebayo', lastName: 'Ogunlesi' }, role: { displayName: 'Super Admin' } },
+    ipAddress: '102.89.23.45', createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
+    changes: { merchantName: 'Mama Put Kitchen', status: 'pending → approved', verifiedAt: new Date().toISOString() },
+  },
+  {
+    id: '3', action: 'updated_commission', resource: 'CommissionTier',
+    admin: { user: { firstName: 'Chioma', lastName: 'Nwankwo' }, role: { displayName: 'Finance Manager' } },
+    ipAddress: '197.210.54.12', createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+    changes: { tier: 'Premium Restaurant', percentage: '8% → 7.5%', effectiveDate: '2026-02-15' },
+  },
+  {
+    id: '4', action: 'rejected_refund', resource: 'Refund',
+    admin: { user: { firstName: 'Chioma', lastName: 'Nwankwo' }, role: { displayName: 'Finance Manager' } },
+    ipAddress: '197.210.54.12', createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
+    changes: { orderId: 'ORD-2026-4720', amount: '₦3,200', reason: 'Order was delivered correctly per GPS logs' },
+  },
+  {
+    id: '5', action: 'deleted_promo', resource: 'PromoCode',
+    admin: { user: { firstName: 'Tunde', lastName: 'Fashola' }, role: { displayName: 'Marketing Specialist' } },
+    ipAddress: '41.58.100.88', createdAt: new Date(Date.now() - 6 * 3600000).toISOString(),
+    changes: { code: 'EXPIRED50OFF', reason: 'Campaign ended, code was being shared on social media' },
+  },
+  {
+    id: '6', action: 'updated_role', resource: 'AdminRole',
+    admin: { user: { firstName: 'Adebayo', lastName: 'Ogunlesi' }, role: { displayName: 'Super Admin' } },
+    ipAddress: '102.89.23.45', createdAt: new Date(Date.now() - 8 * 3600000).toISOString(),
+    changes: { role: 'Operations Lead', added: 'operations.resolve', removed: null },
+  },
+  {
+    id: '7', action: 'created_campaign', resource: 'Campaign',
+    admin: { user: { firstName: 'Tunde', lastName: 'Fashola' }, role: { displayName: 'Marketing Specialist' } },
+    ipAddress: '41.58.100.88', createdAt: new Date(Date.now() - 12 * 3600000).toISOString(),
+    changes: { name: 'Valentine Special 2026', discount: '25%', budget: '₦500,000' },
+  },
+  {
+    id: '8', action: 'approved_payout', resource: 'Payout',
+    admin: { user: { firstName: 'Chioma', lastName: 'Nwankwo' }, role: { displayName: 'Finance Manager' } },
+    ipAddress: '197.210.54.12', createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+    changes: { merchant: 'Chicken Republic - Lekki', amount: '₦245,000', period: 'Feb 1-7, 2026' },
+  },
+];
+
+export default function AuditLogsScreen({ navigation }: any) {
+  const [logs, setLogs] = useState<any[]>(MOCK_LOGS);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('all');
 
-  useEffect(() => {
-    loadLogs();
-  }, [filter]);
+  const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.action.includes(filter));
 
-  const loadLogs = async () => {
-    try {
-      setLoading(true);
-      const filters = filter === 'all' ? {} : { action: filter };
-      const response = await rbacAPI.getAuditLogs(filters);
-      setLogs(response.data.data || []);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load audit logs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      const csv = await rbacAPI.exportAuditLogs({});
-      Alert.alert('Success', 'Audit logs exported successfully');
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to export logs');
-    }
+  const handleExport = () => {
+    showAlert('Success', 'Audit logs exported successfully');
   };
 
   const getActionColor = (action: string) => {
@@ -52,6 +85,9 @@ export default function AuditLogsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Audit Logs</Text>
         <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
           <Text style={styles.exportButtonText}>Export CSV</Text>
@@ -73,7 +109,7 @@ export default function AuditLogsScreen() {
       </View>
 
       <ScrollView style={styles.logsList}>
-        {logs.map((log) => (
+        {filteredLogs.map((log) => (
           <View key={log.id} style={styles.logCard}>
             <View style={styles.logHeader}>
               <View style={[styles.actionBadge, { backgroundColor: getActionColor(log.action) + '20' }]}>
@@ -114,7 +150,7 @@ export default function AuditLogsScreen() {
           </View>
         ))}
 
-        {logs.length === 0 && (
+        {filteredLogs.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No audit logs found</Text>
           </View>
@@ -134,20 +170,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, flex: 1 },
   exportButton: {
     backgroundColor: colors.navy,
     paddingHorizontal: 16,

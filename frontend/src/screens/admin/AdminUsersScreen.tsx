@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { showAlert } from '../../utils/alert';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,31 +7,40 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { adminAPI } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
 
-interface AdminUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  status: string;
-  createdAt: string;
-  lastLogin?: string;
-}
+const AVAILABLE_ROLES = [
+  { id: 'super_admin', displayName: 'Super Admin' },
+  { id: 'finance_manager', displayName: 'Finance Manager' },
+  { id: 'operations_lead', displayName: 'Operations Lead' },
+  { id: 'content_moderator', displayName: 'Content Moderator' },
+  { id: 'marketing_specialist', displayName: 'Marketing Specialist' },
+  { id: 'support_agent', displayName: 'Support Agent' },
+];
+
+const MOCK_ADMINS = [
+  { id: '1', email: 'admin@fulccrum.com', firstName: 'Adebayo', lastName: 'Ogunlesi', roleId: 'super_admin', roleName: 'Super Admin', status: 'active', createdAt: '2025-11-01T10:00:00Z', lastLogin: new Date(Date.now() - 30 * 60000).toISOString() },
+  { id: '2', email: 'kemi.ade@fulccrum.com', firstName: 'Kemi', lastName: 'Adekunle', roleId: 'super_admin', roleName: 'Super Admin', status: 'active', createdAt: '2025-12-15T08:00:00Z', lastLogin: new Date(Date.now() - 3 * 3600000).toISOString() },
+  { id: '3', email: 'chioma.n@fulccrum.com', firstName: 'Chioma', lastName: 'Nwankwo', roleId: 'finance_manager', roleName: 'Finance Manager', status: 'active', createdAt: '2026-01-05T09:00:00Z', lastLogin: new Date(Date.now() - 1 * 3600000).toISOString() },
+  { id: '4', email: 'emeka.o@fulccrum.com', firstName: 'Emeka', lastName: 'Okafor', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-10T14:00:00Z', lastLogin: new Date(Date.now() - 45 * 60000).toISOString() },
+  { id: '5', email: 'tunde.f@fulccrum.com', firstName: 'Tunde', lastName: 'Fashola', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-12T11:00:00Z', lastLogin: new Date(Date.now() - 5 * 3600000).toISOString() },
+  { id: '6', email: 'bola.a@fulccrum.com', firstName: 'Bola', lastName: 'Akinwale', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-20T16:00:00Z', lastLogin: null },
+  { id: '7', email: 'ngozi.e@fulccrum.com', firstName: 'Ngozi', lastName: 'Eze', roleId: 'content_moderator', roleName: 'Content Moderator', status: 'active', createdAt: '2026-02-01T10:00:00Z', lastLogin: new Date(Date.now() - 2 * 3600000).toISOString() },
+  { id: '8', email: 'yusuf.m@fulccrum.com', firstName: 'Yusuf', lastName: 'Mohammed', roleId: 'support_agent', roleName: 'Support Agent', status: 'active', createdAt: '2026-02-05T09:00:00Z', lastLogin: new Date(Date.now() - 20 * 60000).toISOString() },
+  { id: '9', email: 'amina.b@fulccrum.com', firstName: 'Amina', lastName: 'Bello', roleId: 'support_agent', roleName: 'Support Agent', status: 'active', createdAt: '2026-02-08T13:00:00Z', lastLogin: new Date(Date.now() - 8 * 3600000).toISOString() },
+];
 
 export default function AdminUsersScreen({ navigation }: any) {
-  const { user } = useAuth();
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const currentUserId = '1';
+  const [admins, setAdmins] = useState<any[]>(MOCK_ADMINS);
+  const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -38,59 +48,42 @@ export default function AdminUsersScreen({ navigation }: any) {
     firstName: '',
     lastName: '',
     phone: '',
+    roleId: 'support_agent',
   });
 
-  useEffect(() => {
-    loadAdmins();
-  }, []);
-
-  const loadAdmins = async () => {
-    try {
-      setLoading(true);
-      const res = await adminAPI.getAdmins();
-      setAdmins(res.data || []);
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to load admin users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!form.email || !form.password || !form.firstName || !form.lastName) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert('Error', 'Please fill in all required fields');
       return;
     }
     if (form.password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      showAlert('Error', 'Password must be at least 8 characters');
       return;
     }
-    try {
-      setCreating(true);
-      await adminAPI.createAdmin({
-        email: form.email,
-        password: form.password,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        phone: form.phone || undefined,
-      });
-      Alert.alert('Success', 'Admin user created successfully');
-      setShowCreateModal(false);
-      setForm({ email: '', password: '', firstName: '', lastName: '', phone: '' });
-      loadAdmins();
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to create admin user');
-    } finally {
-      setCreating(false);
-    }
+    const role = AVAILABLE_ROLES.find(r => r.id === form.roleId);
+    const newAdmin = {
+      id: String(admins.length + 1),
+      email: form.email,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      roleId: form.roleId,
+      roleName: role?.displayName || form.roleId,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      lastLogin: null,
+    };
+    setAdmins(prev => [...prev, newAdmin]);
+    showAlert('Success', `Admin user created as ${role?.displayName}`);
+    setShowCreateModal(false);
+    setForm({ email: '', password: '', firstName: '', lastName: '', phone: '', roleId: 'support_agent' });
   };
 
-  const handleRemove = (admin: AdminUser) => {
-    if (admin.id === user?.id) {
-      Alert.alert('Error', 'You cannot remove yourself');
+  const handleRemove = (admin: any) => {
+    if (admin.id === currentUserId) {
+      showAlert('Error', 'You cannot remove yourself');
       return;
     }
-    Alert.alert(
+    showAlert(
       'Remove Admin',
       `Are you sure you want to remove admin access for ${admin.firstName} ${admin.lastName}?`,
       [
@@ -98,23 +91,43 @@ export default function AdminUsersScreen({ navigation }: any) {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminAPI.removeAdmin(admin.id);
-              Alert.alert('Done', 'Admin access removed');
-              loadAdmins();
-            } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Failed to remove admin');
-            }
+          onPress: () => {
+            setAdmins(prev => prev.filter(a => a.id !== admin.id));
+            showAlert('Done', 'Admin access removed');
           },
         },
       ],
     );
   };
 
+  const openRolePicker = (admin: any) => {
+    setSelectedAdmin(admin);
+    setShowRoleModal(true);
+  };
+
+  const assignRole = (roleId: string) => {
+    const role = AVAILABLE_ROLES.find(r => r.id === roleId);
+    setAdmins(prev => prev.map(a => a.id === selectedAdmin.id ? { ...a, roleId, roleName: role?.displayName || roleId } : a));
+    showAlert('Success', `${selectedAdmin.firstName} is now ${role?.displayName}`);
+    setShowRoleModal(false);
+    setSelectedAdmin(null);
+  };
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const getRoleColor = (roleId: string) => {
+    switch (roleId) {
+      case 'super_admin': return colors.error;
+      case 'finance_manager': return colors.success;
+      case 'operations_lead': return colors.navy;
+      case 'content_moderator': return colors.warning;
+      case 'marketing_specialist': return colors.info;
+      case 'support_agent': return colors.teal;
+      default: return colors.textSecondary;
+    }
   };
 
   return (
@@ -146,18 +159,24 @@ export default function AdminUsersScreen({ navigation }: any) {
                 </Text>
               </View>
               <View style={styles.adminInfo}>
-                <Text style={styles.adminName}>{admin.firstName} {admin.lastName}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.adminName}>{admin.firstName} {admin.lastName}</Text>
+                  {admin.id === currentUserId && (
+                    <View style={styles.youBadge}><Text style={styles.youText}>You</Text></View>
+                  )}
+                </View>
                 <Text style={styles.adminEmail}>{admin.email}</Text>
+                <TouchableOpacity style={styles.roleBadge} onPress={() => openRolePicker(admin)}>
+                  <View style={[styles.roleDot, { backgroundColor: getRoleColor(admin.roleId) }]} />
+                  <Text style={styles.roleLabel}>{admin.roleName}</Text>
+                  <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
                 <Text style={styles.adminMeta}>
                   Joined {formatDate(admin.createdAt)}
                   {admin.lastLogin ? ` · Last login ${formatDate(admin.lastLogin)}` : ' · Never logged in'}
                 </Text>
               </View>
-              {admin.id === user?.id ? (
-                <View style={styles.youBadge}>
-                  <Text style={styles.youText}>You</Text>
-                </View>
-              ) : (
+              {admin.id !== currentUserId && (
                 <TouchableOpacity onPress={() => handleRemove(admin)} style={styles.removeBtn}>
                   <Ionicons name="close-circle" size={24} color={colors.error} />
                 </TouchableOpacity>
@@ -237,6 +256,21 @@ export default function AdminUsersScreen({ navigation }: any) {
                 keyboardType="phone-pad"
               />
 
+              <Text style={styles.inputLabel}>Role *</Text>
+              <View style={styles.rolePickerList}>
+                {AVAILABLE_ROLES.map((role) => (
+                  <TouchableOpacity
+                    key={role.id}
+                    style={[styles.rolePickerItem, form.roleId === role.id && styles.rolePickerItemActive]}
+                    onPress={() => setForm({ ...form, roleId: role.id })}
+                  >
+                    <View style={[styles.roleDot, { backgroundColor: getRoleColor(role.id) }]} />
+                    <Text style={[styles.rolePickerText, form.roleId === role.id && styles.rolePickerTextActive]}>{role.displayName}</Text>
+                    {form.roleId === role.id && <Ionicons name="checkmark-circle" size={18} color={colors.navy} />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <TouchableOpacity
                 style={[styles.createBtn, creating && styles.createBtnDisabled]}
                 onPress={handleCreate}
@@ -251,6 +285,28 @@ export default function AdminUsersScreen({ navigation }: any) {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+      {/* Role Assignment Modal */}
+      <Modal visible={showRoleModal} transparent animationType="fade" onRequestClose={() => setShowRoleModal(false)}>
+        <TouchableOpacity style={styles.roleModalOverlay} activeOpacity={1} onPress={() => setShowRoleModal(false)}>
+          <View style={styles.roleModalContent}>
+            <Text style={styles.roleModalTitle}>Assign Role</Text>
+            {selectedAdmin && (
+              <Text style={styles.roleModalSubtitle}>{selectedAdmin.firstName} {selectedAdmin.lastName}</Text>
+            )}
+            {AVAILABLE_ROLES.map((role) => (
+              <TouchableOpacity
+                key={role.id}
+                style={[styles.roleOption, selectedAdmin?.roleId === role.id && styles.roleOptionActive]}
+                onPress={() => assignRole(role.id)}
+              >
+                <View style={[styles.roleDot, { backgroundColor: getRoleColor(role.id) }]} />
+                <Text style={[styles.roleOptionText, selectedAdmin?.roleId === role.id && styles.roleOptionTextActive]}>{role.displayName}</Text>
+                {selectedAdmin?.roleId === role.id && <Ionicons name="checkmark-circle" size={20} color={colors.navy} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -330,14 +386,115 @@ const styles = StyleSheet.create({
   adminName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   adminEmail: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   adminMeta: { fontSize: 11, color: colors.textLight, marginTop: 4 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   youBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
     backgroundColor: colors.teal + '20',
   },
-  youText: { fontSize: 12, fontWeight: '700', color: colors.teal },
+  youText: { fontSize: 10, fontWeight: '700', color: colors.teal },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.lightGray,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginTop: 6,
+    gap: 6,
+  },
+  roleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roleLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
   removeBtn: { padding: 4 },
+  rolePickerList: {
+    gap: 6,
+    marginBottom: 4,
+  },
+  rolePickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    gap: 10,
+  },
+  rolePickerItemActive: {
+    backgroundColor: colors.navy + '12',
+    borderWidth: 1,
+    borderColor: colors.navy,
+  },
+  rolePickerText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  rolePickerTextActive: {
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  roleModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '85%',
+    maxWidth: 380,
+  },
+  roleModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  roleModalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    marginBottom: 8,
+    gap: 10,
+  },
+  roleOptionActive: {
+    backgroundColor: colors.navy + '12',
+    borderWidth: 1,
+    borderColor: colors.navy,
+  },
+  roleOptionText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  roleOptionTextActive: {
+    fontWeight: '700',
+    color: colors.navy,
+  },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 15, color: colors.textLight },
   // Modal

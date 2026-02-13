@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { financeAPI } from '../../../services/api';
 
-export default function RefundManagementScreen() {
+export default function RefundManagementScreen({ navigation }: any) {
   const [refunds, setRefunds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('pending');
@@ -21,14 +23,14 @@ export default function RefundManagementScreen() {
       const response = await financeAPI.getRefunds(filter === 'all' ? undefined : filter);
       setRefunds(response.data.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load refunds');
+      showAlert('Error', error.response?.data?.message || 'Failed to load refunds');
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (refundId: string) => {
-    Alert.alert(
+    showAlert(
       'Approve Refund',
       'Are you sure you want to approve this refund?',
       [
@@ -38,10 +40,10 @@ export default function RefundManagementScreen() {
           onPress: async () => {
             try {
               await financeAPI.approveRefund(refundId);
-              Alert.alert('Success', 'Refund approved successfully');
+              showAlert('Success', 'Refund approved successfully');
               loadRefunds();
             } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to approve refund');
+              showAlert('Error', error.response?.data?.message || 'Failed to approve refund');
             }
           },
         },
@@ -51,19 +53,19 @@ export default function RefundManagementScreen() {
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      Alert.alert('Error', 'Please provide a reason for rejection');
+      showAlert('Error', 'Please provide a reason for rejection');
       return;
     }
 
     try {
       await financeAPI.rejectRefund(selectedRefund.id, rejectReason);
-      Alert.alert('Success', 'Refund rejected');
+      showAlert('Success', 'Refund rejected');
       setShowRejectModal(false);
       setRejectReason('');
       setSelectedRefund(null);
       loadRefunds();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to reject refund');
+      showAlert('Error', error.response?.data?.message || 'Failed to reject refund');
     }
   };
 
@@ -87,6 +89,9 @@ export default function RefundManagementScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Refund Management</Text>
       </View>
 
@@ -226,16 +231,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   filterContainer: {
     flexDirection: 'row',

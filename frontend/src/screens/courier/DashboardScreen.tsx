@@ -13,6 +13,8 @@ import { colors } from '../../theme/colors';
 import { mockCourierStats } from '../../data/mockData';
 import { analyticsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import OrderRequestPopup, { IncomingOrder } from '../../components/courier/OrderRequestPopup';
+import DeclineReasonModal from '../../components/courier/DeclineReasonModal';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +39,64 @@ export default function CourierDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [stats, setStats] = useState(mockCourierStats);
+  const [showOrderPopup, setShowOrderPopup] = useState(false);
+  const [incomingOrder, setIncomingOrder] = useState<IncomingOrder | null>(null);
+  const [showDeclineReason, setShowDeclineReason] = useState(false);
+  const [declineOrderId, setDeclineOrderId] = useState('');
+  const [onlineMinutes, setOnlineMinutes] = useState(0);
+
+  // Rest break reminder
+  useEffect(() => {
+    if (!isOnline) { setOnlineMinutes(0); return; }
+    const interval = setInterval(() => setOnlineMinutes(prev => prev + 1), 60000);
+    return () => clearInterval(interval);
+  }, [isOnline]);
+
+  // Simulate incoming order after going online (demo)
+  useEffect(() => {
+    if (!isOnline) return;
+    const timer = setTimeout(() => {
+      setIncomingOrder({
+        id: 'demo-1',
+        restaurant: 'Chicken Republic',
+        restaurantAddress: '12 Admiralty Way, Lekki Phase 1',
+        customer: 'Adaeze O.',
+        customerAddress: '45 Chevron Drive, Lekki',
+        items: ['Chicken Meal x2', 'Jollof Rice x1'],
+        itemCount: 3,
+        distance: 2.4,
+        estimatedTime: 18,
+        basePay: 1200,
+        estimatedTip: 500,
+        surgeMultiplier: 1.3,
+        deliveryInstructions: 'Call when you arrive at the gate',
+      });
+      setShowOrderPopup(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isOnline]);
+
+  const handleAcceptOrder = (orderId: string) => {
+    setShowOrderPopup(false);
+    setIncomingOrder(null);
+    navigation.navigate('Active');
+  };
+
+  const handleDeclineOrder = (orderId: string) => {
+    setShowOrderPopup(false);
+    setDeclineOrderId(orderId);
+    setShowDeclineReason(true);
+  };
+
+  const handleDeclineSubmit = (orderId: string, reason: string) => {
+    setShowDeclineReason(false);
+    setIncomingOrder(null);
+  };
+
+  const handleOrderTimeout = (orderId: string) => {
+    setShowOrderPopup(false);
+    setIncomingOrder(null);
+  };
 
   useEffect(() => {
     (async () => {
@@ -192,6 +252,31 @@ export default function CourierDashboardScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Rest Break Reminder */}
+        {isOnline && onlineMinutes >= 360 && (
+          <View style={styles.restBreakBanner}>
+            <Ionicons name="cafe-outline" size={20} color={colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.restBreakTitle}>Time for a break!</Text>
+              <Text style={styles.restBreakText}>You've been online for {Math.floor(onlineMinutes / 60)}h {onlineMinutes % 60}m. Take a rest for your safety.</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Offline Earnings Estimator */}
+        {!isOnline && (
+          <View style={styles.offlineEstimator}>
+            <Ionicons name="flash" size={20} color={colors.teal} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.offlineEstTitle}>Go online now!</Text>
+              <Text style={styles.offlineEstText}>Estimated earnings: ₦8,000 – ₦15,000 in the next 2 hours based on current demand.</Text>
+            </View>
+            <TouchableOpacity style={styles.goOnlineBtn} onPress={() => setIsOnline(true)}>
+              <Text style={styles.goOnlineBtnText}>Go Online</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Advanced Tools */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Advanced Tools</Text>
@@ -202,6 +287,31 @@ export default function CourierDashboardScreen({ navigation }: any) {
               </View>
               <Text style={styles.actionLabel}>Performance</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Quests')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#f97316' + '15' }]}>
+                <Ionicons name="flame-outline" size={22} color="#f97316" />
+              </View>
+              <Text style={styles.actionLabel}>Quests</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('HeatMap')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#dc2626' + '15' }]}>
+                <Ionicons name="map-outline" size={22} color="#dc2626" />
+              </View>
+              <Text style={styles.actionLabel}>Surge Map</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Scheduling')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#0ea5e9' + '15' }]}>
+                <Ionicons name="calendar-outline" size={22} color="#0ea5e9" />
+              </View>
+              <Text style={styles.actionLabel}>Schedule</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsRow}>
             <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Gamification')}>
               <View style={[styles.actionIcon, { backgroundColor: '#f59e0b' + '15' }]}>
                 <Ionicons name="trophy-outline" size={22} color="#f59e0b" />
@@ -220,42 +330,34 @@ export default function CourierDashboardScreen({ navigation }: any) {
               </View>
               <Text style={styles.actionLabel}>Vehicle</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionBtn}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.teal + '15' }]}>
-                <Ionicons name="navigate-outline" size={22} color={colors.teal} />
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('DeliveryPreferences')}>
+              <View style={[styles.actionIcon, { backgroundColor: '#6366f1' + '15' }]}>
+                <Ionicons name="options-outline" size={22} color="#6366f1" />
               </View>
-              <Text style={styles.actionLabel}>Navigate</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.navy + '15' }]}>
-                <Ionicons name="chatbubble-outline" size={22} color={colors.navy} />
-              </View>
-              <Text style={styles.actionLabel}>Support</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
-                <Ionicons name="alert-circle-outline" size={22} color={colors.warning} />
-              </View>
-              <Text style={styles.actionLabel}>Report</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.error + '15' }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color={colors.error} />
-              </View>
-              <Text style={styles.actionLabel}>Safety</Text>
+              <Text style={styles.actionLabel}>Preferences</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Order Request Popup */}
+      <OrderRequestPopup
+        visible={showOrderPopup}
+        order={incomingOrder}
+        onAccept={handleAcceptOrder}
+        onDecline={handleDeclineOrder}
+        onTimeout={handleOrderTimeout}
+      />
+
+      {/* Decline Reason Modal */}
+      <DeclineReasonModal
+        visible={showDeclineReason}
+        orderId={declineOrderId}
+        onSubmit={handleDeclineSubmit}
+        onClose={() => { setShowDeclineReason(false); setIncomingOrder(null); }}
+      />
     </View>
   );
 }
@@ -340,4 +442,20 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, backgroundColor: colors.white, borderRadius: 14, padding: 14, alignItems: 'center' },
   actionIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
   actionLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  restBreakBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 10, marginTop: 12,
+    backgroundColor: colors.warning + '10', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.warning + '25',
+  },
+  restBreakTitle: { fontSize: 14, fontWeight: '700', color: colors.warning },
+  restBreakText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  offlineEstimator: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 10, marginTop: 12,
+    backgroundColor: colors.teal + '08', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.teal + '20',
+  },
+  offlineEstTitle: { fontSize: 14, fontWeight: '700', color: colors.teal },
+  offlineEstText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  goOnlineBtn: { backgroundColor: colors.teal, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  goOnlineBtnText: { fontSize: 13, fontWeight: '700', color: colors.textWhite },
 });

@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { marketingAPI } from '../../../services/api';
 
-export default function CampaignManagementScreen() {
+export default function CampaignManagementScreen({ navigation }: any) {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -24,7 +26,7 @@ export default function CampaignManagementScreen() {
       const response = await marketingAPI.getCampaigns();
       setCampaigns(response.data.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load campaigns');
+      showAlert('Error', error.response?.data?.message || 'Failed to load campaigns');
     } finally {
       setLoading(false);
     }
@@ -32,7 +34,7 @@ export default function CampaignManagementScreen() {
 
   const handleCreate = async () => {
     if (!formData.name) {
-      Alert.alert('Error', 'Please enter campaign name');
+      showAlert('Error', 'Please enter campaign name');
       return;
     }
 
@@ -45,17 +47,17 @@ export default function CampaignManagementScreen() {
         targetAudience: {},
         config: {},
       });
-      Alert.alert('Success', 'Campaign created successfully');
+      showAlert('Success', 'Campaign created successfully');
       setShowCreateModal(false);
       setFormData({ name: '', type: 'email', budget: '', startDate: new Date().toISOString().split('T')[0] });
       loadCampaigns();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create campaign');
+      showAlert('Error', error.response?.data?.message || 'Failed to create campaign');
     }
   };
 
   const handleLaunch = async (campaignId: string) => {
-    Alert.alert(
+    showAlert(
       'Launch Campaign',
       'Are you sure you want to launch this campaign?',
       [
@@ -65,10 +67,10 @@ export default function CampaignManagementScreen() {
           onPress: async () => {
             try {
               await marketingAPI.launchCampaign(campaignId);
-              Alert.alert('Success', 'Campaign launched');
+              showAlert('Success', 'Campaign launched');
               loadCampaigns();
             } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to launch campaign');
+              showAlert('Error', error.response?.data?.message || 'Failed to launch campaign');
             }
           },
         },
@@ -97,6 +99,9 @@ export default function CampaignManagementScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Campaign Management</Text>
         <TouchableOpacity style={styles.createButton} onPress={() => setShowCreateModal(true)}>
           <Text style={styles.createButtonText}>+ New Campaign</Text>
@@ -220,8 +225,9 @@ export default function CampaignManagementScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, flex: 1 },
   createButton: { backgroundColor: colors.navy, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   createButtonText: { color: colors.white, fontWeight: '600' },
   campaignsList: { flex: 1, padding: 16 },

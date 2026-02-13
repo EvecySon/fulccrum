@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -31,12 +32,12 @@ export default function PromoManagementScreen({ navigation }: any) {
       try {
         const res = await promosAPI.getAll(1, false);
         if (res?.data?.length) setPromos(res.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 
   const togglePromo = async (id: string) => {
-    try { await promosAPI.toggle(id); } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+    try { await promosAPI.toggle(id); } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     setPromos(prev => prev.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
   };
 

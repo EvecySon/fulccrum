@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { showAlert } from '../../utils/alert';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,21 +7,21 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { adminAPI } from '../../services/api';
 
 const mockUsers = [
-  { id: '1', name: 'John Smith', email: 'john@example.com', role: 'customer', status: 'active', orders: 23, joined: 'Jan 15, 2026', spent: 456 },
-  { id: '2', name: 'Sarah Lee', email: 'sarah@example.com', role: 'courier', status: 'active', deliveries: 342, joined: 'Dec 3, 2025', rating: 4.9 },
-  { id: '3', name: 'Mike Chen', email: 'mike@burgerhouse.com', role: 'merchant', status: 'active', restaurant: 'Burger House', joined: 'Nov 20, 2025', revenue: 12500 },
-  { id: '4', name: 'Emily Davis', email: 'emily@example.com', role: 'customer', status: 'suspended', orders: 5, joined: 'Feb 1, 2026', spent: 89 },
-  { id: '5', name: 'Tom Wilson', email: 'tom@example.com', role: 'courier', status: 'pending', deliveries: 0, joined: 'Feb 5, 2026', rating: 0 },
-  { id: '6', name: 'Anna Park', email: 'anna@sushipalace.com', role: 'merchant', status: 'pending', restaurant: 'Sushi Palace', joined: 'Feb 4, 2026', revenue: 0 },
-  { id: '7', name: 'David Brown', email: 'david@example.com', role: 'customer', status: 'active', orders: 67, joined: 'Oct 10, 2025', spent: 1234 },
-  { id: '8', name: 'Lisa Wang', email: 'lisa@example.com', role: 'admin', status: 'active', joined: 'Sep 1, 2025' },
+  { id: '1', name: 'Adebayo Ogunlesi', email: 'adebayo@fulccrum.ng', role: 'customer', status: 'active', orders: 87, joined: 'Sep 10, 2025', spent: 124500 },
+  { id: '2', name: 'Kemi Adekunle', email: 'kemi@fulccrum.ng', role: 'customer', status: 'active', orders: 45, joined: 'Oct 5, 2025', spent: 67800 },
+  { id: '3', name: 'Chinedu Okoro', email: 'chinedu@fulccrum.ng', role: 'courier', status: 'active', deliveries: 512, joined: 'Aug 20, 2025', rating: 4.9 },
+  { id: '4', name: 'Fatima Bello', email: 'fatima@fulccrum.ng', role: 'courier', status: 'active', deliveries: 298, joined: 'Nov 1, 2025', rating: 4.7 },
+  { id: '5', name: 'Adewale Johnson', email: 'adewale@chickenrep.ng', role: 'merchant', status: 'active', restaurant: 'Chicken Republic - Lekki', joined: 'Sep 15, 2025', revenue: 2450000 },
+  { id: '6', name: 'Ngozi Okafor', email: 'ngozi@mamaput.ng', role: 'merchant', status: 'active', restaurant: 'Mama Put Kitchen', joined: 'Nov 20, 2025', revenue: 780000 },
+  { id: '7', name: 'Tolu Ajayi', email: 'tolu@fulccrum.ng', role: 'customer', status: 'suspended', orders: 3, joined: 'Jan 20, 2026', spent: 4500 },
+  { id: '8', name: 'Ibrahim Musa', email: 'ibrahim@fulccrum.ng', role: 'courier', status: 'pending', deliveries: 0, joined: 'Feb 8, 2026', rating: 0 },
+  { id: '9', name: 'Jin Kim', email: 'jin@seoulkitchen.ng', role: 'merchant', status: 'pending', restaurant: 'Seoul Kitchen', joined: 'Feb 8, 2026', revenue: 0 },
+  { id: '10', name: 'Amina Yusuf', email: 'amina@fulccrum.ng', role: 'admin', status: 'active', joined: 'Jul 1, 2025' },
 ];
 
 const roleFilters = ['All', 'Customers', 'Couriers', 'Merchants', 'Admins'];
@@ -48,15 +49,6 @@ export default function UsersScreen() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [users, setUsers] = useState(mockUsers);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminAPI.getUsers();
-        if (res?.data?.length) setUsers(res.data);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
-  }, []);
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());

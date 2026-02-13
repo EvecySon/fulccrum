@@ -1,9 +1,11 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { adminAnalyticsAPI } from '../../../services/api';
 
-export default function CohortAnalysisScreen() {
+export default function CohortAnalysisScreen({ navigation }: any) {
   const [cohorts, setCohorts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cohortType, setCohortType] = useState<'customer' | 'merchant' | 'courier'>('customer');
@@ -26,7 +28,7 @@ export default function CohortAnalysisScreen() {
       );
       setCohorts(response.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load cohort analysis');
+      showAlert('Error', error.response?.data?.message || 'Failed to load cohort analysis');
     } finally {
       setLoading(false);
     }
@@ -43,10 +45,10 @@ export default function CohortAnalysisScreen() {
         startDate: startDate.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],
       });
-      Alert.alert('Success', 'Cohort analysis generated successfully');
+      showAlert('Success', 'Cohort analysis generated successfully');
       loadCohorts();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to generate cohort analysis');
+      showAlert('Error', error.response?.data?.message || 'Failed to generate cohort analysis');
     }
   };
 
@@ -61,6 +63,9 @@ export default function CohortAnalysisScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Cohort Analysis</Text>
         <TouchableOpacity style={styles.generateButton} onPress={handleGenerate}>
           <Text style={styles.generateButtonText}>Generate</Text>
@@ -134,8 +139,9 @@ export default function CohortAnalysisScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, flex: 1 },
   generateButton: { backgroundColor: colors.navy, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   generateButtonText: { color: colors.white, fontWeight: '600' },
   typeSelector: { flexDirection: 'row', padding: 16, gap: 8 },

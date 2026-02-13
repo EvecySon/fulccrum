@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React from 'react';
 import {
   View,
@@ -11,24 +12,72 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 
-const menuItems = [
-  { icon: 'shield-outline', label: 'Admin Users', desc: 'Create & manage admin accounts', screen: 'AdminUsers', color: colors.navy },
-  { icon: 'storefront-outline', label: 'Merchants', desc: 'Manage restaurants & stores', screen: 'Merchants', color: colors.teal },
-  { icon: 'construct-outline', label: 'Settings & Config', desc: 'Platform settings, integrations', screen: 'AdminSettings', color: colors.teal },
-  { icon: 'wallet-outline', label: 'Payouts', desc: 'Pay merchants & couriers', screen: 'Payouts', color: colors.success },
-  { icon: 'megaphone-outline', label: 'Promotions', desc: 'Manage campaigns & vouchers', screen: null, color: colors.warning },
-  { icon: 'document-text-outline', label: 'Reports', desc: 'Generate & export reports', screen: null, color: colors.info },
-  { icon: 'chatbubbles-outline', label: 'Support Tickets', desc: 'Customer & merchant issues', screen: null, color: colors.error },
-  { icon: 'notifications-outline', label: 'Push Notifications', desc: 'Send announcements', screen: null, color: colors.navy },
-  { icon: 'shield-checkmark-outline', label: 'Compliance', desc: 'Legal & regulatory', screen: null, color: colors.success },
-  { icon: 'code-slash-outline', label: 'Developer Tools', desc: 'API docs, webhooks, logs', screen: null, color: colors.textSecondary },
+const menuSections = [
+  {
+    title: 'Finance',
+    items: [
+      { icon: 'cash-outline', label: 'Commission Tiers', desc: 'Manage commission structures', screen: 'CommissionTiers', color: colors.success },
+      { icon: 'trending-up-outline', label: 'Revenue Analytics', desc: 'View revenue & forecasts', screen: 'RevenueAnalytics', color: colors.info },
+      { icon: 'return-down-back-outline', label: 'Refund Management', desc: 'Approve/reject refunds', screen: 'RefundManagement', color: colors.warning },
+      { icon: 'wallet-outline', label: 'Payouts', desc: 'Pay merchants & couriers', screen: 'Payouts', color: colors.success },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
+      { icon: 'map-outline', label: 'Live Operations', desc: 'Real-time order tracking', screen: 'LiveOperationsMap', color: colors.navy },
+      { icon: 'alert-circle-outline', label: 'Incident Management', desc: 'Track & resolve incidents', screen: 'IncidentManagement', color: colors.error },
+      { icon: 'time-outline', label: 'SLA Monitoring', desc: 'Monitor service levels', screen: 'SLAMonitoring', color: colors.warning },
+    ],
+  },
+  {
+    title: 'Security & Access',
+    items: [
+      { icon: 'key-outline', label: 'Roles Management', desc: 'Manage admin roles', screen: 'RolesManagement', color: colors.navy },
+      { icon: 'document-text-outline', label: 'Audit Logs', desc: 'View system audit trail', screen: 'AuditLogs', color: colors.textSecondary },
+      { icon: 'shield-outline', label: 'Admin Users', desc: 'Create & manage admins', screen: 'AdminUsers', color: colors.navy },
+    ],
+  },
+  {
+    title: 'Content & Compliance',
+    items: [
+      { icon: 'flag-outline', label: 'Content Moderation', desc: 'Review flagged content', screen: 'ContentModeration', color: colors.warning },
+      { icon: 'shield-checkmark-outline', label: 'Merchant Compliance', desc: 'Track licenses & permits', screen: 'MerchantCompliance', color: colors.success },
+      { icon: 'storefront-outline', label: 'Merchants', desc: 'Manage restaurants & stores', screen: 'Merchants', color: colors.teal },
+      { icon: 'document-text-outline', label: 'Merchant Applications', desc: 'Review & approve merchant apps', screen: 'MerchantApplicationReview', color: colors.navy },
+      { icon: 'bicycle-outline', label: 'Courier Management', desc: 'Review & manage couriers', screen: 'CourierManagement', color: colors.teal },
+      { icon: 'clipboard-outline', label: 'Courier Applications', desc: 'Review & approve courier apps', screen: 'CourierApplicationReview', color: colors.navy },
+      { icon: 'grid-outline', label: 'Business Categories', desc: 'Manage business categories', screen: 'CategoryManagement', color: colors.warning },
+    ],
+  },
+  {
+    title: 'Marketing',
+    items: [
+      { icon: 'megaphone-outline', label: 'Campaign Management', desc: 'Create & launch campaigns', screen: 'CampaignManagement', color: colors.warning },
+      { icon: 'pricetag-outline', label: 'Promo Code Manager', desc: 'Manage promo codes', screen: 'PromoCodeManager', color: colors.info },
+      { icon: 'notifications-outline', label: 'Push Notifications', desc: 'Send announcements', screen: 'PushNotifications', color: colors.navy },
+    ],
+  },
+  {
+    title: 'Analytics',
+    items: [
+      { icon: 'bar-chart-outline', label: 'Custom Reports', desc: 'Build custom reports', screen: 'CustomReports', color: colors.info },
+      { icon: 'people-outline', label: 'Cohort Analysis', desc: 'User retention analysis', screen: 'CohortAnalysis', color: colors.teal },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { icon: 'construct-outline', label: 'Settings & Config', desc: 'Platform settings', screen: 'AdminSettings', color: colors.teal },
+    ],
+  },
 ];
 
 export default function MoreScreen({ navigation }: any) {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+    showAlert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: () => logout() },
     ]);
@@ -41,21 +90,26 @@ export default function MoreScreen({ navigation }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.menuItem}
-            onPress={() => item.screen && navigation.navigate(item.screen)}
-          >
-            <View style={[styles.menuIcon, { backgroundColor: item.color + '15' }]}>
-              <Ionicons name={item.icon as any} size={22} color={item.color} />
-            </View>
-            <View style={styles.menuInfo}>
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Text style={styles.menuDesc}>{item.desc}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-          </TouchableOpacity>
+        {menuSections.map((section, sectionIndex) => (
+          <View key={sectionIndex} style={styles.section}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {section.items.map((item, itemIndex) => (
+              <TouchableOpacity
+                key={itemIndex}
+                style={styles.menuItem}
+                onPress={() => item.screen && navigation.navigate(item.screen)}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon as any} size={22} color={item.color} />
+                </View>
+                <View style={styles.menuInfo}>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                  <Text style={styles.menuDesc}>{item.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+            ))}
+          </View>
         ))}
 
         {/* Admin Info */}
@@ -88,6 +142,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
   content: { flex: 1, paddingHorizontal: 10, paddingTop: 10 },
+  section: { marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderRadius: 16,
     padding: 16, marginBottom: 8, gap: 14,

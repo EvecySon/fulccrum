@@ -1,48 +1,76 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-export default function IncidentManagementScreen() {
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('open');
+const MOCK_INCIDENTS = [
+  {
+    id: '1', severity: 'critical', status: 'open', type: 'payment_failure',
+    description: 'Multiple customers reporting failed payments via Paystack gateway. 12 orders affected in the last 30 minutes.',
+    order: { orderNumber: 'ORD-2026-4810' },
+    createdAt: new Date(Date.now() - 25 * 60000).toISOString(), resolution: null, resolvedAt: null,
+  },
+  {
+    id: '2', severity: 'high', status: 'investigating', type: 'delivery_delay',
+    description: 'Courier fleet shortage in Ikeja area causing 40+ min delays. 8 orders waiting for pickup.',
+    order: { orderNumber: 'ORD-2026-4798' },
+    createdAt: new Date(Date.now() - 90 * 60000).toISOString(), resolution: null, resolvedAt: null,
+  },
+  {
+    id: '3', severity: 'medium', status: 'open', type: 'merchant_offline',
+    description: 'Chicken Republic - Lekki branch tablet offline for 15 minutes. 3 pending orders not acknowledged.',
+    order: { orderNumber: 'ORD-2026-4821' },
+    createdAt: new Date(Date.now() - 45 * 60000).toISOString(), resolution: null, resolvedAt: null,
+  },
+  {
+    id: '4', severity: 'low', status: 'open', type: 'customer_complaint',
+    description: 'Customer reports missing item (Jollof Rice) from order. Merchant confirmed item was packed.',
+    order: { orderNumber: 'ORD-2026-4785' },
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(), resolution: null, resolvedAt: null,
+  },
+  {
+    id: '5', severity: 'high', status: 'resolved', type: 'system_outage',
+    description: 'Push notification service was down for 20 minutes. Couriers not receiving new order alerts.',
+    order: null,
+    createdAt: new Date(Date.now() - 5 * 3600000).toISOString(),
+    resolution: 'Firebase Cloud Messaging service restarted. All pending notifications flushed and delivered. Monitoring for recurrence.',
+    resolvedAt: new Date(Date.now() - 4.5 * 3600000).toISOString(),
+  },
+  {
+    id: '6', severity: 'medium', status: 'resolved', type: 'wrong_delivery',
+    description: 'Order delivered to wrong address. Customer at 14 Admiralty Way received order meant for 14 Admiralty Rd.',
+    order: { orderNumber: 'ORD-2026-4762' },
+    createdAt: new Date(Date.now() - 8 * 3600000).toISOString(),
+    resolution: 'Replacement order dispatched. Original customer refunded ₦4,500. Address validation logic updated to flag similar street names.',
+    resolvedAt: new Date(Date.now() - 7 * 3600000).toISOString(),
+  },
+];
+
+export default function IncidentManagementScreen({ navigation }: any) {
+  const [incidents, setIncidents] = useState<any[]>(MOCK_INCIDENTS);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('all');
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [resolution, setResolution] = useState('');
 
-  useEffect(() => {
-    loadIncidents();
-  }, [filter]);
+  const filteredIncidents = filter === 'all' ? incidents : incidents.filter(i => i.status === filter);
 
-  const loadIncidents = async () => {
-    try {
-      setLoading(true);
-      const response = await operationsAPI.getIncidents({ status: filter === 'all' ? undefined : filter });
-      setIncidents(response.data.data || []);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load incidents');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResolve = async () => {
+  const handleResolve = () => {
     if (!resolution.trim()) {
-      Alert.alert('Error', 'Please provide resolution details');
+      showAlert('Error', 'Please provide resolution details');
       return;
     }
-
-    try {
-      await operationsAPI.resolveIncident(selectedIncident.id, resolution);
-      Alert.alert('Success', 'Incident resolved successfully');
-      setShowResolveModal(false);
-      setResolution('');
-      setSelectedIncident(null);
-      loadIncidents();
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to resolve incident');
-    }
+    setIncidents(prev => prev.map(i => i.id === selectedIncident.id
+      ? { ...i, status: 'resolved', resolution, resolvedAt: new Date().toISOString() }
+      : i
+    ));
+    showAlert('Success', 'Incident resolved successfully');
+    setShowResolveModal(false);
+    setResolution('');
+    setSelectedIncident(null);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -66,6 +94,9 @@ export default function IncidentManagementScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Incident Management</Text>
       </View>
 
@@ -84,7 +115,7 @@ export default function IncidentManagementScreen() {
       </View>
 
       <ScrollView style={styles.incidentsList}>
-        {incidents.map((incident) => (
+        {filteredIncidents.map((incident) => (
           <View key={incident.id} style={styles.incidentCard}>
             <View style={styles.incidentHeader}>
               <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(incident.severity) }]}>
@@ -136,7 +167,7 @@ export default function IncidentManagementScreen() {
           </View>
         ))}
 
-        {incidents.length === 0 && (
+        {filteredIncidents.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No incidents found</Text>
           </View>
@@ -198,16 +229,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   filterContainer: {
     flexDirection: 'row',

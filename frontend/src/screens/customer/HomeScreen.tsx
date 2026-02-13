@@ -16,13 +16,13 @@ import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI, addressesAPI, notificationsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { getActiveCategories } from '../../config/businessCategories';
 
-const categories = [
-  { id: '1', name: 'Restaurants', icon: 'restaurant' },
-  { id: '2', name: 'Grocery', icon: 'cart' },
-  { id: '3', name: 'Convenience', icon: 'storefront' },
-  { id: '4', name: 'Pharmacy', icon: 'medical' },
-];
+const categories = getActiveCategories().map((c, i) => ({
+  id: String(i + 1),
+  name: c.label,
+  icon: c.icon,
+}));
 
 const moods = [
   { id: '1', name: 'Craving Pizza?', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', color: '#ff6b35' },

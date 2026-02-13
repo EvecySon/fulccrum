@@ -394,4 +394,78 @@ export class AdminService {
 
     return { message: 'Admin access removed' };
   }
+
+  async getAllCouriers(userRole: string, page = 1, limit = 50) {
+    this.verifyAdmin(userRole);
+    const skip = (page - 1) * limit;
+    const [couriers, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: 'driver' },
+        skip,
+        take: limit,
+        include: { driverProfile: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where: { role: 'driver' } }),
+    ]);
+    return { data: couriers, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async getPendingCouriers(userRole: string, page = 1, limit = 50) {
+    this.verifyAdmin(userRole);
+    const skip = (page - 1) * limit;
+    const [couriers, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: 'driver', status: 'inactive' },
+        skip,
+        take: limit,
+        include: { driverProfile: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where: { role: 'driver', status: 'inactive' } }),
+    ]);
+    return { data: couriers, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async getMerchantApplication(userRole: string, merchantId: string) {
+    this.verifyAdmin(userRole);
+    const profile = await this.prisma.businessProfile.findUnique({
+      where: { userId: merchantId },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, phone: true, status: true, createdAt: true } },
+      },
+    });
+    if (!profile) throw new NotFoundException('Merchant not found');
+    return profile;
+  }
+
+  async getMerchantDocuments(userRole: string, merchantId: string) {
+    this.verifyAdmin(userRole);
+    // TODO: Implement document storage model — for now return empty array
+    return { data: [], merchantId };
+  }
+
+  async getCourierDocuments(userRole: string, courierId: string) {
+    this.verifyAdmin(userRole);
+    // TODO: Implement document storage model — for now return empty array
+    return { data: [], courierId };
+  }
+
+  async verifyDocument(userRole: string, userId: string, docId: string) {
+    this.verifyAdmin(userRole);
+    // TODO: Update document status in DB once document model exists
+    return { message: 'Document verified', userId, docId };
+  }
+
+  async rejectDocument(userRole: string, userId: string, docId: string, reason: string) {
+    this.verifyAdmin(userRole);
+    // TODO: Update document status in DB once document model exists
+    return { message: 'Document rejected', userId, docId, reason };
+  }
+
+  async requestDocuments(userRole: string, merchantId: string, documentTypes: string[]) {
+    this.verifyAdmin(userRole);
+    // TODO: Send email/notification to merchant requesting missing documents
+    return { message: 'Document request sent', merchantId, documentTypes };
+  }
 }

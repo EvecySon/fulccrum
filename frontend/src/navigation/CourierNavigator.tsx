@@ -18,6 +18,18 @@ import SafetyScreen from '../screens/courier/SafetyScreen';
 import VehicleManagementScreen from '../screens/courier/VehicleManagementScreen';
 import OrderChatScreen from '../screens/shared/ChatScreen';
 import CallScreen from '../screens/shared/CallScreen';
+import OrderDetailsScreen from '../screens/courier/OrderDetailsScreen';
+import HeatMapScreen from '../screens/courier/HeatMapScreen';
+import SchedulingScreen from '../screens/courier/SchedulingScreen';
+import QuestsScreen from '../screens/courier/QuestsScreen';
+import DeliveryPreferencesScreen from '../screens/courier/DeliveryPreferencesScreen';
+import ReferralScreen from '../screens/courier/ReferralScreen';
+import TaxSummaryScreen from '../screens/courier/TaxSummaryScreen';
+import MaintenanceRemindersScreen from '../screens/courier/MaintenanceRemindersScreen';
+import TrainingScreen from '../screens/courier/TrainingScreen';
+import InsuranceScreen from '../screens/courier/InsuranceScreen';
+import LanguageSettingsScreen from '../screens/courier/LanguageSettingsScreen';
+import ThemeSettingsScreen from '../screens/courier/ThemeSettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -95,6 +107,18 @@ export default function CourierNavigator() {
       <Stack.Screen name="VehicleManagement" component={VehicleManagementScreen} />
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />
+      <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+      <Stack.Screen name="HeatMap" component={HeatMapScreen} />
+      <Stack.Screen name="Scheduling" component={SchedulingScreen} />
+      <Stack.Screen name="Quests" component={QuestsScreen} />
+      <Stack.Screen name="DeliveryPreferences" component={DeliveryPreferencesScreen} />
+      <Stack.Screen name="Referral" component={ReferralScreen} />
+      <Stack.Screen name="TaxSummary" component={TaxSummaryScreen} />
+      <Stack.Screen name="MaintenanceReminders" component={MaintenanceRemindersScreen} />
+      <Stack.Screen name="Training" component={TrainingScreen} />
+      <Stack.Screen name="Insurance" component={InsuranceScreen} />
+      <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} />
+      <Stack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
     </Stack.Navigator>
   );
 }

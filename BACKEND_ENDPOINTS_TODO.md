@@ -1,0 +1,763 @@
+# Backend Endpoints Required by Frontend
+
+> **Generated: Feb 12, 2026**
+> This document lists every backend API endpoint the admin frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
+
+---
+
+## 1. Merchant Application Review & Document Verification
+
+These endpoints power the **Merchant Applications** screen where admins review merchant applications, verify documents, approve/reject merchants.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/merchants/pending?page=1&limit=50` | ✅ Exists | List pending merchant applications with business profile + user info |
+| `PATCH` | `/admin/merchants/:merchantId/approve` | ✅ Exists | Approve a merchant (sets `verificationStatus: 'verified'`) |
+| `PATCH` | `/admin/merchants/:merchantId/reject` | ✅ Exists | Reject a merchant (sets `verificationStatus: 'rejected'`). Body: `{ reason?: string }` |
+| `GET` | `/admin/merchants/:merchantId/application` | 🔧 Stub | Get full merchant application details (business info, owner info, documents, compliance status) |
+| `GET` | `/admin/merchants/:merchantId/documents` | 🔧 Stub | List all uploaded documents for a merchant. **Needs a `Document` model in Prisma.** |
+| `PATCH` | `/admin/merchants/:merchantId/documents/:docId/verify` | 🔧 Stub | Mark a specific document as verified |
+| `PATCH` | `/admin/merchants/:merchantId/documents/:docId/reject` | 🔧 Stub | Reject a specific document. Body: `{ reason: string }` |
+| `POST` | `/admin/merchants/:merchantId/request-documents` | 🔧 Stub | Send email/notification requesting missing documents. Body: `{ documentTypes: string[] }` |
+| `POST` | `/admin/invite/merchant` | ✅ Exists | Admin-initiated merchant invitation. Body: `{ email, businessName, ownerName, phone?, commission? }` |
+
+### Required: New Prisma Model — `Document`
+
+```prisma
+model Document {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // 'business_license', 'health_permit', 'owner_id', 'insurance', 'tax_certificate', 'drivers_license', 'vehicle_registration', 'guarantor_form'
+  name        String   // Display name e.g. "CAC Registration Certificate"
+  fileUrl     String   // S3/Cloudinary URL
+  status      String   @default("uploaded") // 'uploaded', 'verified', 'rejected', 'expired', 'missing'
+  rejectionReason String?
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
+
+---
+
+## 2. Courier Management & Document Verification
+
+These endpoints power the **Courier Management** screen where admins list couriers, review applications, verify documents, approve/reject/suspend/reactivate.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/couriers?page=1&limit=50` | 🔧 Stub | List all couriers with driver profile. Returns `{ data, meta }` |
+| `GET` | `/admin/couriers/pending?page=1&limit=50` | 🔧 Stub | List pending courier applications (status = 'inactive'). Returns `{ data, meta }` |
+| `PATCH` | `/admin/couriers/:id/approve` | ✅ Exists | Approve a courier. Body: `{ approved: true, notes?: string }` |
+| `PATCH` | `/admin/couriers/:id/reject` | ✅ Exists | Reject a courier. Body: `{ reason: string }` |
+| `PATCH` | `/admin/couriers/:id/suspend` | ✅ Exists | Suspend an active courier. Body: `{ reason?: string }` |
+| `PATCH` | `/admin/couriers/:id/reactivate` | ✅ Exists | Reactivate a suspended courier |
+| `GET` | `/admin/couriers/:id/documents` | 🔧 Stub | List all uploaded documents for a courier. **Uses same `Document` model above.** |
+| `PATCH` | `/admin/couriers/:id/documents/:docId/verify` | 🔧 Stub | Mark a courier document as verified |
+| `POST` | `/admin/invite/courier` | ✅ Exists | Admin-initiated courier invitation. Body: `{ email, firstName, lastName }` |
+
+### Expected Courier Document Types
+- `drivers_license` — Driver's License
+- `vehicle_registration` — Vehicle Registration
+- `insurance` — Vehicle Insurance
+- `national_id` — National ID (NIN) / Passport / Voter's Card
+- `guarantor_form` — Guarantor Form (signed)
+
+---
+
+## 3. Content Reporting (Customer-Facing)
+
+These endpoints power the **Report/Flag** button on RestaurantScreen and MenuItemScreen. When a customer flags content, it feeds into the admin Content Moderation queue.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/report/content` | ✅ NEW | Customer reports content. Creates entry in `ContentModerationQueue`. Body below. |
+| `GET` | `/report/my-reports` | ✅ NEW | Customer views their own submitted reports |
+
+### `POST /report/content` — Request Body
+```json
+{
+  "type": "menu_item" | "review" | "business_profile",
+  "resourceId": "uuid-of-the-item",
+  "reason": "inappropriate" | "misleading" | "spam" | "offensive" | "health_safety" | "fraud" | "other",
+  "details": "Optional additional details from the user"
+}
+```
+
+### `POST /report/content` — Response
+```json
+{
+  "message": "Report submitted successfully",
+  "id": "uuid-of-moderation-queue-entry"
+}
+```
+
+> **Backend module already created:** `src/report/report.module.ts`, `report.service.ts`, `report.controller.ts`. Registered in `app.module.ts`. The service writes to the existing `ContentModerationQueue` table.
+
+---
+
+## 4. Content Moderation (Admin-Facing) — Already Exists
+
+These endpoints already exist and power the **Content Moderation** screen.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/moderation/queue?type=&status=&page=1&limit=50` | ✅ Exists | List moderation queue items |
+| `PATCH` | `/admin/moderation/:id/approve` | ✅ Exists | Approve content |
+| `PATCH` | `/admin/moderation/:id/reject` | ✅ Exists | Reject content. Body: `{ reason: string }` |
+| `GET` | `/admin/moderation/stats?startDate=&endDate=` | ✅ Exists | Moderation statistics |
+
+---
+
+## 5. Merchant Compliance — Already Exists
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/moderation/compliance?status=&page=1&limit=50` | ✅ Exists | List all compliance records |
+| `GET` | `/admin/moderation/compliance/:businessId` | ✅ Exists | Get compliance for a specific merchant |
+| `PATCH` | `/admin/moderation/compliance/:businessId` | ✅ Exists | Update compliance data |
+| `GET` | `/admin/moderation/compliance/stats` | ✅ Exists | Compliance statistics |
+
+---
+
+## 6. Document Upload (Merchant & Courier Onboarding)
+
+These endpoints are needed for merchants and couriers to **upload their documents** during the onboarding flow. The admin screens expect documents to already be uploaded.
+
+The frontend has a **shared config** at `frontend/src/config/documentRequirements.ts` that defines all document types. The backend must accept these exact `type` keys.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/documents/upload` | ❌ New | Upload a document (multipart form). Returns `{ id, fileUrl, type, status }` |
+| `GET` | `/documents/my-documents` | ❌ New | List current user's uploaded documents |
+| `DELETE` | `/documents/:id` | ❌ New | Delete/replace a document |
+
+### Merchant Document Types (from `MERCHANT_DOCUMENTS`)
+
+| Key | Label | Required |
+|-----|-------|----------|
+| `business_license` | CAC Registration Certificate | ✅ Yes |
+| `health_permit` | Health Permit (NAFDAC / State) | ✅ Yes |
+| `owner_id` | Owner ID (NIN / Passport / License) | ✅ Yes |
+| `insurance` | Business Insurance Policy | ❌ No |
+| `tax_certificate` | TIN Certificate | ❌ No |
+| `business_logo` | Business Logo | ✅ Yes |
+| `cover_photo` | Cover Photo | ❌ No |
+
+### Courier Document Types (from `COURIER_DOCUMENTS`)
+
+| Key | Label | Required | Notes |
+|-----|-------|----------|-------|
+| `national_id` | National ID (NIN) / Passport | ✅ Yes | All couriers |
+| `drivers_license` | Driver's License | ✅ Yes | Motorized vehicles only (not bicycle) |
+| `vehicle_registration` | Vehicle Registration | ✅ Yes | Motorized vehicles only |
+| `insurance` | Vehicle Insurance | ✅ Yes | Motorized vehicles only |
+| `profile_photo` | Profile Photo | ✅ Yes | All couriers |
+| `guarantor_form` | Guarantor Form | ✅ Yes | All couriers |
+
+> **Note:** Bicycle couriers skip `drivers_license`, `vehicle_registration`, and `insurance`. The frontend uses `getCourierDocuments(vehicleType)` to filter.
+
+### `POST /documents/upload` — Request (multipart/form-data)
+```
+file: <binary>
+type: "business_license" | "health_permit" | "owner_id" | "insurance" | "tax_certificate" | "business_logo" | "cover_photo" | "drivers_license" | "vehicle_registration" | "national_id" | "profile_photo" | "guarantor_form"
+```
+
+### `POST /documents/upload` — Response
+```json
+{
+  "id": "doc-uuid",
+  "type": "business_license",
+  "name": "CAC Registration Certificate",
+  "fileUrl": "https://storage.example.com/docs/abc123.pdf",
+  "status": "uploaded",
+  "createdAt": "2026-02-12T00:00:00Z"
+}
+```
+
+> **Note:** The existing `UploadModule` at `src/upload/` can likely be extended for this. Documents should be stored in S3/Cloudinary and referenced in the new `Document` Prisma model.
+
+---
+
+## 7. Business Category Management (Admin)
+
+These endpoints power the **Business Categories** admin screen where admins create, edit, activate/deactivate, and delete business categories. Currently the frontend uses a local config file (`frontend/src/config/businessCategories.ts`). Once the backend serves these dynamically, the frontend will switch to API calls.
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/categories` | ❌ New | List all business categories (active + inactive) |
+| `POST` | `/admin/categories` | ❌ New | Create a new category |
+| `PATCH` | `/admin/categories/:key` | ❌ New | Update a category (label, icon, color, description, sortOrder, active) |
+| `DELETE` | `/admin/categories/:key` | ❌ New | Delete a category |
+| `GET` | `/categories` | ❌ New | **Public** — list active categories only (for customer browse + merchant onboarding) |
+
+### Category Shape (what the frontend expects)
+```json
+{
+  "key": "restaurant",
+  "label": "Restaurants",
+  "icon": "restaurant",
+  "description": "Dine-in, takeaway, and delivery restaurants",
+  "color": "#ff6b35",
+  "active": true,
+  "sortOrder": 1
+}
+```
+
+### `POST /admin/categories` — Request Body
+```json
+{
+  "key": "shawarma",
+  "label": "Shawarma Spots",
+  "icon": "flame",
+  "description": "Shawarma and wrap vendors",
+  "color": "#d35400",
+  "active": true,
+  "sortOrder": 10
+}
+```
+
+### Required: New Prisma Model — `BusinessCategory`
+```prisma
+model BusinessCategory {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  label       String
+  icon        String
+  description String   @default("")
+  color       String   @default("#7f8c8d")
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(99)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
+
+> **Note:** The `key` is used as the `businessType` field on the `BusinessProfile` model. When a merchant registers, they select a category key. When a customer browses, they filter by category key.
+
+### Screens that use categories
+| Screen | How it uses categories |
+|--------|----------------------|
+| Admin: Category Management | Full CRUD |
+| Merchant: Business Setup (onboarding) | Select one category |
+| Merchant: Business Verification (edit profile) | Select one category |
+| Customer: Home Screen | Browse by category |
+| Customer: Category Browse | Filter businesses by category |
+
+---
+
+## 8. Courier Feature Endpoints (NEW — Full Uber Eats/Glovo Parity)
+
+### 8.1 Order Management (Enhanced)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/orders/:id/accept` | Courier accepts an order (within timer window) |
+| `POST` | `/orders/:id/decline` | Courier declines with reason |
+| `PATCH` | `/orders/:id/status` | Update delivery status (heading_to_pickup → at_pickup → picked_up → heading_to_dropoff → arrived → delivered) |
+| `POST` | `/orders/:id/delivery-proof` | Upload delivery proof photo + notes |
+| `POST` | `/orders/:id/rate-customer` | Courier rates the customer (1-5 stars + tags + comment) |
+| `GET` | `/orders/:id/details` | Full order details (items, modifiers, allergens, instructions, earnings breakdown) |
+| `GET` | `/orders/available/deliveries` | Available deliveries with filters (nearby, high_pay, quick) |
+| `GET` | `/orders/stacked` | Get stacked/batch order opportunities |
+
+**Decline Reason Body:**
+```json
+{
+  "reason": "too_far | low_pay | ending_shift | wrong_direction | restaurant_issue | vehicle_issue | personal | other",
+  "details": "optional free text"
+}
+```
+
+**Delivery Proof Body (multipart):**
+```json
+{
+  "photo": "<file>",
+  "notes": "Left with security guard",
+  "deliveryType": "hand_to_customer | leave_at_door | meet_outside"
+}
+```
+
+**Rate Customer Body:**
+```json
+{
+  "rating": 4,
+  "tags": ["friendly", "clear_instructions", "easy_to_find"],
+  "comment": "optional"
+}
+```
+
+### 8.2 Surge & Heat Map
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/surge-zones` | Active surge zones with multipliers, estimated orders, expiry |
+| `GET` | `/courier/hourly-demand` | Hourly demand forecast for today |
+| `GET` | `/courier/surge-stats` | Current surge multiplier, active zones count, avg bonus |
+
+**Surge Zone Shape:**
+```json
+{
+  "id": "string",
+  "area": "Victoria Island",
+  "multiplier": 1.8,
+  "estimatedOrders": 28,
+  "distance": 2.5,
+  "expiresIn": 18,
+  "level": "low | medium | high | extreme",
+  "coordinates": { "lat": 6.43, "lng": 3.42 }
+}
+```
+
+### 8.3 Scheduling / Shift Booking
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/schedule?week=2026-02-10` | Get available shifts for the week |
+| `POST` | `/courier/schedule/book` | Book a shift slot |
+| `DELETE` | `/courier/schedule/:slotId` | Drop a booked shift |
+| `GET` | `/courier/schedule/my-shifts` | Get courier's booked shifts |
+
+**Book Shift Body:**
+```json
+{
+  "slotId": "string",
+  "date": "2026-02-14"
+}
+```
+
+**Time Slot Shape:**
+```json
+{
+  "id": "string",
+  "startTime": "12:00 PM",
+  "endTime": "3:00 PM",
+  "demand": "low | medium | high | peak",
+  "spotsLeft": 2,
+  "totalSpots": 15,
+  "estimatedEarnings": 18000,
+  "surgeMultiplier": 1.5,
+  "booked": false
+}
+```
+
+### 8.4 Quests & Bonuses
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/quests` | Get active quests (daily, weekly, special) |
+| `GET` | `/courier/quests/:id` | Get quest details + progress |
+| `POST` | `/courier/quests/:id/claim` | Claim completed quest reward |
+| `GET` | `/courier/quests/summary` | Total earned, completed count, streak |
+
+**Quest Shape:**
+```json
+{
+  "id": "string",
+  "type": "daily | weekly | special",
+  "title": "Lunch Rush",
+  "description": "Complete 5 deliveries between 11 AM – 2 PM",
+  "icon": "sunny",
+  "color": "#f97316",
+  "progress": 3,
+  "target": 5,
+  "reward": 2000,
+  "expiresIn": "3h left",
+  "completed": false,
+  "claimed": false
+}
+```
+
+### 8.5 Delivery Preferences
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/preferences` | Get courier's delivery preferences |
+| `PATCH` | `/courier/preferences` | Update delivery preferences |
+
+**Preferences Body:**
+```json
+{
+  "maxDistance": 10,
+  "minPay": 500,
+  "autoAccept": false,
+  "autoAcceptSurge": false,
+  "stackedOrders": true,
+  "avoidHighways": false,
+  "nightMode": false,
+  "orderTypes": ["food", "grocery", "pharmacy"],
+  "preferredZones": ["victoria_island", "lekki", "yaba"]
+}
+```
+
+### 8.6 Referral Program
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/referral` | Get referral code, link, stats |
+| `GET` | `/courier/referral/history` | List of referred couriers + status |
+| `POST` | `/courier/referral/apply` | Apply a referral code during signup |
+
+**Referral Shape:**
+```json
+{
+  "code": "MIKE2026",
+  "link": "https://fulccrum.com/join?ref=MIKE2026",
+  "totalReferred": 12,
+  "totalEarned": 45000,
+  "pendingEarnings": 10000,
+  "referrals": [
+    {
+      "id": "string",
+      "name": "Tunde A.",
+      "date": "Feb 10, 2026",
+      "status": "pending | active | completed",
+      "deliveries": 18,
+      "requiredDeliveries": 25,
+      "earned": 0
+    }
+  ]
+}
+```
+
+### 8.7 Tax & Earnings Export
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/tax/monthly?month=2026-01` | Monthly earnings breakdown |
+| `GET` | `/courier/tax/yearly?year=2025` | Annual tax summary |
+| `POST` | `/courier/tax/export` | Email tax report (PDF) to courier |
+
+**Monthly Period Shape:**
+```json
+{
+  "key": "2026-01",
+  "label": "January 2026",
+  "totalEarnings": 285000,
+  "deliveryFees": 195000,
+  "tips": 62000,
+  "bonuses": 28000,
+  "deductions": 42000,
+  "netIncome": 243000,
+  "deliveries": 186,
+  "distance": 892
+}
+```
+
+### 8.8 Maintenance & Document Reminders
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/reminders` | Get all document/vehicle reminders with expiry status |
+| `PATCH` | `/courier/reminders/:id` | Update reminder (toggle notifications, update expiry) |
+| `POST` | `/courier/maintenance-log` | Add maintenance log entry |
+| `GET` | `/courier/maintenance-log` | Get maintenance history |
+
+**Reminder Shape:**
+```json
+{
+  "id": "string",
+  "type": "document | vehicle | insurance | license",
+  "title": "Vehicle Insurance",
+  "expiryDate": "2026-02-28",
+  "daysLeft": 16,
+  "status": "expired | urgent | warning | ok",
+  "notifyEnabled": true
+}
+```
+
+### 8.9 Training / Onboarding
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/training/modules` | Get all training modules + progress |
+| `POST` | `/courier/training/:moduleId/complete-lesson` | Mark a lesson as completed |
+| `GET` | `/courier/training/progress` | Overall training progress summary |
+
+### 8.10 Insurance
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/courier/insurance/plan` | Get current insurance plan |
+| `GET` | `/courier/insurance/plans` | List available plans |
+| `PATCH` | `/courier/insurance/plan` | Change insurance plan |
+| `POST` | `/courier/insurance/claims` | File an insurance claim |
+| `GET` | `/courier/insurance/claims` | Get claims history |
+
+**Insurance Plan Shape:**
+```json
+{
+  "id": "string",
+  "name": "Standard Protection",
+  "type": "basic | standard | premium",
+  "monthlyPremium": 3500,
+  "coverage": ["Accident coverage up to ₦500,000", "Third-party liability"],
+  "maxCoverage": 500000,
+  "active": true
+}
+```
+
+### 8.11 Waiting Time Compensation
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/orders/:id/waiting-started` | Mark that courier arrived at restaurant (start timer) |
+| `GET` | `/orders/:id/waiting-time` | Get current waiting duration + compensation |
+
+> Compensation rule: ₦50/min after 10 minutes of waiting at restaurant.
+
+### 8.12 Push Notifications (Order Alerts)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/courier/fcm-token` | Register/update FCM push token |
+| `DELETE` | `/courier/fcm-token` | Remove FCM token (logout) |
+
+> Backend should send push notification when a new order is available for the courier, with sound alert. The `OrderRequestPopup` component handles the UI with a 30-second countdown timer.
+
+### Prisma Models Needed
+
+```prisma
+model CourierScheduleSlot {
+  id              String   @id @default(uuid())
+  courierId       String
+  date            DateTime
+  startTime       String
+  endTime         String
+  demand          String   // low, medium, high, peak
+  surgeMultiplier Float    @default(1.0)
+  createdAt       DateTime @default(now())
+  courier         User     @relation(fields: [courierId], references: [id])
+}
+
+model Quest {
+  id          String   @id @default(uuid())
+  type        String   // daily, weekly, special
+  title       String
+  description String
+  icon        String
+  color       String
+  target      Int
+  reward      Int
+  startsAt    DateTime
+  expiresAt   DateTime
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model CourierQuestProgress {
+  id        String   @id @default(uuid())
+  courierId String
+  questId   String
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  claimed   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  courier   User     @relation(fields: [courierId], references: [id])
+  quest     Quest    @relation(fields: [questId], references: [id])
+  @@unique([courierId, questId])
+}
+
+model CourierPreferences {
+  id              String   @id @default(uuid())
+  courierId       String   @unique
+  maxDistance      Int      @default(10)
+  minPay          Int      @default(0)
+  autoAccept      Boolean  @default(false)
+  autoAcceptSurge Boolean  @default(false)
+  stackedOrders   Boolean  @default(true)
+  avoidHighways   Boolean  @default(false)
+  nightMode       Boolean  @default(false)
+  orderTypes      String[] @default(["food", "grocery", "pharmacy"])
+  preferredZones  String[] @default([])
+  courier         User     @relation(fields: [courierId], references: [id])
+}
+
+model Referral {
+  id                 String   @id @default(uuid())
+  referrerId         String
+  referredId         String
+  status             String   @default("pending") // pending, active, completed
+  deliveriesRequired Int      @default(25)
+  deliveriesCompleted Int     @default(0)
+  rewardAmount       Int      @default(5000)
+  paidOut            Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  referrer           User     @relation("referrer", fields: [referrerId], references: [id])
+  referred           User     @relation("referred", fields: [referredId], references: [id])
+}
+
+model DeliveryProof {
+  id        String   @id @default(uuid())
+  orderId   String
+  photoUrl  String
+  notes     String?
+  type      String   // hand_to_customer, leave_at_door, meet_outside
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id])
+}
+
+model CustomerRating {
+  id        String   @id @default(uuid())
+  orderId   String
+  courierId String
+  customerId String
+  rating    Int
+  tags      String[]
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model InsurancePlan {
+  id             String   @id @default(uuid())
+  name           String
+  type           String   // basic, standard, premium
+  monthlyPremium Int
+  coverage       String[]
+  maxCoverage    Int
+  active         Boolean  @default(true)
+}
+
+model InsuranceClaim {
+  id          String   @id @default(uuid())
+  courierId   String
+  type        String   // accident, medical, lost_goods
+  description String
+  amount      Int
+  status      String   @default("pending") // pending, approved, rejected, paid
+  createdAt   DateTime @default(now())
+  courier     User     @relation(fields: [courierId], references: [id])
+}
+
+model MaintenanceLog {
+  id        String   @id @default(uuid())
+  courierId String
+  action    String
+  cost      Int
+  mileage   String?
+  date      DateTime
+  createdAt DateTime @default(now())
+  courier   User     @relation(fields: [courierId], references: [id])
+}
+
+model TrainingModule {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  icon        String
+  color       String
+  duration    String
+  lessons     Int
+  required    Boolean  @default(false)
+  category    String   // onboarding, safety, skills, advanced
+  sortOrder   Int      @default(0)
+}
+
+model CourierTrainingProgress {
+  id               String   @id @default(uuid())
+  courierId        String
+  moduleId         String
+  completedLessons Int      @default(0)
+  updatedAt        DateTime @updatedAt
+  courier          User     @relation(fields: [courierId], references: [id])
+  module           TrainingModule @relation(fields: [moduleId], references: [id])
+  @@unique([courierId, moduleId])
+}
+
+model SurgeZone {
+  id              String   @id @default(uuid())
+  area            String
+  multiplier      Float
+  estimatedOrders Int
+  level           String   // low, medium, high, extreme
+  latitude        Float
+  longitude       Float
+  radius          Float    // km
+  expiresAt       DateTime
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+```
+
+---
+
+## 9. Existing Admin Endpoints (Already Working)
+
+For reference, these endpoints already exist and are fully implemented:
+
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/users?page=1&limit=50` | List all users |
+| `PATCH` | `/admin/users/:userId/suspend` | Suspend a user |
+| `PATCH` | `/admin/users/:userId/activate` | Activate a user |
+
+### Orders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/orders?page=1&limit=50` | List all orders |
+| `GET` | `/admin/metrics` | Platform metrics |
+
+### Finance
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/withdrawals/pending` | Pending withdrawals |
+| `POST` | `/admin/withdrawals/:id/approve` | Approve withdrawal |
+| `POST` | `/admin/withdrawals/:id/reject` | Reject withdrawal |
+
+### RBAC
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/admin/rbac/roles` | Create role |
+| `GET` | `/admin/rbac/roles` | List roles |
+| `PATCH` | `/admin/rbac/roles/:id` | Update role |
+| `POST` | `/admin/rbac/assign` | Assign role to user |
+| `GET` | `/admin/rbac/audit-logs` | Get audit logs |
+
+### Admin Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/admins` | List admin users |
+| `POST` | `/admin/admins` | Create admin user |
+| `DELETE` | `/admin/admins/:userId` | Remove admin |
+
+---
+
+## Summary of Work Needed
+
+### Priority 1 — Document System (blocks merchant/courier review)
+1. Add `Document` model to Prisma schema
+2. Run `prisma migrate`
+3. Implement `GET /admin/merchants/:id/documents` (query Document table)
+4. Implement `GET /admin/couriers/:id/documents` (query Document table)
+5. Implement `PATCH .../documents/:docId/verify` and `/reject`
+6. Build `POST /documents/upload` for merchant/courier onboarding
+7. Build `GET /documents/my-documents` for merchants/couriers to see their uploads
+
+### Priority 2 — Flesh out stubs
+1. `GET /admin/merchants/:id/application` — return full application with documents
+2. `GET /admin/couriers` — already queries DB, just needs real data
+3. `GET /admin/couriers/pending` — already queries DB, just needs real data
+4. `POST /admin/merchants/:id/request-documents` — send email notification
+
+### Priority 3 — Already done, just verify
+1. `POST /report/content` — created, writes to ContentModerationQueue
+2. `GET /report/my-reports` — created, queries by reportedBy in resourceData
+3. All courier approve/reject/suspend/reactivate endpoints — wired up
+
+---
+
+## Frontend Files Reference
+
+| Screen | File |
+|--------|------|
+| Merchant Applications | `frontend/src/screens/admin/MerchantApplicationReviewScreen.tsx` |
+| Courier Management | `frontend/src/screens/admin/CourierManagementScreen.tsx` |
+| Content Moderation | `frontend/src/screens/admin/content/ContentModerationScreen.tsx` |
+| Merchant Compliance | `frontend/src/screens/admin/content/MerchantComplianceScreen.tsx` |
+| Merchants | `frontend/src/screens/admin/MerchantsScreen.tsx` |
+| Report Modal (customer) | `frontend/src/components/ReportContentModal.tsx` |
+| API Service | `frontend/src/services/api.ts` (adminAPI, moderationAPI, reportAPI) |

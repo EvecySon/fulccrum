@@ -1,68 +1,90 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import { showAlert } from '../../../utils/alert';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
-import { moderationAPI } from '../../../services/api';
 
-export default function ContentModerationScreen() {
-  const [queue, setQueue] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const MOCK_QUEUE = [
+  {
+    id: '1', type: 'menu_item', status: 'pending',
+    resourceData: { name: 'Spicy Suya Platter', description: 'Grilled beef skewers with yaji spice, served with sliced onions, tomatoes, and pepper sauce. Image flagged for review.' },
+    flags: ['potentially misleading image', 'price discrepancy'],
+    createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
+  },
+  {
+    id: '2', type: 'merchant_profile', status: 'pending',
+    resourceData: { name: 'Mama Put Kitchen - Surulere', description: 'Home-cooked Nigerian meals delivered fresh. Business description contains phone number and external website link which violates platform policy.' },
+    flags: ['external links', 'contact info in description'],
+    createdAt: new Date(Date.now() - 1 * 3600000).toISOString(),
+  },
+  {
+    id: '3', type: 'review', status: 'pending',
+    resourceData: { name: 'Review by Chinedu O.', description: '"This restaurant is TERRIBLE. The owner is a thief and a fraud. DO NOT ORDER FROM HERE. I will report them to NAFDAC!!!"' },
+    flags: ['hate speech', 'defamation', 'all caps'],
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+  },
+  {
+    id: '4', type: 'menu_item', status: 'pending',
+    resourceData: { name: 'Alcoholic Palm Wine Special', description: 'Fresh palm wine tapped daily from Ondo State. 1 litre bottle. Requires age verification for delivery.' },
+    flags: ['age-restricted product', 'missing age gate'],
+    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
+  },
+  {
+    id: '5', type: 'merchant_profile', status: 'approved',
+    resourceData: { name: 'Chicken Republic - Lekki Phase 1', description: 'Fast food restaurant serving fried chicken, burgers, rice meals, and wraps. Open daily 8am-10pm.' },
+    flags: [],
+    createdAt: new Date(Date.now() - 6 * 3600000).toISOString(),
+  },
+  {
+    id: '6', type: 'review', status: 'approved',
+    resourceData: { name: 'Review by Amaka N.', description: '"Great jollof rice! Delivery was fast and the food was still hot. Will definitely order again. 5 stars!"' },
+    flags: [],
+    createdAt: new Date(Date.now() - 8 * 3600000).toISOString(),
+  },
+  {
+    id: '7', type: 'menu_item', status: 'rejected',
+    resourceData: { name: 'Weight Loss Miracle Soup', description: 'Guaranteed to make you lose 10kg in one week! Doctor-approved herbal formula.' },
+    flags: ['false health claims', 'misleading description'],
+    createdAt: new Date(Date.now() - 12 * 3600000).toISOString(),
+    reason: 'Contains unverified health claims. NAFDAC compliance required for health-related food claims.',
+  },
+  {
+    id: '8', type: 'review', status: 'rejected',
+    resourceData: { name: 'Review by Anonymous', description: '"Go to @cheapfood_lagos on Instagram for better prices. Use code SAVE20 for discount."' },
+    flags: ['spam', 'competitor promotion'],
+    createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+    reason: 'Spam content promoting external competitor platform.',
+  },
+];
+
+export default function ContentModerationScreen({ navigation }: any) {
+  const [queue, setQueue] = useState<any[]>(MOCK_QUEUE);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('pending');
 
-  useEffect(() => {
-    loadQueue();
-  }, [filter]);
+  const filteredQueue = filter === 'all' ? queue : queue.filter(item => item.status === filter);
 
-  const loadQueue = async () => {
-    try {
-      setLoading(true);
-      const response = await moderationAPI.getQueue({ status: filter === 'all' ? undefined : filter });
-      setQueue(response.data.data || []);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load moderation queue');
-    } finally {
-      setLoading(false);
+  const handleApprove = (itemId: string) => {
+    setQueue(prev => prev.map(item => item.id === itemId ? { ...item, status: 'approved' } : item));
+    showAlert('Success', 'Content approved');
+  };
+
+  const handleReject = (itemId: string) => {
+    const reason = Platform.OS === 'web'
+      ? window.prompt('Reject Content\n\nPlease provide a reason for rejection:')
+      : 'Policy violation';
+    if (reason) {
+      setQueue(prev => prev.map(item => item.id === itemId ? { ...item, status: 'rejected', reason } : item));
+      showAlert('Success', 'Content rejected');
     }
   };
-
-  const handleApprove = async (itemId: string) => {
-    try {
-      await moderationAPI.approveContent(itemId);
-      Alert.alert('Success', 'Content approved');
-      loadQueue();
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to approve content');
-    }
-  };
-
-  const handleReject = async (itemId: string) => {
-    Alert.prompt(
-      'Reject Content',
-      'Please provide a reason for rejection:',
-      async (reason) => {
-        if (reason) {
-          try {
-            await moderationAPI.rejectContent(itemId, reason);
-            Alert.alert('Success', 'Content rejected');
-            loadQueue();
-          } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to reject content');
-          }
-        }
-      }
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navy} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        </TouchableOpacity>
         <Text style={styles.title}>Content Moderation</Text>
       </View>
 
@@ -81,14 +103,16 @@ export default function ContentModerationScreen() {
       </View>
 
       <ScrollView style={styles.queueList}>
-        {queue.map((item) => (
+        {filteredQueue.map((item) => {
+          const statusColor = item.status === 'approved' ? colors.success : item.status === 'rejected' ? colors.error : colors.warning;
+          return (
           <View key={item.id} style={styles.itemCard}>
             <View style={styles.itemHeader}>
               <View style={styles.typeBadge}>
                 <Text style={styles.typeText}>{item.type.replace('_', ' ')}</Text>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: colors.warning + '20' }]}>
-                <Text style={[styles.statusText, { color: colors.warning }]}>{item.status}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+                <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
               </View>
             </View>
 
@@ -142,9 +166,10 @@ export default function ContentModerationScreen() {
               <Text style={styles.rejectionReason}>Rejection Reason: {item.reason}</Text>
             )}
           </View>
-        ))}
+          );
+        })}
 
-        {queue.length === 0 && (
+        {filteredQueue.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No items in moderation queue</Text>
           </View>
@@ -165,15 +190,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.textPrimary,
+    flex: 1,
   },
   filterContainer: {
     flexDirection: 'row',

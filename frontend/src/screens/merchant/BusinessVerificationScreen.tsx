@@ -16,6 +16,8 @@ import { colors } from '../../theme/colors';
 import { uploadAPI, usersAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 import { nigerianStatesLgas, nigerianStates } from '../../data/nigerianStatesLgas';
+import { MERCHANT_DOCUMENTS } from '../../config/documentRequirements';
+import { getActiveCategories } from '../../config/businessCategories';
 
 type VerificationStep = 'info' | 'documents' | 'review';
 
@@ -101,12 +103,17 @@ export default function BusinessVerificationScreen({ navigation }: any) {
   const [coverUri, setCoverUri] = useState('');
   const [cacDocUri, setCacDocUri] = useState('');
 
-  const businessTypes = [
-    { key: 'restaurant', label: 'Restaurant', icon: 'restaurant' },
-    { key: 'grocery', label: 'Grocery Store', icon: 'cart' },
-    { key: 'pharmacy', label: 'Pharmacy', icon: 'medkit' },
-    { key: 'other', label: 'Other', icon: 'storefront' },
-  ];
+  // Dynamic document uploads from config
+  const [docUris, setDocUris] = useState<Record<string, string>>({});
+
+  const handlePickDoc = async (key: string) => {
+    const uri = await pickImage();
+    if (uri) setDocUris(prev => ({ ...prev, [key]: uri }));
+  };
+
+  const businessTypes = getActiveCategories().map(c => ({
+    key: c.key, label: c.label, icon: c.icon,
+  }));
 
   const handlePickLogo = async () => {
     const uri = await pickImage();
@@ -337,55 +344,38 @@ export default function BusinessVerificationScreen({ navigation }: any) {
         {step === 'documents' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Upload Documents</Text>
-            <Text style={styles.sectionSubtitle}>Upload your business logo and verification documents</Text>
+            <Text style={styles.sectionSubtitle}>Upload your business documents for verification</Text>
 
-            <TouchableOpacity style={styles.uploadCard} onPress={handlePickLogo}>
-              {logoUri ? (
-                <Image source={{ uri: logoUri }} style={styles.uploadPreview} />
-              ) : existingLogoUrl ? (
-                <Image source={{ uri: existingLogoUrl }} style={styles.uploadPreview} />
-              ) : (
-                <View style={styles.uploadPlaceholder}>
-                  <Ionicons name="image-outline" size={32} color={colors.teal} />
-                  <Text style={styles.uploadLabel}>Business Logo</Text>
-                  <Text style={styles.uploadHint}>Tap to upload</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.uploadCard} onPress={handlePickCover}>
-              {coverUri ? (
-                <Image source={{ uri: coverUri }} style={[styles.uploadPreview, { height: 140 }]} />
-              ) : existingCoverUrl ? (
-                <Image source={{ uri: existingCoverUrl }} style={[styles.uploadPreview, { height: 140 }]} />
-              ) : (
-                <View style={[styles.uploadPlaceholder, { height: 140 }]}>
-                  <Ionicons name="image-outline" size={32} color={colors.teal} />
-                  <Text style={styles.uploadLabel}>Cover Photo</Text>
-                  <Text style={styles.uploadHint}>Tap to upload</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.uploadCard} onPress={handlePickCacDoc}>
-              {cacDocUri ? (
-                <View style={styles.uploadDone}>
-                  <Ionicons name="document-text" size={28} color={colors.success} />
-                  <Text style={styles.uploadDoneText}>CAC Document uploaded</Text>
-                </View>
-              ) : existingCacUrl ? (
-                <View style={styles.uploadDone}>
-                  <Ionicons name="document-text" size={28} color={colors.success} />
-                  <Text style={styles.uploadDoneText}>CAC Document on file</Text>
-                </View>
-              ) : (
-                <View style={styles.uploadPlaceholder}>
-                  <Ionicons name="document-text-outline" size={32} color={colors.warning} />
-                  <Text style={styles.uploadLabel}>CAC Registration Document</Text>
-                  <Text style={styles.uploadHint}>Required for verification</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            {MERCHANT_DOCUMENTS.map((doc) => {
+              const isImage = doc.key === 'business_logo' || doc.key === 'cover_photo';
+              const uri = docUris[doc.key] || '';
+              const isUploaded = !!uri;
+              return (
+                <TouchableOpacity
+                  key={doc.key}
+                  style={[styles.uploadCard, isUploaded && { borderColor: colors.success + '40', borderWidth: 2 }]}
+                  onPress={() => handlePickDoc(doc.key)}
+                >
+                  {isUploaded && isImage ? (
+                    <Image source={{ uri }} style={[styles.uploadPreview, doc.key === 'cover_photo' && { height: 140 }]} />
+                  ) : isUploaded ? (
+                    <View style={styles.uploadDone}>
+                      <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.uploadDoneText}>{doc.label}</Text>
+                        <Text style={{ fontSize: 12, color: colors.success }}>Uploaded — tap to replace</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Ionicons name={(doc.icon + '-outline') as any} size={32} color={doc.required ? colors.teal : colors.textLight} />
+                      <Text style={styles.uploadLabel}>{doc.label}</Text>
+                      <Text style={styles.uploadHint}>{doc.required ? 'Required' : 'Optional'} — {doc.description}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
             <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep('review')}>
               <Text style={styles.primaryBtnText}>Review & Submit</Text>

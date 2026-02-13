@@ -21,6 +21,10 @@ import DisputeResolutionScreen from '../screens/admin/DisputeResolutionScreen';
 import AddMerchantScreen from '../screens/admin/AddMerchantScreen';
 import AddCourierScreen from '../screens/admin/AddCourierScreen';
 import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
+import MerchantApplicationReviewScreen from '../screens/admin/MerchantApplicationReviewScreen';
+import CourierManagementScreen from '../screens/admin/CourierManagementScreen';
+import CourierApplicationReviewScreen from '../screens/admin/CourierApplicationReviewScreen';
+import CategoryManagementScreen from '../screens/admin/CategoryManagementScreen';
 
 // Finance Screens
 import CommissionTiersScreen from '../screens/admin/finance/CommissionTiersScreen';
@@ -127,6 +131,10 @@ export default function AdminNavigator() {
       <Stack.Screen name="AddMerchant" component={AddMerchantScreen} />
       <Stack.Screen name="AddCourier" component={AddCourierScreen} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
+      <Stack.Screen name="MerchantApplicationReview" component={MerchantApplicationReviewScreen} />
+      <Stack.Screen name="CourierManagement" component={CourierManagementScreen} />
+      <Stack.Screen name="CourierApplicationReview" component={CourierApplicationReviewScreen} />
+      <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
       
       {/* Finance Screens */}
       <Stack.Screen name="CommissionTiers" component={CommissionTiersScreen} />

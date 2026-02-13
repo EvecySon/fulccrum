@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState } from 'react';
 import {
   View,
@@ -41,7 +42,7 @@ export default function PushNotificationScreen({ navigation }: any) {
       await notificationsAPI.create({ title, body, audience });
       setSent(true);
       setTimeout(() => { setSent(false); setTitle(''); setBody(''); }, 2000);
-    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+    } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     setSending(false);
   };
 

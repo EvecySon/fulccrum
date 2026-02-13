@@ -45,6 +45,7 @@ import { CourierGamificationModule } from './courier-gamification/courier-gamifi
 import { CourierSafetyModule } from './courier-safety/courier-safety.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
+import { ReportModule } from './report/report.module';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     CourierGamificationModule,
     CourierSafetyModule,
     LoyaltyModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [

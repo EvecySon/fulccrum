@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -37,7 +38,7 @@ export default function OverviewScreen({ navigation }: any) {
       try {
         const res = await adminAPI.getMetrics();
         if (res) setStats(prev => ({ ...prev, ...res }));
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
   const maxOrders = Math.max(...stats.dailyOrders.map(d => d.orders));

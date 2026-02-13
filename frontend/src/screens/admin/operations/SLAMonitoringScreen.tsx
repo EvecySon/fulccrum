@@ -1,42 +1,59 @@
+import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-export default function SLAMonitoringScreen() {
-  const [breaches, setBreaches] = useState<any[]>([]);
-  const [configs, setConfigs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const MOCK_CONFIGS = [
+  { id: '1', name: 'Standard Delivery', orderType: 'food_delivery', maxPrepTime: 20, maxDeliveryTime: 30, maxTotalTime: 50 },
+  { id: '2', name: 'Express Delivery', orderType: 'express', maxPrepTime: 10, maxDeliveryTime: 15, maxTotalTime: 25 },
+  { id: '3', name: 'Grocery Delivery', orderType: 'grocery', maxPrepTime: 15, maxDeliveryTime: 45, maxTotalTime: 60 },
+  { id: '4', name: 'Scheduled Delivery', orderType: 'scheduled', maxPrepTime: 30, maxDeliveryTime: 30, maxTotalTime: 60 },
+];
+
+const MOCK_BREACHES = [
+  {
+    id: '1', type: 'delivery_time_exceeded',
+    order: { orderNumber: 'ORD-2026-4801' },
+    description: 'Delivery took 52 min (SLA: 30 min). Courier stuck in traffic on Third Mainland Bridge.',
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+  },
+  {
+    id: '2', type: 'prep_time_exceeded',
+    order: { orderNumber: 'ORD-2026-4789' },
+    description: 'Merchant prep time was 38 min (SLA: 20 min). Kitchen understaffed during lunch rush.',
+    createdAt: new Date(Date.now() - 5 * 3600000).toISOString(),
+  },
+  {
+    id: '3', type: 'total_time_exceeded',
+    order: { orderNumber: 'ORD-2026-4776' },
+    description: 'Total order time was 1h 15min (SLA: 50 min). Both prep and delivery delays compounded.',
+    createdAt: new Date(Date.now() - 18 * 3600000).toISOString(),
+  },
+  {
+    id: '4', type: 'delivery_time_exceeded',
+    order: { orderNumber: 'ORD-2026-4750' },
+    description: 'Delivery took 48 min (SLA: 30 min). Courier had difficulty locating customer address in Lekki Phase 2.',
+    createdAt: new Date(Date.now() - 26 * 3600000).toISOString(),
+  },
+  {
+    id: '5', type: 'prep_time_exceeded',
+    order: { orderNumber: 'ORD-2026-4738' },
+    description: 'Merchant prep time was 45 min (SLA: 20 min). Equipment malfunction at KFC Surulere.',
+    createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
+  },
+];
+
+export default function SLAMonitoringScreen({ navigation }: any) {
+  const [breaches, setBreaches] = useState<any[]>(MOCK_BREACHES);
+  const [configs, setConfigs] = useState<any[]>(MOCK_CONFIGS);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 7);
-
-      const [breachesRes, configsRes] = await Promise.all([
-        operationsAPI.getSLABreaches(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]),
-        operationsAPI.getSLAConfigs(),
-      ]);
-
-      setBreaches(breachesRes.data || []);
-      setConfigs(configsRes.data || []);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load SLA data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    setTimeout(() => setRefreshing(false), 800);
   };
 
   if (loading) {
@@ -52,71 +69,76 @@ export default function SLAMonitoringScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>SLA Monitoring</Text>
-        <Text style={styles.subtitle}>Service Level Agreement Tracking</Text>
-      </View>
-
-      <View style={styles.statsCard}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{breaches.length}</Text>
-          <Text style={styles.statLabel}>Breaches (7 days)</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.navy} />
+          </TouchableOpacity>
+          <Text style={styles.title}>SLA Monitoring</Text>
+          <Text style={styles.subtitle}>Service Level Agreement Tracking</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{configs.length}</Text>
-          <Text style={styles.statLabel}>Active SLAs</Text>
-        </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>SLA Configurations</Text>
-        {configs.map((config) => (
-          <View key={config.id} style={styles.configCard}>
-            <Text style={styles.configName}>{config.name}</Text>
-            <Text style={styles.configType}>{config.orderType}</Text>
-            <View style={styles.configDetails}>
-              <View style={styles.configDetail}>
-                <Text style={styles.configDetailLabel}>Max Prep Time:</Text>
-                <Text style={styles.configDetailValue}>{config.maxPrepTime} min</Text>
-              </View>
-              <View style={styles.configDetail}>
-                <Text style={styles.configDetailLabel}>Max Delivery:</Text>
-                <Text style={styles.configDetailValue}>{config.maxDeliveryTime} min</Text>
-              </View>
-              <View style={styles.configDetail}>
-                <Text style={styles.configDetailLabel}>Max Total:</Text>
-                <Text style={styles.configDetailValue}>{config.maxTotalTime} min</Text>
+        <View style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{breaches.length}</Text>
+            <Text style={styles.statLabel}>Breaches (7 days)</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{configs.length}</Text>
+            <Text style={styles.statLabel}>Active SLAs</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>SLA Configurations</Text>
+          {configs.map((config) => (
+            <View key={config.id} style={styles.configCard}>
+              <Text style={styles.configName}>{config.name}</Text>
+              <Text style={styles.configType}>{config.orderType}</Text>
+              <View style={styles.configDetails}>
+                <View style={styles.configDetail}>
+                  <Text style={styles.configDetailLabel}>Max Prep Time:</Text>
+                  <Text style={styles.configDetailValue}>{config.maxPrepTime} min</Text>
+                </View>
+                <View style={styles.configDetail}>
+                  <Text style={styles.configDetailLabel}>Max Delivery:</Text>
+                  <Text style={styles.configDetailValue}>{config.maxDeliveryTime} min</Text>
+                </View>
+                <View style={styles.configDetail}>
+                  <Text style={styles.configDetailLabel}>Max Total:</Text>
+                  <Text style={styles.configDetailValue}>{config.maxTotalTime} min</Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent SLA Breaches</Text>
-        {breaches.map((breach) => (
-          <View key={breach.id} style={styles.breachCard}>
-            <View style={styles.breachHeader}>
-              <View>
-                <Text style={styles.breachOrder}>{breach.order?.orderNumber}</Text>
-                <Text style={styles.breachType}>{breach.type.replace('_', ' ')}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent SLA Breaches</Text>
+          {breaches.map((breach) => (
+            <View key={breach.id} style={styles.breachCard}>
+              <View style={styles.breachHeader}>
+                <View>
+                  <Text style={styles.breachOrder}>{breach.order?.orderNumber}</Text>
+                  <Text style={styles.breachType}>{breach.type.replace('_', ' ')}</Text>
+                </View>
+                <View style={styles.severityBadge}>
+                  <Text style={styles.severityText}>HIGH</Text>
+                </View>
               </View>
-              <View style={styles.severityBadge}>
-                <Text style={styles.severityText}>HIGH</Text>
-              </View>
+              <Text style={styles.breachDescription}>{breach.description}</Text>
+              <Text style={styles.breachTime}>
+                {new Date(breach.createdAt).toLocaleString()}
+              </Text>
             </View>
-            <Text style={styles.breachDescription}>{breach.description}</Text>
-            <Text style={styles.breachTime}>
-              {new Date(breach.createdAt).toLocaleString()}
-            </Text>
-          </View>
-        ))}
+          ))}
 
-        {breaches.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No SLA breaches in the last 7 days</Text>
-          </View>
-        )}
+          {breaches.length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No SLA breaches in the last 7 days</Text>
+            </View>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -132,16 +154,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 20,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: colors.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border, 
+    gap: 12 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: colors.lightGray, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: colors.textPrimary, 
+    flex: 1 
   },
   subtitle: {
     fontSize: 14,

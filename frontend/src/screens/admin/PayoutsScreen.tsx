@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -47,7 +48,7 @@ export default function PayoutsScreen({ navigation }: any) {
       try {
         const res = await adminAPI.getPendingWithdrawals();
         // When backend returns real data, update state here
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
     })();
   }, []);
 

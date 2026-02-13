@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -108,7 +109,7 @@ export default function DisputeResolutionScreen({ navigation }: any) {
 
   const handleResolve = async () => {
     if (!selectedDispute || !resolution.trim()) {
-      Alert.alert('Error', 'Please enter a resolution note');
+      showAlert('Error', 'Please enter a resolution note');
       return;
     }
     setResolving(true);
@@ -121,9 +122,9 @@ export default function DisputeResolutionScreen({ navigation }: any) {
         prev.map(d => d.id === selectedDispute.id ? { ...d, status: 'resolved' as DisputeStatus } : d)
       );
       setModalVisible(false);
-      Alert.alert('Success', 'Dispute resolved successfully');
+      showAlert('Success', 'Dispute resolved successfully');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to resolve dispute');
+      showAlert('Error', err.message || 'Failed to resolve dispute');
     } finally {
       setResolving(false);
     }

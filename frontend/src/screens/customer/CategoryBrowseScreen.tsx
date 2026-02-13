@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI } from '../../services/api';
+import { getCategoryIcon as getCatIcon } from '../../config/businessCategories';
 
 export default function CategoryBrowseScreen({ navigation, route }: any) {
   const { category } = route.params;
@@ -75,20 +76,7 @@ export default function CategoryBrowseScreen({ navigation, route }: any) {
     setFilteredBusinesses(filtered);
   };
 
-  const getCategoryIcon = () => {
-    switch (category.toLowerCase()) {
-      case 'restaurants':
-        return 'restaurant';
-      case 'grocery':
-        return 'cart';
-      case 'convenience':
-        return 'storefront';
-      case 'pharmacy':
-        return 'medical';
-      default:
-        return 'business';
-    }
-  };
+  const getCategoryIcon = () => getCatIcon(category);
 
   const renderBusiness = ({ item }: any) => (
     <TouchableOpacity

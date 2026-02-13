@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { uploadAPI, usersAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
+import { getCourierDocuments } from '../../config/documentRequirements';
 
 interface DocumentItem {
   key: string;
@@ -23,17 +24,21 @@ interface DocumentItem {
   uri: string;
 }
 
-export default function DocumentVerificationScreen({ navigation }: any) {
+export default function DocumentVerificationScreen({ navigation, route }: any) {
+  const vehicleType = route?.params?.vehicleType || 'motorcycle';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    { key: 'drivers_license', label: "Driver's License", description: 'Valid government-issued license', icon: 'card', required: true, uri: '' },
-    { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Vehicle ownership or registration document', icon: 'car', required: true, uri: '' },
-    { key: 'insurance', label: 'Insurance Certificate', description: 'Valid vehicle insurance', icon: 'shield-checkmark', required: true, uri: '' },
-    { key: 'profile_photo', label: 'Profile Photo', description: 'Clear photo of your face', icon: 'person', required: true, uri: '' },
-    { key: 'nin', label: 'NIN / National ID', description: 'National Identification Number slip or card', icon: 'finger-print', required: false, uri: '' },
-  ]);
+  const [documents, setDocuments] = useState<DocumentItem[]>(
+    getCourierDocuments(vehicleType).map(doc => ({
+      key: doc.key,
+      label: doc.label,
+      description: doc.description,
+      icon: doc.icon,
+      required: doc.required,
+      uri: '',
+    }))
+  );
 
   const handlePickDocument = async (key: string) => {
     const uri = await pickImage();
