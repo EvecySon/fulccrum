@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../messaging/email.service';
+import { DocumentsService } from '../documents/documents.service';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -9,6 +10,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
+    private documentsService: DocumentsService,
   ) {}
 
   private verifyAdmin(userRole: string) {
@@ -441,26 +443,26 @@ export class AdminService {
 
   async getMerchantDocuments(userRole: string, merchantId: string) {
     this.verifyAdmin(userRole);
-    // TODO: Implement document storage model — for now return empty array
-    return { data: [], merchantId };
+    const documents = await this.documentsService.getUserDocuments(merchantId);
+    return { data: documents, merchantId };
   }
 
   async getCourierDocuments(userRole: string, courierId: string) {
     this.verifyAdmin(userRole);
-    // TODO: Implement document storage model — for now return empty array
-    return { data: [], courierId };
+    const documents = await this.documentsService.getUserDocuments(courierId);
+    return { data: documents, courierId };
   }
 
   async verifyDocument(userRole: string, userId: string, docId: string) {
     this.verifyAdmin(userRole);
-    // TODO: Update document status in DB once document model exists
-    return { message: 'Document verified', userId, docId };
+    const document = await this.documentsService.verifyDocument(docId, userId);
+    return { message: 'Document verified', document };
   }
 
   async rejectDocument(userRole: string, userId: string, docId: string, reason: string) {
     this.verifyAdmin(userRole);
-    // TODO: Update document status in DB once document model exists
-    return { message: 'Document rejected', userId, docId, reason };
+    const document = await this.documentsService.rejectDocument(docId, userId, { reason });
+    return { message: 'Document rejected', document };
   }
 
   async requestDocuments(userRole: string, merchantId: string, documentTypes: string[]) {

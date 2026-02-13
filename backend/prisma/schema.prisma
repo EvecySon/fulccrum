@@ -114,6 +114,17 @@ model User {
   groupOrderMemberships GroupOrderMember[] @relation("group_order_members")
   customerLoyalty    CustomerLoyalty?
   adminUser          AdminUser?        @relation("admin_user_profile")
+  documents          Document[]
+  verifiedDocuments  Document[]        @relation("DocumentVerifier")
+  
+  courierScheduleSlots    CourierScheduleSlot[]    @relation("CourierScheduleSlots")
+  courierQuestProgress    CourierQuestProgress[]   @relation("CourierQuestProgress")
+  courierPreferences      CourierPreferences?      @relation("CourierPreferences")
+  referralsGiven          Referral[]               @relation("Referrer")
+  referralsReceived       Referral[]               @relation("Referred")
+  insuranceClaims         InsuranceClaim[]         @relation("InsuranceClaims")
+  maintenanceLogs         MaintenanceLog[]         @relation("MaintenanceLogs")
+  courierTrainingProgress CourierTrainingProgress[] @relation("CourierTrainingProgress")
 
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
@@ -280,6 +291,7 @@ model Order {
   refunds    Refund[]
   chargebacks Chargeback[]
   incidents  Incident[]
+  deliveryProofs DeliveryProof[]
 
   @@index([customerId])
   @@index([businessId])
@@ -1532,5 +1544,295 @@ model CohortAnalysis {
   @@unique([cohortDate, cohortType])
   @@index([cohortDate, cohortType])
   @@map("cohort_analysis")
+}
+
+// ============================================================================
+// DOCUMENT MANAGEMENT - Merchant & Courier Document Uploads
+// ============================================================================
+
+enum DocumentType {
+  business_license
+  health_permit
+  owner_id
+  insurance
+  tax_certificate
+  business_logo
+  cover_photo
+  drivers_license
+  vehicle_registration
+  national_id
+  profile_photo
+  guarantor_form
+}
+
+enum DocumentStatus {
+  uploaded
+  verified
+  rejected
+  expired
+  missing
+}
+
+model Document {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  type            DocumentType
+  name            String         @db.VarChar(255)
+  fileUrl         String         @map("file_url") @db.Text
+  status          DocumentStatus @default(uploaded)
+  rejectionReason String?        @map("rejection_reason") @db.Text
+  verifiedBy      String?        @map("verified_by") @db.Uuid
+  verifiedAt      DateTime?      @map("verified_at")
+  expiresAt       DateTime?      @map("expires_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifier User? @relation("DocumentVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([userId, type])
+  @@index([status])
+  @@map("documents")
+}
+
+// ============================================================================
+// BUSINESS CATEGORIES - Dynamic Category Management
+// ============================================================================
+
+model BusinessCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @db.VarChar(50)
+  label       String   @db.VarChar(100)
+  icon        String   @db.VarChar(50)
+  description String   @default("") @db.Text
+  color       String   @default("#7f8c8d") @db.VarChar(20)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(99) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder])
+  @@map("business_categories")
+}
+
+// ============================================================================
+// COURIER FEATURES - Full Uber Eats/Glovo Parity
+// ============================================================================
+
+model CourierScheduleSlot {
+  id              String   @id @default(uuid()) @db.Uuid
+  courierId       String   @map("courier_id") @db.Uuid
+  date            DateTime @db.Date
+  startTime       String   @map("start_time") @db.VarChar(10)
+  endTime         String   @map("end_time") @db.VarChar(10)
+  demand          String   @db.VarChar(20)
+  surgeMultiplier Float    @default(1.0) @map("surge_multiplier")
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  courier User @relation("CourierScheduleSlots", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, date])
+  @@map("courier_schedule_slots")
+}
+
+model Quest {
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String   @db.VarChar(20)
+  title       String   @db.VarChar(200)
+  description String   @db.Text
+  icon        String   @db.VarChar(50)
+  color       String   @db.VarChar(20)
+  target      Int
+  reward      Int
+  startsAt    DateTime @map("starts_at")
+  expiresAt   DateTime @map("expires_at")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  progress CourierQuestProgress[]
+
+  @@index([active, expiresAt])
+  @@map("quests")
+}
+
+model CourierQuestProgress {
+  id        String   @id @default(uuid()) @db.Uuid
+  courierId String   @map("courier_id") @db.Uuid
+  questId   String   @map("quest_id") @db.Uuid
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  claimed   Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  courier User  @relation("CourierQuestProgress", fields: [courierId], references: [id], onDelete: Cascade)
+  quest   Quest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([courierId, questId])
+  @@index([courierId, completed])
+  @@map("courier_quest_progress")
+}
+
+model CourierPreferences {
+  id              String   @id @default(uuid()) @db.Uuid
+  courierId       String   @unique @map("courier_id") @db.Uuid
+  maxDistance     Int      @default(10) @map("max_distance")
+  minPay          Int      @default(0) @map("min_pay")
+  autoAccept      Boolean  @default(false) @map("auto_accept")
+  autoAcceptSurge Boolean  @default(false) @map("auto_accept_surge")
+  stackedOrders   Boolean  @default(true) @map("stacked_orders")
+  avoidHighways   Boolean  @default(false) @map("avoid_highways")
+  nightMode       Boolean  @default(false) @map("night_mode")
+  orderTypes      String[] @default(["food", "grocery", "pharmacy"]) @map("order_types")
+  preferredZones  String[] @default([]) @map("preferred_zones")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  courier User @relation("CourierPreferences", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@map("courier_preferences")
+}
+
+model Referral {
+  id                  String   @id @default(uuid()) @db.Uuid
+  referrerId          String   @map("referrer_id") @db.Uuid
+  referredId          String   @map("referred_id") @db.Uuid
+  status              String   @default("pending") @db.VarChar(20)
+  deliveriesRequired  Int      @default(25) @map("deliveries_required")
+  deliveriesCompleted Int      @default(0) @map("deliveries_completed")
+  rewardAmount        Int      @default(5000) @map("reward_amount")
+  paidOut             Boolean  @default(false) @map("paid_out")
+  createdAt           DateTime @default(now()) @map("created_at")
+  
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred User @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status])
+  @@index([referredId])
+  @@map("referrals")
+}
+
+model DeliveryProof {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @map("order_id") @db.Uuid
+  photoUrl  String   @map("photo_url") @db.Text
+  notes     String?  @db.Text
+  type      String   @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("delivery_proofs")
+}
+
+model CustomerRating {
+  id         String   @id @default(uuid()) @db.Uuid
+  orderId    String   @map("order_id") @db.Uuid
+  courierId  String   @map("courier_id") @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  rating     Int
+  tags       String[]
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([courierId])
+  @@index([customerId])
+  @@map("customer_ratings")
+}
+
+model InsurancePlan {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @db.VarChar(100)
+  type           String   @db.VarChar(20)
+  monthlyPremium Int      @map("monthly_premium")
+  coverage       String[]
+  maxCoverage    Int      @map("max_coverage")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([active, type])
+  @@map("insurance_plans")
+}
+
+model InsuranceClaim {
+  id          String   @id @default(uuid()) @db.Uuid
+  courierId   String   @map("courier_id") @db.Uuid
+  type        String   @db.VarChar(50)
+  description String   @db.Text
+  amount      Int
+  status      String   @default("pending") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  courier User @relation("InsuranceClaims", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, status])
+  @@map("insurance_claims")
+}
+
+model MaintenanceLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  courierId String   @map("courier_id") @db.Uuid
+  action    String   @db.VarChar(200)
+  cost      Int
+  mileage   String?  @db.VarChar(50)
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  courier User @relation("MaintenanceLogs", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, date])
+  @@map("maintenance_logs")
+}
+
+model TrainingModule {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(200)
+  description String   @db.Text
+  icon        String   @db.VarChar(50)
+  color       String   @db.VarChar(20)
+  duration    String   @db.VarChar(50)
+  lessons     Int
+  required    Boolean  @default(false)
+  category    String   @db.VarChar(50)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  progress CourierTrainingProgress[]
+
+  @@index([category, sortOrder])
+  @@map("training_modules")
+}
+
+model CourierTrainingProgress {
+  id               String   @id @default(uuid()) @db.Uuid
+  courierId        String   @map("courier_id") @db.Uuid
+  moduleId         String   @map("module_id") @db.Uuid
+  completedLessons Int      @default(0) @map("completed_lessons")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  courier User           @relation("CourierTrainingProgress", fields: [courierId], references: [id], onDelete: Cascade)
+  module  TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([courierId, moduleId])
+  @@index([courierId])
+  @@map("courier_training_progress")
+}
+
+model SurgeZone {
+  id              String   @id @default(uuid()) @db.Uuid
+  area            String   @db.VarChar(100)
+  multiplier      Float
+  estimatedOrders Int      @map("estimated_orders")
+  level           String   @db.VarChar(20)
+  latitude        Float
+  longitude       Float
+  radius          Float
+  expiresAt       DateTime @map("expires_at")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([active, expiresAt])
+  @@index([latitude, longitude])
+  @@map("surge_zones")
 }
 

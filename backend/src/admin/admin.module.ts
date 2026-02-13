@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { MessagingModule } from '../messaging/messaging.module';
+import { DocumentsModule } from '../documents/documents.module';
 import { CommissionService } from './services/commission.service';
 import { FinanceService } from './services/finance.service';
 import { RefundService } from './services/refund.service';
@@ -22,7 +23,7 @@ import { MarketingController } from './controllers/marketing.controller';
 import { AnalyticsController } from './controllers/analytics.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule, MessagingModule],
+  imports: [PrismaModule, AuthModule, MessagingModule, DocumentsModule],
   controllers: [
     AdminController,
     FinanceController,

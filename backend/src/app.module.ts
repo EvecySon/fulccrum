@@ -46,6 +46,9 @@ import { CourierSafetyModule } from './courier-safety/courier-safety.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 import { ReportModule } from './report/report.module';
+import { DocumentsModule } from './documents/documents.module';
+import { CategoriesModule } from './categories/categories.module';
+import { CourierModule } from './courier/courier.module';
 
 @Module({
   imports: [
@@ -107,6 +110,9 @@ import { ReportModule } from './report/report.module';
     CourierSafetyModule,
     LoyaltyModule,
     ReportModule,
+    DocumentsModule,
+    CategoriesModule,
+    CourierModule,
   ],
   controllers: [AppController],
   providers: [
