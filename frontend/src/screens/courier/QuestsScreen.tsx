@@ -47,7 +47,7 @@ const mockSummary = {
 };
 
 export default function QuestsScreen({ navigation }: any) {
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<Quest[]>(mockQuests);
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly' | 'special'>('all');
   const [summary, setSummary] = useState(mockSummary);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +57,8 @@ export default function QuestsScreen({ navigation }: any) {
   const loadQuests = async () => {
     try {
       const res = await courierGamificationAPI.getAchievements();
-      if (Array.isArray(res) && res.length) setQuests(res);
+      const data = res?.data ?? res;
+      if (Array.isArray(data) && data.length) setQuests(data);
       else setQuests(mockQuests);
     } catch {
       setQuests(mockQuests);

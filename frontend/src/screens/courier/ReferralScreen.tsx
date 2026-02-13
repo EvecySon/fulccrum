@@ -48,7 +48,7 @@ const REWARD_TIERS = [
 ];
 
 export default function ReferralScreen({ navigation }: any) {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>(mockReferrals);
   const [stats, setStats] = useState(mockStats);
 
   useEffect(() => {

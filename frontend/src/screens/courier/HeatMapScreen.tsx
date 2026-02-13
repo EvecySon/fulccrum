@@ -65,8 +65,8 @@ const mockStats = {
 };
 
 export default function HeatMapScreen({ navigation }: any) {
-  const [zones, setZones] = useState<SurgeZone[]>([]);
-  const [hourly, setHourly] = useState<HourlyDemand[]>([]);
+  const [zones, setZones] = useState<SurgeZone[]>(mockSurgeZones);
+  const [hourly, setHourly] = useState<HourlyDemand[]>(mockHourlyDemand);
   const [stats, setStats] = useState(mockStats);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);

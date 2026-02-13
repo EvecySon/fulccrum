@@ -58,7 +58,7 @@ const mockWeeklyStats = {
 };
 
 export default function SchedulingScreen({ navigation }: any) {
-  const [schedule, setSchedule] = useState<DaySchedule[]>([]);
+  const [schedule, setSchedule] = useState<DaySchedule[]>(generateMockSchedule());
   const [selectedDay, setSelectedDay] = useState(0);
   const [weekStats, setWeekStats] = useState(mockWeeklyStats);
   const [refreshing, setRefreshing] = useState(false);

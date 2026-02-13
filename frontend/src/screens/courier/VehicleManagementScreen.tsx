@@ -38,14 +38,15 @@ const mockVehicleInfo = {
 };
 
 export default function VehicleManagementScreen({ navigation }: any) {
-  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
+  const [methods, setMethods] = useState<DeliveryMethod[]>(mockMethods);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const data = await courierFleetAPI.getDeliveryMethods();
+      const res = await courierFleetAPI.getDeliveryMethods();
+      const data = res?.data ?? res;
       setMethods(Array.isArray(data) ? data : mockMethods);
     } catch {
       setMethods(mockMethods);

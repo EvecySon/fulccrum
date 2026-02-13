@@ -50,8 +50,8 @@ const mockLeaderboard: LeaderboardEntry[] = [
 ];
 
 export default function GamificationScreen({ navigation }: any) {
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>(mockAchievements);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(mockLeaderboard);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'all'>('weekly');
@@ -64,8 +64,10 @@ export default function GamificationScreen({ navigation }: any) {
         courierGamificationAPI.getAchievements(),
         courierGamificationAPI.getLeaderboard(period),
       ]);
-      setAchievements(Array.isArray(ach) ? ach : mockAchievements);
-      setLeaderboard(Array.isArray(lb) ? lb : mockLeaderboard);
+      const achData = ach?.data ?? ach;
+      const lbData = lb?.data ?? lb;
+      setAchievements(Array.isArray(achData) ? achData : mockAchievements);
+      setLeaderboard(Array.isArray(lbData) ? lbData : mockLeaderboard);
     } catch {
       setAchievements(mockAchievements);
       setLeaderboard(mockLeaderboard);
