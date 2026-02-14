@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -49,12 +50,14 @@ import { ReportModule } from './report/report.module';
 import { DocumentsModule } from './documents/documents.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CourierModule } from './courier/courier.module';
+import { BusinessModule } from './business/business.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute
       limit: 100, // 100 requests per minute per user/IP
@@ -113,6 +116,7 @@ import { CourierModule } from './courier/courier.module';
     DocumentsModule,
     CategoriesModule,
     CourierModule,
+    BusinessModule,
   ],
   controllers: [AppController],
   providers: [

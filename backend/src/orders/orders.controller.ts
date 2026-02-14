@@ -57,6 +57,40 @@ export class OrdersController {
     return this.ordersService.getReceipt(id, req.user.sub);
   }
 
+  @Post(':id/ready-for-pickup')
+  async markReadyForPickup(@Request() req: any, @Param('id') id: string) {
+    const { PickupOrdersService } = await import('./pickup-orders.service');
+    const pickupService = new PickupOrdersService(
+      this.ordersService['prisma'],
+      this.ordersService['realtimeGateway'],
+    );
+    return pickupService.markOrderReadyForPickup(id, req.user.sub);
+  }
+
+  @Post(':id/confirm-pickup')
+  async confirmPickup(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('pickupCode') pickupCode?: string,
+  ) {
+    const { PickupOrdersService } = await import('./pickup-orders.service');
+    const pickupService = new PickupOrdersService(
+      this.ordersService['prisma'],
+      this.ordersService['realtimeGateway'],
+    );
+    return pickupService.confirmPickup(id, req.user.sub, pickupCode);
+  }
+
+  @Get('pickup/active')
+  async getActivePickupOrders(@Request() req: any) {
+    const { PickupOrdersService } = await import('./pickup-orders.service');
+    const pickupService = new PickupOrdersService(
+      this.ordersService['prisma'],
+      this.ordersService['realtimeGateway'],
+    );
+    return pickupService.getPickupOrders(req.user.sub);
+  }
+
   @Get('customer/my-orders')
   async getMyOrders(
     @Request() req: any,

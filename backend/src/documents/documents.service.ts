@@ -177,4 +177,22 @@ export class DocumentsService {
       },
     });
   }
+
+  async getPendingDocuments() {
+    return this.prisma.document.findMany({
+      where: { status: 'uploaded' },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
 }

@@ -366,4 +366,9 @@ export class CourierController {
   async getVerificationHistory(@Request() req: any) {
     return this.verificationService.getHistory(req.user.sub);
   }
+
+  @Get('verification/requirements')
+  async getVerificationRequirements(@Request() req: any) {
+    return this.verificationService.getVerificationRequirements(req.user.sub);
+  }
 }

@@ -65,4 +65,28 @@ export class DocumentsController {
   async deleteDocument(@Request() req: any, @Param('id') id: string) {
     return this.documentsService.deleteDocument(req.user.sub, id);
   }
+
+  @Get('user/:userId')
+  async getUserDocuments(@Request() req: any, @Param('userId') userId: string) {
+    return this.documentsService.getUserDocuments(userId);
+  }
+
+  @Post(':id/verify')
+  async verifyDocument(@Request() req: any, @Param('id') id: string) {
+    return this.documentsService.verifyDocument(id, req.user.sub);
+  }
+
+  @Post(':id/reject')
+  async rejectDocument(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.documentsService.rejectDocument(id, req.user.sub, dto);
+  }
+
+  @Get('pending')
+  async getPendingDocuments(@Request() req: any) {
+    return this.documentsService.getPendingDocuments();
+  }
 }

@@ -90,4 +90,124 @@ export class VerificationService {
       reason: attempt.reason || 'periodic',
     }));
   }
+
+  async getVerificationRequirements(courierId: string) {
+    const [user, documents, latestSelfie] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: courierId },
+        select: {
+          backgroundCheckStatus: true,
+          backgroundCheckDate: true,
+        },
+      }),
+      this.prisma.document.findMany({
+        where: { userId: courierId },
+        select: {
+          type: true,
+          status: true,
+          expiresAt: true,
+        },
+      }),
+      this.prisma.verificationAttempt.findFirst({
+        where: { courierId, verified: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const now = new Date();
+    const requirements = [];
+
+    // Check selfie verification
+    if (!latestSelfie) {
+      requirements.push({
+        type: 'selfie_verification',
+        status: 'required',
+        message: 'Initial selfie verification required',
+      });
+    } else {
+      const daysSinceVerification = Math.floor(
+        (now.getTime() - latestSelfie.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysSinceVerification > 7) {
+        requirements.push({
+          type: 'selfie_verification',
+          status: 'due',
+          message: 'Weekly selfie verification is due',
+          lastVerified: latestSelfie.createdAt,
+        });
+      }
+    }
+
+    // Check background check
+    if (!user?.backgroundCheckStatus || user.backgroundCheckStatus === 'pending') {
+      requirements.push({
+        type: 'background_check',
+        status: 'pending',
+        message: 'Background check in progress',
+      });
+    } else if (user.backgroundCheckStatus === 'failed') {
+      requirements.push({
+        type: 'background_check',
+        status: 'failed',
+        message: 'Background check failed - contact support',
+      });
+    }
+
+    // Check document expiration
+    for (const doc of documents) {
+      if (doc.status === 'verified' && doc.expiresAt) {
+        const daysUntilExpiry = Math.floor(
+          (doc.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (daysUntilExpiry < 30) {
+          requirements.push({
+            type: 'document_renewal',
+            documentType: doc.type,
+            status: daysUntilExpiry < 0 ? 'expired' : 'expiring_soon',
+            message: `${doc.type} ${daysUntilExpiry < 0 ? 'has expired' : `expires in ${daysUntilExpiry} days`}`,
+            expiresAt: doc.expiresAt,
+          });
+        }
+      } else if (doc.status === 'rejected') {
+        requirements.push({
+          type: 'document_resubmission',
+          documentType: doc.type,
+          status: 'rejected',
+          message: `${doc.type} was rejected - please resubmit`,
+        });
+      } else if (doc.status === 'uploaded') {
+        requirements.push({
+          type: 'document_verification',
+          documentType: doc.type,
+          status: 'pending',
+          message: `${doc.type} is pending verification`,
+        });
+      }
+    }
+
+    return {
+      requirements,
+      allClear: requirements.length === 0,
+      criticalIssues: requirements.filter(r => 
+        r.status === 'required' || r.status === 'expired' || r.status === 'failed'
+      ).length,
+    };
+  }
+
+  async checkVerificationReminder(courierId: string): Promise<boolean> {
+    const latestVerification = await this.prisma.verificationAttempt.findFirst({
+      where: { courierId, verified: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latestVerification) {
+      return true; // Needs initial verification
+    }
+
+    const daysSinceVerification = Math.floor(
+      (Date.now() - latestVerification.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    return daysSinceVerification >= 7; // Weekly verification required
+  }
 }
