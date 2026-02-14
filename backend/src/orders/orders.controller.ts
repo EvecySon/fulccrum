@@ -43,6 +43,20 @@ export class OrdersController {
     return this.ordersService.reorder(id, req.user.sub);
   }
 
+  @Post(':id/tip')
+  async addTip(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+  ) {
+    return this.ordersService.addTip(id, req.user.sub, amount);
+  }
+
+  @Get(':id/receipt')
+  async getReceipt(@Request() req: any, @Param('id') id: string) {
+    return this.ordersService.getReceipt(id, req.user.sub);
+  }
+
   @Get('customer/my-orders')
   async getMyOrders(
     @Request() req: any,

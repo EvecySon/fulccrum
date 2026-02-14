@@ -75,6 +75,10 @@ export class SearchService {
         deliveryFee: true,
         minimumOrderAmount: true,
         averagePreparationTime: true,
+        isOpen: true,
+        priceRange: true,
+        estimatedDeliveryTime: true,
+        businessHours: true,
       },
     });
   }
@@ -94,6 +98,10 @@ export class SearchService {
         deliveryFee: true,
         minimumOrderAmount: true,
         averagePreparationTime: true,
+        isOpen: true,
+        priceRange: true,
+        estimatedDeliveryTime: true,
+        businessHours: true,
       },
     });
   }

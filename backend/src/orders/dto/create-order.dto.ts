@@ -79,4 +79,20 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   promoCode?: string;
+
+  @IsOptional()
+  @IsString()
+  scheduledFor?: string;
+
+  @IsOptional()
+  @IsString()
+  fulfillmentType?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryOption?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryNote?: string;
 }

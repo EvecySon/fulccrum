@@ -40,14 +40,24 @@ export class OrdersService {
       instructions = instructions ? `${instructions}\n${allergyNote}` : allergyNote;
     }
 
+    // Determine initial status based on scheduledFor and fulfillmentType
+    let initialStatus: any = 'pending';
+    if (dto.scheduledFor) {
+      initialStatus = 'scheduled';
+    }
+
+    // For pickup orders, set deliveryFee to 0
+    const fulfillmentType = dto.fulfillmentType || 'delivery';
+    const deliveryFee = fulfillmentType === 'pickup' ? 0 : dto.deliveryFee;
+
     const order = await this.prisma.order.create({
       data: {
         orderNumber,
         customerId,
         businessId: dto.businessId,
-        status: 'pending',
+        status: initialStatus,
         subtotal: dto.subtotal,
-        deliveryFee: dto.deliveryFee,
+        deliveryFee,
         serviceFee: dto.serviceFee,
         taxAmount: dto.taxAmount,
         tipAmount: dto.tipAmount || 0,
@@ -57,6 +67,10 @@ export class OrdersService {
         paymentMethod: dto.paymentMethod,
         paymentStatus: 'pending',
         deliveryAddressId: dto.deliveryAddressId || undefined,
+        scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
+        fulfillmentType,
+        deliveryOption: dto.deliveryOption || undefined,
+        deliveryNote: dto.deliveryNote || undefined,
         items: {
           create: (dto.items || []).map(item => ({
             menuItemId: item.menuItemId,
@@ -530,6 +544,100 @@ export class OrdersService {
         total,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  async addTip(orderId: string, customerId: string, amount: number) {
+    // Validate order exists and belongs to customer
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { driver: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.customerId !== customerId) {
+      throw new ForbiddenException('You can only tip your own orders');
+    }
+
+    if (order.status !== 'delivered') {
+      throw new BadRequestException('Can only tip delivered orders');
+    }
+
+    if (amount <= 0) {
+      throw new BadRequestException('Tip amount must be greater than 0');
+    }
+
+    // Update order with tip amount
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        tipAmount: { increment: amount },
+        totalAmount: { increment: amount },
+      },
+    });
+
+    // Credit courier's wallet if driver exists
+    if (order.driverId) {
+      await this.walletService.creditWallet(order.driverId, amount, 'tip', `Tip from order ${order.orderNumber}`);
+    }
+
+    return {
+      message: 'Tip added successfully',
+      order: updatedOrder,
+    };
+  }
+
+  async getReceipt(orderId: string, customerId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        business: {
+          select: {
+            businessName: true,
+          },
+        },
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        deliveryAddress: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.customerId !== customerId) {
+      throw new ForbiddenException('You can only view your own receipts');
+    }
+
+    return {
+      orderNumber: order.orderNumber,
+      restaurant: order.business.businessName,
+      items: order.items.map(item => ({
+        name: item.menuItem.name,
+        quantity: item.quantity,
+        price: Number(item.totalPrice),
+      })),
+      subtotal: Number(order.subtotal),
+      deliveryFee: Number(order.deliveryFee),
+      serviceFee: Number(order.serviceFee),
+      tax: Number(order.taxAmount),
+      tip: Number(order.tipAmount),
+      discount: Number(order.discountAmount),
+      total: Number(order.totalAmount),
+      paymentMethod: order.paymentMethod || 'wallet',
+      deliveredAt: order.deliveredAt,
+      deliveryAddress: order.deliveryAddress ? `${order.deliveryAddress.streetAddress}, ${order.deliveryAddress.city}` : null,
     };
   }
 }

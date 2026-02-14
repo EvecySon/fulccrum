@@ -55,6 +55,25 @@ export class WalletService {
     };
   }
 
+  async creditWallet(userId: string, amount: number, type: string, description: string) {
+    const wallet = await this.getOrCreateWallet(userId);
+
+    const updatedWallet = await this.prisma.digitalWallet.update({
+      where: { id: wallet.id },
+      data: {
+        balance: {
+          increment: amount,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      newBalance: Number(updatedWallet.balance),
+      message: description,
+    };
+  }
+
   async creditOrderEarnings(
     orderId: string,
     businessId: string,
