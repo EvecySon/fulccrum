@@ -114,10 +114,14 @@ export default function CourierDashboardScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, isOnline ? styles.headerOnline : styles.headerOffline]}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.greeting}>Hey, Mike! 👋</Text>
           <Text style={styles.subtitle}>{isOnline ? 'You\'re online and ready' : 'You\'re currently offline'}</Text>
         </View>
+        <TouchableOpacity style={styles.notifBell} onPress={() => navigation.navigate('Notifications')}>
+          <Ionicons name="notifications-outline" size={24} color={colors.textWhite} />
+          <View style={styles.notifDot} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.onlineToggle, isOnline ? styles.toggleOnline : styles.toggleOffline]}
           onPress={() => setIsOnline(!isOnline)}
@@ -373,6 +377,11 @@ const styles = StyleSheet.create({
   },
   headerOnline: { backgroundColor: colors.navy },
   headerOffline: { backgroundColor: '#555' },
+  notifBell: { position: 'relative' as const, marginRight: 10 },
+  notifDot: {
+    position: 'absolute' as const, top: -2, right: -2, width: 9, height: 9,
+    borderRadius: 5, backgroundColor: colors.error, borderWidth: 1.5, borderColor: colors.navy,
+  },
   greeting: { fontSize: 20, fontWeight: '800', color: colors.textWhite },
   subtitle: { fontSize: 13, color: colors.tealLight, marginTop: 2 },
   onlineToggle: {

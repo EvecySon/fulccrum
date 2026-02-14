@@ -33,7 +33,7 @@ const deliveryHistory = [
   { id: '6', restaurant: 'Urban Spoon', customer: 'David W.', pay: 18.90, tip: 8.00, distance: 5.1, time: 40, date: 'Yesterday, 4:30 PM', rating: 4 },
 ];
 
-export default function EarningsScreen() {
+export default function EarningsScreen({ navigation }: any) {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
   const [earnings, setEarnings] = useState<any>(null);
 
@@ -169,7 +169,7 @@ export default function EarningsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Delivery History</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('OrderHistory')}>
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>

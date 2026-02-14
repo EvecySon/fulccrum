@@ -897,6 +897,9 @@ export const courierOrdersAPI = {
     api.post(`/courier/orders/${orderId}/rate-customer`, { rating, tags, comment }),
   getDetails: (orderId: string) => api.get(`/courier/orders/${orderId}`),
   getAvailable: (filter?: string) => api.get(`/courier/orders/available${filter ? `?filter=${filter}` : ''}`),
+  getHistory: (status?: string, page?: number) =>
+    api.get(`/courier/orders/history?${status ? `status=${status}&` : ''}page=${page || 1}`),
+  getActive: () => api.get('/courier/orders/active'),
   markWaitingStarted: (orderId: string) => api.post(`/courier/orders/${orderId}/waiting-started`),
   getWaitingTime: (orderId: string) => api.get(`/courier/orders/${orderId}/waiting-time`),
 };

@@ -282,6 +282,8 @@ export default function CourierProfileScreen({ navigation }: any) {
         <View style={styles.actionsCard}>
           {[
             { icon: 'wallet-outline', label: 'Wallet & Withdrawals', color: colors.navy, screen: 'Wallet' },
+            { icon: 'receipt-outline', label: 'Order History', color: colors.navy, screen: 'OrderHistory' },
+            { icon: 'notifications-outline', label: 'Notifications', color: colors.navy, screen: 'Notifications' },
             { icon: 'document-text-outline', label: 'Tax & Earnings', color: colors.navy, screen: 'TaxSummary' },
             { icon: 'help-circle-outline', label: 'Help & Support', color: colors.navy, screen: null },
             { icon: 'star-outline', label: 'Refer a Friend', color: colors.teal, screen: 'Referral' },

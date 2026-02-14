@@ -30,6 +30,8 @@ import TrainingScreen from '../screens/courier/TrainingScreen';
 import InsuranceScreen from '../screens/courier/InsuranceScreen';
 import LanguageSettingsScreen from '../screens/courier/LanguageSettingsScreen';
 import ThemeSettingsScreen from '../screens/courier/ThemeSettingsScreen';
+import NotificationsScreen from '../screens/courier/NotificationsScreen';
+import OrderHistoryScreen from '../screens/courier/OrderHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -119,6 +121,8 @@ export default function CourierNavigator() {
       <Stack.Screen name="Insurance" component={InsuranceScreen} />
       <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} />
       <Stack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
     </Stack.Navigator>
   );
 }

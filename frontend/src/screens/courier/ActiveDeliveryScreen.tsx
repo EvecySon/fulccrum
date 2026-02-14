@@ -17,6 +17,7 @@ import { locationAPI } from '../../services/api';
 import SwipeToConfirm from '../../components/courier/SwipeToConfirm';
 import DeliveryProofModal from '../../components/courier/DeliveryProofModal';
 import RateCustomerModal from '../../components/courier/RateCustomerModal';
+import StackedOrdersBanner, { StackedOrder } from '../../components/courier/StackedOrdersBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +47,10 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
   const [waitingSeconds, setWaitingSeconds] = useState(0);
   const [isWaiting, setIsWaiting] = useState(false);
   const [deliveryCountdown, setDeliveryCountdown] = useState(0);
+  const [stackedOrders, setStackedOrders] = useState<StackedOrder[]>([
+    { id: '#3242', restaurant: 'Burger House', customer: 'John Smith', status: 'delivering', estimatedTime: '12 min', pay: 1700, items: 3, isActive: true },
+  ]);
+  const [activeOrderId, setActiveOrderId] = useState('#3242');
 
   // Delivery countdown timer
   useEffect(() => {
@@ -240,6 +245,13 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Stacked Orders */}
+        <StackedOrdersBanner
+          orders={stackedOrders}
+          activeOrderId={activeOrderId}
+          onSwitchOrder={(id) => setActiveOrderId(id)}
+        />
+
         {/* Waiting Time Compensation */}
         {isWaiting && waitingSeconds > 0 && (
           <View style={styles.waitingBanner}>
