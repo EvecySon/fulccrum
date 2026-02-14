@@ -31,6 +31,8 @@ async function main() {
       lastName: 'Admin',
       role: 'admin',
       status: 'active',
+      emailVerified: true,
+      phoneVerified: true,
     },
   });
 

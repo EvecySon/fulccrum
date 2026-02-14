@@ -1,3 +1,4 @@
+import { showAlert } from '../../utils/alert';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -5,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
@@ -137,14 +137,14 @@ export default function SchedulingScreen({ navigation }: any) {
       await courierScheduleAPI.bookShift(slotId, date, selectedZone);
       await loadSchedule();
     } catch (e: any) {
-      Alert.alert('Cannot Book', e?.message || 'Failed to book shift');
+      showAlert('Cannot Book', e?.message || 'Failed to book shift');
     } finally {
       setBookingLoading(null);
     }
   };
 
   const handleDropSlot = (bookingId: string) => {
-    Alert.alert('Drop Shift', 'Are you sure you want to drop this shift?', [
+    showAlert('Drop Shift', 'Are you sure you want to drop this shift?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Drop Shift',
@@ -153,10 +153,10 @@ export default function SchedulingScreen({ navigation }: any) {
           setBookingLoading(bookingId);
           try {
             const res = await courierScheduleAPI.dropShift(bookingId);
-            if (res?.warning) Alert.alert('Warning', res.warning);
+            if (res?.warning) showAlert('Warning', res.warning);
             await loadSchedule();
           } catch (e: any) {
-            Alert.alert('Error', e?.message || 'Failed to drop shift');
+            showAlert('Error', e?.message || 'Failed to drop shift');
           } finally {
             setBookingLoading(null);
           }
