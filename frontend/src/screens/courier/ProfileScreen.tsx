@@ -8,6 +8,9 @@ import {
   Image,
   Switch,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -28,54 +31,45 @@ export default function CourierProfileScreen({ navigation }: any) {
   const [profile, setProfile] = useState<any>(null);
   const [pushNotifs, setPushNotifs] = useState(true);
 
-  const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your courier account and all your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.prompt('Confirm Password', 'Enter your password to confirm deletion:', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete Forever',
-                style: 'destructive',
-                onPress: async (password?: string) => {
-                  if (!password) return;
-                  try {
-                    await usersAPI.deleteAccount(password);
-                    Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
-                      { text: 'OK', onPress: () => logout() },
-                    ]);
-                  } catch (e: any) {
-                    Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
-                  }
-                },
-              },
-            ], 'secure-text');
-          },
-        },
-      ],
-    );
-  };
+  const handleLogout = () => setShowLogoutModal(true);
 
-  const handleExportData = async () => {
+  const handleExportData = () => setShowExportModal(true);
+
+  const confirmExportData = async () => {
+    setExporting(true);
     try {
       await usersAPI.exportData();
+      setShowExportModal(false);
       Alert.alert('Data Export', 'Your data export has been prepared. Check your email for the download link.');
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Could not export data.');
-    }
+    } finally { setExporting(false); }
+  };
+
+  const handleDeleteAccount = () => {
+    setDeletePassword('');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword.trim()) return;
+    setDeleting(true);
+    try {
+      await usersAPI.deleteAccount(deletePassword);
+      setShowDeleteModal(false);
+      Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+        { text: 'OK', onPress: () => logout() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
+    } finally { setDeleting(false); }
   };
 
   useEffect(() => {
@@ -317,27 +311,142 @@ export default function CourierProfileScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
-        {/* Export Data */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleExportData}>
-          <Ionicons name="download-outline" size={20} color={colors.navy} />
-          <Text style={[styles.logoutText, { color: colors.navy }]}>Export My Data</Text>
-        </TouchableOpacity>
-
-        {/* Delete Account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-          <Ionicons name="trash-outline" size={20} color={colors.textLight} />
-          <Text style={styles.deleteText}>Delete Account</Text>
-        </TouchableOpacity>
+        {/* Account Actions */}
+        <View style={styles.actionsCard}>
+          <Text style={styles.cardTitle}>Account</Text>
+          <TouchableOpacity activeOpacity={0.6} style={styles.accountActionRow} onPress={handleExportData}>
+            <View style={styles.accountActionLeft}>
+              <View style={[styles.accountActionIcon, { backgroundColor: colors.navy + '15' }]}>
+                <Ionicons name="download-outline" size={18} color={colors.navy} />
+              </View>
+              <View>
+                <Text style={styles.actionLabel}>Export My Data</Text>
+                <Text style={styles.accountActionDesc}>Download a copy of your data</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <View style={styles.settingDivider} />
+          <TouchableOpacity activeOpacity={0.6} style={styles.accountActionRow} onPress={handleLogout}>
+            <View style={styles.accountActionLeft}>
+              <View style={[styles.accountActionIcon, { backgroundColor: colors.error + '15' }]}>
+                <Ionicons name="log-out-outline" size={18} color={colors.error} />
+              </View>
+              <View>
+                <Text style={[styles.actionLabel, { color: colors.error }]}>Log Out</Text>
+                <Text style={styles.accountActionDesc}>Sign out of your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+          <View style={styles.settingDivider} />
+          <TouchableOpacity activeOpacity={0.6} style={styles.accountActionRow} onPress={handleDeleteAccount}>
+            <View style={styles.accountActionLeft}>
+              <View style={[styles.accountActionIcon, { backgroundColor: colors.textLight + '20' }]}>
+                <Ionicons name="trash-outline" size={18} color={colors.textLight} />
+              </View>
+              <View>
+                <Text style={[styles.actionLabel, { color: colors.textLight }]}>Delete Account</Text>
+                <Text style={styles.accountActionDesc}>Permanently delete your account</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.versionText}>Fulccrum Courier v1.0.0</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowLogoutModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="log-out-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalSubtitle}>Are you sure you want to log out of your courier account?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLogoutModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalDeleteBtn} onPress={() => { setShowLogoutModal(false); logout(); }}>
+                <Text style={styles.modalDeleteText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Export Data Modal */}
+      <Modal visible={showExportModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !exporting && setShowExportModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.navy + '15' }]}>
+              <Ionicons name="download-outline" size={28} color={colors.navy} />
+            </View>
+            <Text style={[styles.modalTitle, { color: colors.navy }]}>Export My Data</Text>
+            <Text style={styles.modalSubtitle}>We'll prepare a copy of your data and send a download link to your email.</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowExportModal(false)} disabled={exporting}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, exporting && { opacity: 0.6 }]}
+                onPress={confirmExportData}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Export</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !deleting && setShowDeleteModal(false)} />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconCircle, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="trash-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalSubtitle}>This will permanently delete your courier account and all data. Enter your password to confirm.</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textLight}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deleting}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={confirmDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color={colors.textWhite} size="small" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Delete Forever</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -403,15 +512,40 @@ const styles = StyleSheet.create({
   },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   actionLabel: { flex: 1, fontSize: 15, color: colors.textPrimary },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginTop: 20, paddingVertical: 14, gap: 8,
+  accountActionRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12,
   },
-  logoutText: { fontSize: 16, fontWeight: '600', color: colors.error },
-  deleteBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, marginTop: 8, paddingVertical: 12,
+  accountActionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  accountActionIcon: {
+    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
   },
-  deleteText: { fontSize: 14, color: colors.textLight },
-  versionText: { textAlign: 'center', fontSize: 12, color: colors.textLight, marginTop: 8 },
+  accountActionDesc: { fontSize: 12, color: colors.textLight, marginTop: 1 },
+  versionText: { textAlign: 'center', fontSize: 12, color: colors.textLight, marginTop: 16 },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, alignItems: 'center',
+  },
+  modalIconCircle: {
+    width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
+  modalInput: {
+    width: '100%', backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: colors.textPrimary, marginBottom: 16,
+  },
+  modalActions: { flexDirection: 'row', gap: 10, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.lightGray, alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  modalDeleteBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center',
+  },
+  modalConfirmBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center',
+  },
+  modalDeleteText: { fontSize: 15, fontWeight: '700', color: colors.textWhite },
 });
