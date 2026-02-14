@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -54,48 +55,43 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
 
           <Text style={styles.subtitle}>Your feedback helps us improve order matching</Text>
 
-          {DECLINE_REASONS.map((reason) => (
-            <TouchableOpacity
-              key={reason.key}
-              style={[styles.reasonRow, selected === reason.key && styles.reasonRowActive]}
-              onPress={() => {
-                setSelected(reason.key);
-                if (reason.key !== 'other') {
-                  onSubmit(orderId, reason.key);
-                  setSelected('');
-                  setDetails('');
-                }
-              }}
-            >
-              <View style={[styles.reasonIcon, selected === reason.key && { backgroundColor: colors.teal + '15' }]}>
-                <Ionicons
-                  name={reason.icon as any}
-                  size={20}
-                  color={selected === reason.key ? colors.teal : colors.textSecondary}
-                />
-              </View>
-              <Text style={[styles.reasonLabel, selected === reason.key && { color: colors.teal, fontWeight: '700' }]}>
-                {reason.label}
-              </Text>
-              {selected === reason.key && (
-                <Ionicons name="checkmark-circle" size={22} color={colors.teal} />
-              )}
-            </TouchableOpacity>
-          ))}
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.reasonsList}>
+            {DECLINE_REASONS.map((reason) => (
+              <TouchableOpacity
+                key={reason.key}
+                style={[styles.reasonRow, selected === reason.key && styles.reasonRowActive]}
+                onPress={() => setSelected(reason.key)}
+              >
+                <View style={[styles.reasonIcon, selected === reason.key && { backgroundColor: colors.teal + '15' }]}>
+                  <Ionicons
+                    name={reason.icon as any}
+                    size={20}
+                    color={selected === reason.key ? colors.teal : colors.textSecondary}
+                  />
+                </View>
+                <Text style={[styles.reasonLabel, selected === reason.key && { color: colors.teal, fontWeight: '700' }]}>
+                  {reason.label}
+                </Text>
+                {selected === reason.key && (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.teal} />
+                )}
+              </TouchableOpacity>
+            ))}
 
-          {selected === 'other' && (
-            <TextInput
-              style={styles.detailsInput}
-              placeholder="Tell us more..."
-              placeholderTextColor={colors.textLight}
-              value={details}
-              onChangeText={setDetails}
-              multiline
-            />
-          )}
+            {selected === 'other' && (
+              <TextInput
+                style={styles.detailsInput}
+                placeholder="Tell us more..."
+                placeholderTextColor={colors.textLight}
+                value={details}
+                onChangeText={setDetails}
+                multiline
+              />
+            )}
+          </ScrollView>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.skipBtn} onPress={() => { onSubmit(orderId, 'no_reason'); setSelected(''); }}>
+            <TouchableOpacity style={styles.skipBtn} onPress={() => { onSubmit(orderId, 'no_reason'); setSelected(''); setDetails(''); }}>
               <Text style={styles.skipText}>Skip</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -139,6 +135,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   subtitle: { fontSize: 13, color: colors.textLight, marginBottom: 16 },
+  reasonsList: { maxHeight: 380 },
   reasonRow: {
     flexDirection: 'row',
     alignItems: 'center',
