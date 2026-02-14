@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
   Platform,
@@ -133,22 +134,28 @@ export default function SchedulingScreen({ navigation }: any) {
   };
 
   const handleBookSlot = async (slotId: string, date: string) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Book shift on ${date}?\nSlot: ${slotId.slice(0, 8)}...\nZone: ${selectedZone}`);
+      if (!confirmed) return;
+    }
     setBookingLoading(slotId);
     try {
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please log out and log back in.')), 15000));
-      await Promise.race([courierScheduleAPI.bookShift(slotId, date, selectedZone), timeout]);
-      showAlert('Success', 'Shift booked successfully');
+      await courierScheduleAPI.bookShift(slotId, date, selectedZone);
+      if (Platform.OS === 'web') {
+        window.alert('Shift booked successfully!');
+      } else {
+        showAlert('Success', 'Shift booked successfully');
+      }
       await loadSchedule();
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to book shift';
       if (Platform.OS === 'web') {
-        window.alert(`Cannot Book: ${msg}`);
+        window.alert('Cannot Book: ' + msg);
       } else {
         showAlert('Cannot Book', msg);
       }
-    } finally {
-      setBookingLoading(null);
     }
+    setBookingLoading(null);
   };
 
   const handleDropSlot = (bookingId: string) => {
@@ -305,7 +312,7 @@ export default function SchedulingScreen({ navigation }: any) {
           {currentDay?.slots.map((slot) => {
             const demandColor = getDemandColor(slot.demand);
             const isFull = slot.spotsLeft <= 0 && !slot.booked;
-            const isLoadingThis = bookingLoading === slot.id || bookingLoading === slot.bookingId;
+            const isLoadingThis = bookingLoading != null && (bookingLoading === slot.id || bookingLoading === slot.bookingId);
             return (
               <View key={slot.id} style={[styles.slotCard, slot.booked && styles.slotCardBooked, isFull && !slot.booked && { opacity: 0.5 }]}>
                 <View style={styles.slotLeft}>
@@ -347,14 +354,21 @@ export default function SchedulingScreen({ navigation }: any) {
                       <Text style={styles.dropBtnText}>Drop</Text>
                     </TouchableOpacity>
                   ) : (
-                    <TouchableOpacity
-                      style={[styles.bookBtn, (!slot.canBook || isFull) && { backgroundColor: colors.textLight }]}
-                      onPress={() => slot.canBook && !isFull && currentDay && handleBookSlot(slot.id, currentDay.date)}
-                      disabled={!slot.canBook || isFull}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.bookBtn,
+                        (!slot.canBook || isFull) && { backgroundColor: colors.textLight },
+                        pressed && { opacity: 0.7 },
+                        Platform.OS === 'web' && { cursor: 'pointer' as any },
+                      ]}
+                      onPress={() => {
+                        if (!slot.canBook || isFull || !currentDay) return;
+                        handleBookSlot(slot.id, currentDay.date);
+                      }}
                     >
                       <Ionicons name="add" size={18} color={colors.textWhite} />
                       <Text style={styles.bookBtnText}>Book</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               </View>
