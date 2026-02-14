@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { PickupOrdersService } from './pickup-orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
@@ -8,7 +9,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(
+    private ordersService: OrdersService,
+    private pickupOrdersService: PickupOrdersService,
+  ) {}
 
   @Post()
   async createOrder(@Request() req: any, @Body() dto: CreateOrderDto) {
@@ -59,12 +63,7 @@ export class OrdersController {
 
   @Post(':id/ready-for-pickup')
   async markReadyForPickup(@Request() req: any, @Param('id') id: string) {
-    const { PickupOrdersService } = await import('./pickup-orders.service');
-    const pickupService = new PickupOrdersService(
-      this.ordersService['prisma'],
-      this.ordersService['realtimeGateway'],
-    );
-    return pickupService.markOrderReadyForPickup(id, req.user.sub);
+    return this.pickupOrdersService.markOrderReadyForPickup(id, req.user.sub);
   }
 
   @Post(':id/confirm-pickup')
@@ -73,22 +72,12 @@ export class OrdersController {
     @Param('id') id: string,
     @Body('pickupCode') pickupCode?: string,
   ) {
-    const { PickupOrdersService } = await import('./pickup-orders.service');
-    const pickupService = new PickupOrdersService(
-      this.ordersService['prisma'],
-      this.ordersService['realtimeGateway'],
-    );
-    return pickupService.confirmPickup(id, req.user.sub, pickupCode);
+    return this.pickupOrdersService.confirmPickup(id, req.user.sub, pickupCode);
   }
 
   @Get('pickup/active')
   async getActivePickupOrders(@Request() req: any) {
-    const { PickupOrdersService } = await import('./pickup-orders.service');
-    const pickupService = new PickupOrdersService(
-      this.ordersService['prisma'],
-      this.ordersService['realtimeGateway'],
-    );
-    return pickupService.getPickupOrders(req.user.sub);
+    return this.pickupOrdersService.getPickupOrders(req.user.sub);
   }
 
   @Get('customer/my-orders')
