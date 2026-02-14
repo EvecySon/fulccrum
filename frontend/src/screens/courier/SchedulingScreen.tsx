@@ -36,7 +36,9 @@ interface DaySchedule {
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const getDayLabel = (dateStr: string): { dayShort: string; dayLabel: string; isToday: boolean } => {
+  if (!dateStr) return { dayShort: '', dayLabel: 'Today', isToday: true };
   const date = new Date(dateStr + 'T12:00:00');
+  if (isNaN(date.getTime())) return { dayShort: '', dayLabel: 'Today', isToday: true };
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -87,19 +89,32 @@ export default function SchedulingScreen({ navigation }: any) {
     } catch {}
   };
 
+  const generateFallbackDays = (): DaySchedule[] => {
+    const days: DaySchedule[] = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      days.push({ date: d.toISOString().split('T')[0], canBook: false, slots: [] });
+    }
+    return days;
+  };
+
   const loadSchedule = async () => {
     try {
       const weekStart = new Date().toISOString().split('T')[0];
       const res = await courierScheduleAPI.getSchedule(weekStart, selectedZone);
       const data = res?.data ?? res;
-      if (data?.schedule && Array.isArray(data.schedule)) {
+      if (data?.schedule && Array.isArray(data.schedule) && data.schedule.length > 0) {
         setSchedule(data.schedule);
         setTier(data.tier || 'standard');
         setNoShowCount(data.noShowCount || 0);
         setBanned(data.banned || false);
+      } else {
+        setSchedule(generateFallbackDays());
       }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not load schedule');
+    } catch {
+      setSchedule(generateFallbackDays());
     } finally {
       setLoading(false);
       setRefreshing(false);
