@@ -90,18 +90,13 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
             )}
           </ScrollView>
 
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.skipBtn} onPress={() => { onSubmit(orderId, 'no_reason'); setSelected(''); setDetails(''); }}>
-              <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitBtn, !selected && { opacity: 0.5 }]}
-              onPress={handleSubmit}
-              disabled={!selected}
-            >
-              <Text style={styles.submitText}>Submit & Decline</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.submitBtn, !selected && { opacity: 0.5 }]}
+            onPress={handleSubmit}
+            disabled={!selected}
+          >
+            <Text style={styles.submitText}>Submit & Decline</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -174,21 +169,8 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  skipBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.lightGray,
-  },
-  skipText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
   submitBtn: {
-    flex: 2,
+    marginTop: 16,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
