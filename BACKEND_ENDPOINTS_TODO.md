@@ -761,3 +761,182 @@ For reference, these endpoints already exist and are fully implemented:
 | Merchants | `frontend/src/screens/admin/MerchantsScreen.tsx` |
 | Report Modal (customer) | `frontend/src/components/ReportContentModal.tsx` |
 | API Service | `frontend/src/services/api.ts` (adminAPI, moderationAPI, reportAPI) |
+
+---
+
+## 9. Courier App — New Backend Endpoints Needed
+
+> **Updated: Feb 13, 2026**
+> These endpoints are called by the courier frontend screens. The frontend is fully built and wired — your teammate just needs to implement the backend handlers.
+
+### 9.1 Order History
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/courier/orders/history` | ❌ NEW | Past deliveries for the authenticated courier |
+
+**Query params:**
+- `status` (optional): `delivered` \| `cancelled` \| `returned` — filter by status
+- `page` (optional): number, default 1 (20 per page)
+
+**Response:** `PastOrder[]`
+```json
+{
+  "id": "string",
+  "restaurant": "string",
+  "customer": "string",
+  "status": "delivered | cancelled | returned",
+  "date": "string (relative: 'Today', 'Yesterday', '2 days ago')",
+  "time": "string (e.g. '2:45 PM')",
+  "basePay": 1200,
+  "tip": 500,
+  "bonus": 0,
+  "total": 1700,
+  "distance": "3.2 km",
+  "duration": "18 min",
+  "items": 3,
+  "rating": 5,
+  "pickupAddress": "string",
+  "dropoffAddress": "string"
+}
+```
+
+**Logic:** Query `Order` where `driverId = req.user.sub`, ordered by `createdAt DESC`. Filter by `status` if provided. Format relative dates. Paginate 20 per page.
+
+**Frontend file:** `screens/courier/OrderHistoryScreen.tsx`
+**API client:** `courierOrdersAPI.getHistory(status?, page?)`
+
+---
+
+### 9.2 Active Orders (Stacked Orders)
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/courier/orders/active` | ❌ NEW | All currently active orders for the courier |
+
+**Response:** `ActiveOrder[]`
+```json
+{
+  "id": "string",
+  "restaurant": "string",
+  "customer": "string",
+  "status": "pickup | delivering",
+  "estimatedTime": "12 min",
+  "pay": 1700,
+  "items": 3,
+  "isActive": true,
+  "pickupCoords": { "latitude": 6.52, "longitude": 3.37 },
+  "dropoffCoords": { "latitude": 6.53, "longitude": 3.38 },
+  "pickupAddress": "string",
+  "dropoffAddress": "string"
+}
+```
+
+**Logic:** Query `Order` where `driverId = req.user.sub` AND `status IN ('accepted', 'picked_up', 'in_transit')`. This powers the **stacked orders** feature — a courier can have 2+ active orders simultaneously.
+
+**Frontend file:** `screens/courier/ActiveDeliveryScreen.tsx` (uses `StackedOrdersBanner` component)
+**API client:** `courierOrdersAPI.getActive()`
+
+---
+
+### 9.3 Selfie Identity Verification
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/courier/verification/selfie` | ❌ NEW | Submit selfie photo for identity verification |
+| `GET` | `/courier/verification/status` | ❌ NEW | Get current verification status |
+| `GET` | `/courier/verification/history` | ❌ NEW | Get past verification attempts |
+
+**POST `/courier/verification/selfie`**
+- **Content-Type:** `multipart/form-data`
+- **Body:** `selfie` (file field — JPEG/PNG image)
+- **Response:**
+```json
+{
+  "verified": true,
+  "confidence": 0.95,
+  "message": "Identity verified successfully"
+}
+```
+or
+```json
+{
+  "verified": false,
+  "confidence": 0.3,
+  "message": "Could not match your selfie. Please try again."
+}
+```
+
+**Logic:** Compare uploaded selfie against the courier's profile photo / ID photo on file. Can use a simple image hash comparison for v1, or integrate a face-matching API later. Store each attempt in a `VerificationAttempt` table.
+
+**GET `/courier/verification/status`**
+- **Response:**
+```json
+{
+  "verified": true,
+  "lastVerifiedAt": "2026-02-13T10:30:00Z",
+  "nextVerificationDue": "2026-02-20T10:30:00Z",
+  "attemptsToday": 0
+}
+```
+
+**GET `/courier/verification/history`**
+- **Response:** Array of past verification attempts with timestamp, result, confidence score.
+
+**Frontend file:** `screens/courier/SelfieVerificationScreen.tsx`
+**API client:** `courierVerificationAPI.submitSelfie(formData)`, `.getStatus()`, `.getHistory()`
+
+---
+
+### 9.4 Notifications — Existing Endpoints (Enhancement Needed)
+
+The notification CRUD endpoints already exist at `/notifications/*`. **No new endpoints needed**, but the notification model needs these fields if not already present:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `string` | One of: `order`, `promo`, `earnings`, `system`, `quest`, `safety`, `document` |
+| `data` | `JSON` | Optional deep-link data: `{ screen: string, params?: object }` |
+
+**Frontend file:** `screens/courier/NotificationsScreen.tsx`
+**API client:** `notificationsAPI.getAll()`, `.markRead()`, `.markAllRead()`, `.delete()`
+
+---
+
+### 9.5 Required Prisma Model — `VerificationAttempt`
+
+```prisma
+model VerificationAttempt {
+  id          String   @id @default(uuid())
+  courierId   String
+  courier     User     @relation(fields: [courierId], references: [id])
+  photoUrl    String
+  verified    Boolean
+  confidence  Float    @default(0)
+  reason      String?  // 'periodic', 'login', 'suspicious'
+  createdAt   DateTime @default(now())
+}
+```
+
+---
+
+### 9.6 Summary — What to Build
+
+| Priority | Endpoint | Controller | Service Method |
+|----------|----------|------------|----------------|
+| **P0** | `GET /courier/orders/history` | `courier.controller.ts` | `orderService.getOrderHistory(courierId, status?, page?)` |
+| **P0** | `GET /courier/orders/active` | `courier.controller.ts` | `orderService.getActiveOrders(courierId)` |
+| **P1** | `POST /courier/verification/selfie` | `courier.controller.ts` | New `verificationService.submitSelfie(courierId, file)` |
+| **P1** | `GET /courier/verification/status` | `courier.controller.ts` | `verificationService.getStatus(courierId)` |
+| **P1** | `GET /courier/verification/history` | `courier.controller.ts` | `verificationService.getHistory(courierId)` |
+| **P2** | Enhance `Notification` model | `prisma/schema.prisma` | Add `type` + `data` fields |
+
+### 9.7 Frontend Files Reference
+
+| Screen / Component | File | API Client |
+|---------------------|------|------------|
+| Notifications | `screens/courier/NotificationsScreen.tsx` | `notificationsAPI` |
+| Order History | `screens/courier/OrderHistoryScreen.tsx` | `courierOrdersAPI` |
+| Stacked Orders Banner | `components/courier/StackedOrdersBanner.tsx` | `courierOrdersAPI` |
+| Selfie Verification | `screens/courier/SelfieVerificationScreen.tsx` | `courierVerificationAPI` |
+| Heat Map (with map overlays) | `screens/courier/HeatMapScreen.tsx` | `courierSurgeAPI` |
+| Dashboard (auto-nav + live earnings) | `screens/courier/DashboardScreen.tsx` | `analyticsAPI`, `courierOrdersAPI` |

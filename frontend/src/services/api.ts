@@ -884,6 +884,13 @@ export const courierMaintenanceAPI = {
   getLogs: () => api.get('/courier/maintenance-log'),
 };
 
+// ─── Courier Verification API ───
+export const courierVerificationAPI = {
+  submitSelfie: (formData: FormData) => api.upload('/courier/verification/selfie', formData),
+  getStatus: () => api.get('/courier/verification/status'),
+  getHistory: () => api.get('/courier/verification/history'),
+};
+
 // ─── Courier Orders API ───
 export const courierOrdersAPI = {
   accept: (orderId: string) => api.post(`/courier/orders/${orderId}/accept`),

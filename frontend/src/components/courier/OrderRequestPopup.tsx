@@ -31,6 +31,10 @@ export interface IncomingOrder {
   deliveryInstructions?: string;
   isStacked?: boolean;
   stackedWith?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
 }
 
 interface Props {

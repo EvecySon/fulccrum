@@ -8,10 +8,12 @@ import {
   Dimensions,
   Alert,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { courierSurgeAPI } from '../../services/api';
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from '../../components/MapView';
 
 const { width } = Dimensions.get('window');
 
@@ -90,6 +92,18 @@ export default function HeatMapScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
+  // Map zone IDs to coordinates around Lagos
+  const getZoneCoords = (zoneId: string) => {
+    const coordsMap: Record<string, { latitude: number; longitude: number }> = {
+      '1': { latitude: 6.4281, longitude: 3.4219 }, // Victoria Island
+      '2': { latitude: 6.4541, longitude: 3.3947 }, // Ikoyi
+      '3': { latitude: 6.5244, longitude: 3.3792 }, // Lekki Phase 1
+      '4': { latitude: 6.5820, longitude: 3.3515 }, // Ikeja GRA
+      '5': { latitude: 6.4400, longitude: 3.4100 }, // Lagos Island
+    };
+    return coordsMap[zoneId] || { latitude: 6.5244, longitude: 3.3792 };
+  };
+
   const getLevelColor = (level: string) => {
     switch (level) {
       case 'extreme': return '#dc2626';
@@ -121,31 +135,48 @@ export default function HeatMapScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.teal} />}
       >
-        {/* Map Placeholder */}
+        {/* Live Surge Map */}
         <View style={styles.mapCard}>
-          <View style={styles.mapPlaceholder}>
-            <Ionicons name="map" size={48} color={colors.teal} />
-            <Text style={styles.mapText}>Live Surge Map</Text>
-            <Text style={styles.mapSubtext}>Showing {zones.filter(z => z.multiplier > 1).length} active surge zones</Text>
-            {/* Heat indicators */}
-            <View style={styles.heatLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#dc2626' }]} />
-                <Text style={styles.legendText}>2x+</Text>
+          <MapView
+            style={styles.mapView}
+            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            initialRegion={{ latitude: 6.5244, longitude: 3.3792, latitudeDelta: 0.08, longitudeDelta: 0.08 }}
+            showsUserLocation
+          >
+            {zones.map((zone) => {
+              const coords = getZoneCoords(zone.id);
+              const color = getLevelColor(zone.level);
+              return (
+                <React.Fragment key={zone.id}>
+                  <Circle
+                    center={coords}
+                    radius={zone.multiplier * 600}
+                    fillColor={color + '25'}
+                    strokeColor={color + '60'}
+                    strokeWidth={2}
+                  />
+                  <Marker coordinate={coords} onPress={() => setSelectedZone(zone.id === selectedZone ? null : zone.id)}>
+                    <View style={[styles.surgeMarker, { backgroundColor: color }]}>
+                      <Text style={styles.surgeMarkerText}>{zone.multiplier}x</Text>
+                    </View>
+                  </Marker>
+                </React.Fragment>
+              );
+            })}
+          </MapView>
+          {/* Legend overlay */}
+          <View style={styles.legendOverlay}>
+            {[
+              { color: '#dc2626', label: '2x+' },
+              { color: '#f97316', label: '1.5x' },
+              { color: '#eab308', label: '1.2x' },
+              { color: colors.teal, label: 'Normal' },
+            ].map((item, i) => (
+              <View key={i} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                <Text style={styles.legendText}>{item.label}</Text>
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
-                <Text style={styles.legendText}>1.5x</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
-                <Text style={styles.legendText}>1.2x</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.teal }]} />
-                <Text style={styles.legendText}>Normal</Text>
-              </View>
-            </View>
+            ))}
           </View>
         </View>
 
@@ -295,14 +326,18 @@ const styles = StyleSheet.create({
     paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.navy,
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textWhite },
-  mapCard: { marginHorizontal: 10, marginTop: 10 },
-  mapPlaceholder: {
-    height: 200, backgroundColor: colors.navy + '08', borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.navy + '15',
+  mapCard: { marginHorizontal: 10, marginTop: 10, borderRadius: 20, overflow: 'hidden', position: 'relative' as const },
+  mapView: { height: 260, borderRadius: 20 },
+  surgeMarker: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4,
   },
-  mapText: { fontSize: 16, fontWeight: '700', color: colors.navy, marginTop: 8 },
-  mapSubtext: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-  heatLegend: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  surgeMarkerText: { fontSize: 12, fontWeight: '800', color: colors.white },
+  legendOverlay: {
+    position: 'absolute' as const, bottom: 10, left: 10, right: 10,
+    flexDirection: 'row', justifyContent: 'center', gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 10,
+  },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },

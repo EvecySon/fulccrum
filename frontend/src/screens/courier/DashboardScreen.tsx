@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -78,8 +80,17 @@ export default function CourierDashboardScreen({ navigation }: any) {
 
   const handleAcceptOrder = async (orderId: string) => {
     setShowOrderPopup(false);
+    const order = incomingOrder;
     setIncomingOrder(null);
     courierOrdersAPI.accept(orderId).catch(() => {});
+    // Auto-open navigation to pickup
+    if (order?.pickupLat && order?.pickupLng) {
+      const navUrl = Platform.select({
+        ios: `maps:0,0?daddr=${order.pickupLat},${order.pickupLng}`,
+        android: `google.navigation:q=${order.pickupLat},${order.pickupLng}`,
+      });
+      if (navUrl) Linking.openURL(navUrl).catch(() => {});
+    }
     navigation.navigate('Active');
   };
 
@@ -100,14 +111,20 @@ export default function CourierDashboardScreen({ navigation }: any) {
     setIncomingOrder(null);
   };
 
+  // Initial load + real-time earnings polling every 30s while online
   useEffect(() => {
-    (async () => {
+    const fetchStats = async () => {
       try {
         const res = await analyticsAPI.dashboard();
         if (res) setStats(prev => ({ ...prev, ...res }));
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
-  }, []);
+    };
+    fetchStats();
+    if (isOnline) {
+      const interval = setInterval(fetchStats, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isOnline]);
   const maxEarning = Math.max(...hourlyEarnings.map(h => h.amount));
 
   return (

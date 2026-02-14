@@ -32,6 +32,7 @@ import LanguageSettingsScreen from '../screens/courier/LanguageSettingsScreen';
 import ThemeSettingsScreen from '../screens/courier/ThemeSettingsScreen';
 import NotificationsScreen from '../screens/courier/NotificationsScreen';
 import OrderHistoryScreen from '../screens/courier/OrderHistoryScreen';
+import SelfieVerificationScreen from '../screens/courier/SelfieVerificationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -123,6 +124,7 @@ export default function CourierNavigator() {
       <Stack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+      <Stack.Screen name="SelfieVerification" component={SelfieVerificationScreen} />
     </Stack.Navigator>
   );
 }
