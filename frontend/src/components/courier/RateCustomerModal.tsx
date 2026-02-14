@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { reviewsAPI } from '../../services/api';
+import { courierOrdersAPI } from '../../services/api';
 
 const FEEDBACK_TAGS = [
   { key: 'friendly', label: 'Friendly', icon: 'happy-outline' },
@@ -46,13 +46,12 @@ export default function RateCustomerModal({ visible, orderId, customerName, onSu
       return;
     }
     try {
-      await reviewsAPI.create({
+      await courierOrdersAPI.rateCustomer(
         orderId,
         rating,
-        tags: selectedTags,
-        comment: comment.trim() || undefined,
-        type: 'customer_rating',
-      });
+        selectedTags,
+        comment.trim() || undefined,
+      );
     } catch {}
     onSubmit();
   };

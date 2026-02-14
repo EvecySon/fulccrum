@@ -239,7 +239,35 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
         </MapView>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Waiting Time Compensation */}
+        {isWaiting && waitingSeconds > 0 && (
+          <View style={styles.waitingBanner}>
+            <View style={styles.waitingInfo}>
+              <Ionicons name="timer" size={18} color={waitingMinutes >= 10 ? colors.error : colors.warning} />
+              <Text style={styles.waitingTime}>
+                Waiting: {waitingMinutes}m {waitingSeconds % 60}s
+              </Text>
+            </View>
+            {waitingCompensation > 0 && (
+              <Text style={styles.waitingComp}>+₦{waitingCompensation} compensation</Text>
+            )}
+            {waitingMinutes < 10 && (
+              <Text style={styles.waitingNote}>Extra pay starts after 10 min wait</Text>
+            )}
+          </View>
+        )}
+
+        {/* Delivery Countdown */}
+        {currentStep >= 2 && deliveryCountdown > 0 && (
+          <View style={[styles.countdownBanner, deliveryCountdown < 300 && { backgroundColor: colors.error + '10', borderColor: colors.error + '25' }]}>
+            <Ionicons name="time" size={16} color={deliveryCountdown < 300 ? colors.error : colors.teal} />
+            <Text style={[styles.countdownText, deliveryCountdown < 300 && { color: colors.error }]}>
+              ETA: {formatCountdown(deliveryCountdown)}
+            </Text>
+          </View>
+        )}
+
         {/* Route Details */}
         <View style={styles.routeCard}>
           <View style={styles.routePoint}>
@@ -354,36 +382,7 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
           <Text style={styles.reportText}>Report an Issue</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 120 }} />
       </ScrollView>
-
-      {/* Waiting Time Compensation */}
-      {isWaiting && waitingSeconds > 0 && (
-        <View style={styles.waitingBanner}>
-          <View style={styles.waitingInfo}>
-            <Ionicons name="timer" size={18} color={waitingMinutes >= 10 ? colors.error : colors.warning} />
-            <Text style={styles.waitingTime}>
-              Waiting: {waitingMinutes}m {waitingSeconds % 60}s
-            </Text>
-          </View>
-          {waitingCompensation > 0 && (
-            <Text style={styles.waitingComp}>+₦{waitingCompensation} compensation</Text>
-          )}
-          {waitingMinutes < 10 && (
-            <Text style={styles.waitingNote}>Extra pay starts after 10 min wait</Text>
-          )}
-        </View>
-      )}
-
-      {/* Delivery Countdown */}
-      {currentStep >= 2 && deliveryCountdown > 0 && (
-        <View style={[styles.countdownBanner, deliveryCountdown < 300 && { backgroundColor: colors.error + '10', borderColor: colors.error + '25' }]}>
-          <Ionicons name="time" size={16} color={deliveryCountdown < 300 ? colors.error : colors.teal} />
-          <Text style={[styles.countdownText, deliveryCountdown < 300 && { color: colors.error }]}>
-            ETA: {formatCountdown(deliveryCountdown)}
-          </Text>
-        </View>
-      )}
 
       {/* Bottom Action — Swipe to Confirm */}
       <View style={styles.bottomBar}>
@@ -515,8 +514,7 @@ const styles = StyleSheet.create({
   },
   reportText: { fontSize: 14, fontWeight: '600', color: colors.error },
   bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: colors.white, paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 34,
+    backgroundColor: colors.white, paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 10,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 10,
   },
@@ -526,19 +524,17 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: 17, fontWeight: '700', color: colors.textWhite },
   waitingBanner: {
-    position: 'absolute', top: 200, left: 10, right: 10,
-    backgroundColor: colors.warning + '10', borderRadius: 12, padding: 10,
-    borderWidth: 1, borderColor: colors.warning + '25', zIndex: 10,
+    backgroundColor: colors.warning + '10', borderRadius: 12, padding: 10, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.warning + '25',
   },
   waitingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   waitingTime: { fontSize: 14, fontWeight: '700', color: colors.warning },
   waitingComp: { fontSize: 13, fontWeight: '700', color: colors.success, marginTop: 4 },
   waitingNote: { fontSize: 11, color: colors.textLight, marginTop: 2 },
   countdownBanner: {
-    position: 'absolute', top: 200, right: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end',
     backgroundColor: colors.teal + '10', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 6, zIndex: 10,
+    paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10,
     borderWidth: 1, borderColor: colors.teal + '20',
   },
   countdownText: { fontSize: 14, fontWeight: '700', color: colors.teal },

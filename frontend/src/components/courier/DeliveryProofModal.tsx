@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { pickImage } from '../../services/uploadService';
-import { ordersAPI } from '../../services/api';
+import { courierOrdersAPI } from '../../services/api';
 
 interface Props {
   visible: boolean;
@@ -41,7 +41,7 @@ export default function DeliveryProofModal({ visible, orderId, customerName, del
     }
     setUploading(true);
     try {
-      await ordersAPI.updateStatus(orderId, 'delivered');
+      await courierOrdersAPI.updateStatus(orderId, 'delivered');
       onComplete();
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to complete delivery');

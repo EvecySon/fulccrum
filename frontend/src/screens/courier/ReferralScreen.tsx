@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { usersAPI } from '../../services/api';
+import { courierReferralAPI } from '../../services/api';
 
 interface Referral {
   id: string;
@@ -57,9 +57,17 @@ export default function ReferralScreen({ navigation }: any) {
 
   const loadData = async () => {
     try {
-      const res = await usersAPI.getProfile();
-      if (res?.referrals) setReferrals(res.referrals);
-      else setReferrals(mockReferrals);
+      const res = await courierReferralAPI.getInfo();
+      const data = res?.data ?? res;
+      if (data?.referrals && Array.isArray(data.referrals)) {
+        setReferrals(data.referrals);
+        setStats(prev => ({
+          ...prev,
+          totalReferred: data.totalReferred ?? prev.totalReferred,
+          totalEarned: data.totalEarned ?? prev.totalEarned,
+          pendingEarnings: data.pendingEarnings ?? prev.pendingEarnings,
+        }));
+      }
     } catch {
       setReferrals(mockReferrals);
     }

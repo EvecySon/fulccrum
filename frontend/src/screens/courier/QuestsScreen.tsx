@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { courierGamificationAPI } from '../../services/api';
+import { courierQuestsAPI } from '../../services/api';
 
 interface Quest {
   id: string;
@@ -56,7 +56,7 @@ export default function QuestsScreen({ navigation }: any) {
 
   const loadQuests = async () => {
     try {
-      const res = await courierGamificationAPI.getAchievements();
+      const res = await courierQuestsAPI.getQuests();
       const data = res?.data ?? res;
       if (Array.isArray(data) && data.length && data[0]?.type) {
         setQuests(data);
@@ -69,7 +69,7 @@ export default function QuestsScreen({ navigation }: any) {
 
   const handleClaim = async (questId: string) => {
     try {
-      await courierGamificationAPI.claimReward(questId);
+      await courierQuestsAPI.claimReward(questId);
     } catch {}
     setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
     Alert.alert('Reward Claimed!', 'The bonus has been added to your wallet.');

@@ -815,3 +815,88 @@ export const courierSafetyAPI = {
   shareLocation: (data: any) => api.post('/courier/safety/location-share', data),
   getSafetyEvents: () => api.get('/courier/safety/events'),
 };
+
+// ─── Courier Quests API ───
+export const courierQuestsAPI = {
+  getQuests: () => api.get('/courier/quests'),
+  getQuestDetails: (id: string) => api.get(`/courier/quests/${id}`),
+  claimReward: (id: string) => api.post(`/courier/quests/${id}/claim`),
+  getSummary: () => api.get('/courier/quests/summary'),
+};
+
+// ─── Courier Surge API ───
+export const courierSurgeAPI = {
+  getZones: (lat?: number, lng?: number) =>
+    api.get(`/courier/surge-zones${lat && lng ? `?lat=${lat}&lng=${lng}` : ''}`),
+  getHourlyDemand: () => api.get('/courier/hourly-demand'),
+  getStats: () => api.get('/courier/surge-stats'),
+};
+
+// ─── Courier Scheduling API ───
+export const courierScheduleAPI = {
+  getSchedule: (week: string) => api.get(`/courier/schedule?week=${week}`),
+  bookShift: (slotId: string, date: string) => api.post('/courier/schedule/book', { slotId, date }),
+  dropShift: (slotId: string) => api.delete(`/courier/schedule/${slotId}`),
+  getMyShifts: () => api.get('/courier/schedule/my-shifts'),
+};
+
+// ─── Courier Preferences API ───
+export const courierPreferencesAPI = {
+  get: () => api.get('/courier/preferences'),
+  update: (data: any) => api.patch('/courier/preferences', data),
+};
+
+// ─── Courier Referral API ───
+export const courierReferralAPI = {
+  getInfo: () => api.get('/courier/referral'),
+  getHistory: () => api.get('/courier/referral/history'),
+  applyCode: (code: string) => api.post('/courier/referral/apply', { code }),
+};
+
+// ─── Courier Tax API ───
+export const courierTaxAPI = {
+  getMonthly: (month: string) => api.get(`/courier/tax/monthly?month=${month}`),
+  getYearly: (year: string) => api.get(`/courier/tax/yearly?year=${year}`),
+  exportReport: () => api.post('/courier/tax/export'),
+};
+
+// ─── Courier Insurance API ───
+export const courierInsuranceAPI = {
+  getCurrentPlan: () => api.get('/courier/insurance/plan'),
+  getPlans: () => api.get('/courier/insurance/plans'),
+  changePlan: (planId: string) => api.patch('/courier/insurance/plan', { planId }),
+  fileClaim: (data: any) => api.post('/courier/insurance/claims', data),
+  getClaims: () => api.get('/courier/insurance/claims'),
+};
+
+// ─── Courier Training API ───
+export const courierTrainingAPI = {
+  getModules: () => api.get('/courier/training/modules'),
+  completeLesson: (moduleId: string) => api.post(`/courier/training/${moduleId}/complete-lesson`),
+  getProgress: () => api.get('/courier/training/progress'),
+};
+
+// ─── Courier Maintenance API ───
+export const courierMaintenanceAPI = {
+  getReminders: () => api.get('/courier/reminders'),
+  updateReminder: (id: string, data: any) => api.patch(`/courier/reminders/${id}`, data),
+  addLog: (data: any) => api.post('/courier/maintenance-log', data),
+  getLogs: () => api.get('/courier/maintenance-log'),
+};
+
+// ─── Courier Orders API ───
+export const courierOrdersAPI = {
+  accept: (orderId: string) => api.post(`/courier/orders/${orderId}/accept`),
+  decline: (orderId: string, reason: string, details?: string) =>
+    api.post(`/courier/orders/${orderId}/decline`, { reason, details }),
+  updateStatus: (orderId: string, status: string) =>
+    api.patch(`/courier/orders/${orderId}/status`, { status }),
+  uploadProof: (orderId: string, formData: FormData) =>
+    api.upload(`/courier/orders/${orderId}/delivery-proof`, formData),
+  rateCustomer: (orderId: string, rating: number, tags: string[], comment?: string) =>
+    api.post(`/courier/orders/${orderId}/rate-customer`, { rating, tags, comment }),
+  getDetails: (orderId: string) => api.get(`/courier/orders/${orderId}`),
+  getAvailable: (filter?: string) => api.get(`/courier/orders/available${filter ? `?filter=${filter}` : ''}`),
+  markWaitingStarted: (orderId: string) => api.post(`/courier/orders/${orderId}/waiting-started`),
+  getWaitingTime: (orderId: string) => api.get(`/courier/orders/${orderId}/waiting-time`),
+};

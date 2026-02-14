@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { courierFleetAPI } from '../../services/api';
+import { courierPreferencesAPI } from '../../services/api';
 // Using preset buttons instead of Slider (no external dependency needed)
 
 const ORDER_TYPES = [
@@ -56,7 +56,7 @@ export default function DeliveryPreferencesScreen({ navigation }: any) {
 
   const handleSave = async () => {
     try {
-      await courierFleetAPI.getDeliveryMethods(); // placeholder
+      await courierPreferencesAPI.update({ maxDistance, minPay, orderTypes, zones, autoAccept, autoAcceptSurge, avoidHighways, nightMode, stackedOrders });
       Alert.alert('Saved', 'Your delivery preferences have been updated.');
       setHasChanges(false);
     } catch {

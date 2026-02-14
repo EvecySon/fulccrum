@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { courierFleetAPI } from '../../services/api';
+import { courierScheduleAPI } from '../../services/api';
 
 interface TimeSlot {
   id: string;
@@ -67,8 +67,10 @@ export default function SchedulingScreen({ navigation }: any) {
 
   const loadSchedule = async () => {
     try {
-      const res = await courierFleetAPI.getDeliveryMethods();
-      if (res?.schedule) setSchedule(res.schedule);
+      const weekStart = new Date().toISOString().split('T')[0];
+      const res = await courierScheduleAPI.getSchedule(weekStart);
+      const data = res?.data ?? res;
+      if (Array.isArray(data) && data.length) setSchedule(data);
       else setSchedule(generateMockSchedule());
     } catch {
       setSchedule(generateMockSchedule());

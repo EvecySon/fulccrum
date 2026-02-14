@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockAvailableDeliveries } from '../../data/mockData';
-import { ordersAPI } from '../../services/api';
+import { courierOrdersAPI } from '../../services/api';
 
 const filters = ['All', 'Nearby', 'High Pay', 'Quick'];
 
@@ -22,8 +22,9 @@ export default function DeliveriesScreen() {
 
   const loadDeliveries = useCallback(async () => {
     try {
-      const res = await ordersAPI.getAvailableDeliveries();
-      if (res?.data?.length) setDeliveries(res.data);
+      const res = await courierOrdersAPI.getAvailable(activeFilter !== 'All' ? activeFilter.toLowerCase() : undefined);
+      const data = res?.data ?? res;
+      if (Array.isArray(data) && data.length) setDeliveries(data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { courierMaintenanceAPI } from '../../services/api';
 
 interface Reminder {
   id: string;
@@ -42,7 +43,21 @@ const mockMaintenanceLog = [
 
 export default function MaintenanceRemindersScreen({ navigation }: any) {
   const [reminders, setReminders] = useState(mockReminders);
+  const [maintenanceLogs, setMaintenanceLogs] = useState(mockMaintenanceLog);
   const [showLog, setShowLog] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [remRes, logRes] = await Promise.all([
+          courierMaintenanceAPI.getReminders().catch(() => null),
+          courierMaintenanceAPI.getLogs().catch(() => null),
+        ]);
+        if (Array.isArray(remRes) && remRes.length) setReminders(remRes);
+        if (Array.isArray(logRes) && logRes.length) setMaintenanceLogs(logRes);
+      } catch {}
+    })();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -192,7 +207,7 @@ export default function MaintenanceRemindersScreen({ navigation }: any) {
             <Ionicons name={showLog ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          {showLog && mockMaintenanceLog.map((entry) => (
+          {showLog && maintenanceLogs.map((entry) => (
             <View key={entry.id} style={styles.logEntry}>
               <View style={styles.logDot} />
               <View style={styles.logInfo}>

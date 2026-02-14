@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { analyticsAPI } from '../../services/api';
+import { courierTaxAPI } from '../../services/api';
 
 interface TaxPeriod {
   key: string;
@@ -51,7 +51,7 @@ export default function TaxSummaryScreen({ navigation }: any) {
   const handleExport = async (period: string) => {
     setExporting(period);
     try {
-      await analyticsAPI.revenue(30);
+      await courierTaxAPI.exportReport();
       Alert.alert('Export Ready', 'Your tax summary has been sent to your registered email address.');
     } catch {
       Alert.alert('Export Ready', 'Tax summary prepared. Check your email.');
@@ -62,7 +62,7 @@ export default function TaxSummaryScreen({ navigation }: any) {
   const handleExportAll = async () => {
     setExporting('all');
     try {
-      await analyticsAPI.revenue(365);
+      await courierTaxAPI.exportReport();
       Alert.alert('Annual Report Ready', 'Your full year tax report has been sent to your email.');
     } catch {
       Alert.alert('Annual Report Ready', 'Full year report prepared. Check your email.');

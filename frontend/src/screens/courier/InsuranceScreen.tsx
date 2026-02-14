@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { courierInsuranceAPI } from '../../services/api';
 
 interface InsurancePlan {
   id: string;
@@ -73,6 +74,19 @@ export default function InsuranceScreen({ navigation }: any) {
   const [currentPlan, setCurrentPlan] = useState(mockCurrentPlan);
   const [showPlans, setShowPlans] = useState(false);
   const [claims, setClaims] = useState(mockClaims);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [planRes, claimsRes] = await Promise.all([
+          courierInsuranceAPI.getCurrentPlan().catch(() => null),
+          courierInsuranceAPI.getClaims().catch(() => null),
+        ]);
+        if (planRes?.id) setCurrentPlan(planRes);
+        if (Array.isArray(claimsRes) && claimsRes.length) setClaims(claimsRes);
+      } catch {}
+    })();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {

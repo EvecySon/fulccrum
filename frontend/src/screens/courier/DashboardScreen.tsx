@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockCourierStats } from '../../data/mockData';
-import { analyticsAPI } from '../../services/api';
+import { analyticsAPI, courierOrdersAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import OrderRequestPopup, { IncomingOrder } from '../../components/courier/OrderRequestPopup';
 import DeclineReasonModal from '../../components/courier/DeclineReasonModal';
@@ -76,9 +76,10 @@ export default function CourierDashboardScreen({ navigation }: any) {
     return () => clearTimeout(timer);
   }, [isOnline]);
 
-  const handleAcceptOrder = (orderId: string) => {
+  const handleAcceptOrder = async (orderId: string) => {
     setShowOrderPopup(false);
     setIncomingOrder(null);
+    courierOrdersAPI.accept(orderId).catch(() => {});
     navigation.navigate('Active');
   };
 
@@ -91,6 +92,7 @@ export default function CourierDashboardScreen({ navigation }: any) {
   const handleDeclineSubmit = (orderId: string, reason: string) => {
     setShowDeclineReason(false);
     setIncomingOrder(null);
+    courierOrdersAPI.decline(orderId, reason).catch(() => {});
   };
 
   const handleOrderTimeout = (orderId: string) => {

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { ordersAPI } from '../../services/api';
+import { courierOrdersAPI } from '../../services/api';
 
 interface OrderItem {
   id: string;
@@ -69,7 +69,7 @@ export default function OrderDetailsScreen({ navigation, route }: any) {
 
   const loadOrder = async () => {
     try {
-      const res = await ordersAPI.getOrder(orderId);
+      const res = await courierOrdersAPI.getDetails(orderId);
       if (res) setOrder(prev => ({ ...prev, ...res }));
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to load order');

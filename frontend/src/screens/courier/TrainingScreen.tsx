@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { courierTrainingAPI } from '../../services/api';
 
 interface TrainingModule {
   id: string;
@@ -47,6 +48,16 @@ export default function TrainingScreen({ navigation }: any) {
   const [modules, setModules] = useState(mockModules);
   const [filter, setFilter] = useState('all');
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await courierTrainingAPI.getModules();
+        const data = res?.data ?? res;
+        if (Array.isArray(data) && data.length) setModules(data);
+      } catch {}
+    })();
+  }, []);
+
   const filtered = filter === 'all' ? modules : modules.filter(m => m.category === filter);
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons, 0);
   const completedLessons = modules.reduce((acc, m) => acc + m.completedLessons, 0);
@@ -64,10 +75,10 @@ export default function TrainingScreen({ navigation }: any) {
       ]);
       return;
     }
-    // Simulate completing a lesson
     setModules(prev => prev.map(m =>
       m.id === moduleId ? { ...m, completedLessons: Math.min(m.completedLessons + 1, m.lessons) } : m
     ));
+    courierTrainingAPI.completeLesson(moduleId).catch(() => {});
     Alert.alert('Lesson Complete!', `You completed lesson ${mod.completedLessons + 1} of ${mod.lessons} in "${mod.title}".`);
   };
 

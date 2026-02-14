@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { analyticsAPI } from '../../services/api';
+import { courierSurgeAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -75,11 +75,14 @@ export default function HeatMapScreen({ navigation }: any) {
 
   const loadData = async () => {
     try {
-      const res = await analyticsAPI.dashboard();
-      if (res?.surgeZones) setZones(res.surgeZones);
-      else setZones(mockSurgeZones);
-      if (res?.hourlyDemand) setHourly(res.hourlyDemand);
-      else setHourly(mockHourlyDemand);
+      const [zonesRes, hourlyRes, statsRes] = await Promise.all([
+        courierSurgeAPI.getZones().catch(() => null),
+        courierSurgeAPI.getHourlyDemand().catch(() => null),
+        courierSurgeAPI.getStats().catch(() => null),
+      ]);
+      if (Array.isArray(zonesRes) && zonesRes.length) setZones(zonesRes);
+      if (Array.isArray(hourlyRes) && hourlyRes.length) setHourly(hourlyRes);
+      if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
     } catch {
       setZones(mockSurgeZones);
       setHourly(mockHourlyDemand);
