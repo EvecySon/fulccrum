@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -134,10 +135,17 @@ export default function SchedulingScreen({ navigation }: any) {
   const handleBookSlot = async (slotId: string, date: string) => {
     setBookingLoading(slotId);
     try {
-      await courierScheduleAPI.bookShift(slotId, date, selectedZone);
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please log out and log back in.')), 15000));
+      await Promise.race([courierScheduleAPI.bookShift(slotId, date, selectedZone), timeout]);
+      showAlert('Success', 'Shift booked successfully');
       await loadSchedule();
     } catch (e: any) {
-      showAlert('Cannot Book', e?.message || 'Failed to book shift');
+      const msg = e?.data?.message || e?.message || 'Failed to book shift';
+      if (Platform.OS === 'web') {
+        window.alert(`Cannot Book: ${msg}`);
+      } else {
+        showAlert('Cannot Book', msg);
+      }
     } finally {
       setBookingLoading(null);
     }

@@ -103,10 +103,19 @@ export default function ScheduleManagementScreen({ navigation }: any) {
   const [showResolved, setShowResolved] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Always load zones on mount for the dropdown
+  useEffect(() => { loadZones(); }, []);
   useEffect(() => { loadData(); }, [activeTab, selectedZone, showResolved]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadZones = async () => {
+    try {
+      const res = await adminAPI.getScheduleZones();
+      setZones(Array.isArray(res) ? res : res?.data || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       if (activeTab === 'slots') {
         const res = await adminAPI.getScheduleSlots(selectedZone);
@@ -180,7 +189,8 @@ export default function ScheduleManagementScreen({ navigation }: any) {
         sortOrder: parseInt(slotForm.sortOrder) || 0,
       });
       setShowSlotModal(false);
-      loadData();
+      showAlert('Success', `Slot ${editingSlot ? 'updated' : 'created'} successfully`);
+      loadData(true);
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to save slot. Is the backend running?';
       showError('Error', msg);
@@ -239,7 +249,9 @@ export default function ScheduleManagementScreen({ navigation }: any) {
         active: zoneForm.active,
       });
       setShowZoneModal(false);
-      loadData();
+      showAlert('Success', `Zone ${editingZone ? 'updated' : 'created'} successfully`);
+      loadData(true);
+      loadZones();
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to save zone. Is the backend running?';
       showError('Error', msg);
@@ -538,13 +550,23 @@ export default function ScheduleManagementScreen({ navigation }: any) {
                 placeholderTextColor={colors.textLight}
               />
               <Text style={styles.fieldLabel}>Zone</Text>
-              <TextInput
-                style={styles.input}
-                value={slotForm.zone}
-                onChangeText={(v) => setSlotForm({ ...slotForm, zone: v })}
-                placeholder="default"
-                placeholderTextColor={colors.textLight}
-              />
+              <View style={styles.demandRow}>
+                <TouchableOpacity
+                  style={[styles.demandChip, slotForm.zone === 'default' && { backgroundColor: colors.teal + '20', borderColor: colors.teal }]}
+                  onPress={() => setSlotForm({ ...slotForm, zone: 'default' })}
+                >
+                  <Text style={[styles.demandChipText, slotForm.zone === 'default' && { color: colors.teal, fontWeight: '700' }]}>default</Text>
+                </TouchableOpacity>
+                {zones.map((z) => (
+                  <TouchableOpacity
+                    key={z.key}
+                    style={[styles.demandChip, slotForm.zone === z.key && { backgroundColor: colors.teal + '20', borderColor: colors.teal }]}
+                    onPress={() => setSlotForm({ ...slotForm, zone: z.key })}
+                  >
+                    <Text style={[styles.demandChipText, slotForm.zone === z.key && { color: colors.teal, fontWeight: '700' }]}>{z.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <Text style={styles.fieldLabel}>Total Spots</Text>
               <TextInput
                 style={styles.input}
