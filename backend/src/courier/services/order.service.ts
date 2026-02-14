@@ -220,4 +220,55 @@ export class OrderService {
       ratePerMinute: 50,
     };
   }
+
+  async getEarningsSummary(courierId: string, period: 'monthly' | 'yearly', key: string) {
+    let startDate: Date;
+    let endDate: Date;
+    let label: string;
+
+    if (period === 'monthly') {
+      // key = "2026-01"
+      const [year, month] = (key || '').split('-').map(Number);
+      startDate = new Date(year || 2026, (month || 1) - 1, 1);
+      endDate = new Date(year || 2026, month || 1, 1);
+      label = key || 'Unknown';
+    } else {
+      const year = parseInt(key) || new Date().getFullYear();
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year + 1, 0, 1);
+      label = key || String(new Date().getFullYear());
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        driverId: courierId,
+        status: 'delivered',
+        deliveredAt: { gte: startDate, lt: endDate },
+      },
+      select: {
+        deliveryFee: true,
+        tipAmount: true,
+        totalAmount: true,
+      },
+    });
+
+    const deliveryFees = orders.reduce((s, o) => s + Number(o.deliveryFee || 0), 0);
+    const tips = orders.reduce((s, o) => s + Number(o.tipAmount || 0), 0);
+    const totalEarnings = deliveryFees + tips;
+    const deductions = 0;
+    const netIncome = totalEarnings - deductions;
+
+    return {
+      key: label,
+      label,
+      totalEarnings,
+      deliveryFees,
+      tips,
+      bonuses: 0,
+      deductions,
+      netIncome,
+      deliveries: orders.length,
+      distance: 0,
+    };
+  }
 }

@@ -286,6 +286,29 @@ export class UploadService {
     return uploadedFile;
   }
 
+  // Generic file upload (used by documents & delivery proofs)
+  async uploadFile(file: Express.Multer.File, folder: string = 'general') {
+    if (file.size > this.maxFileSize) {
+      throw new BadRequestException('File size exceeds 10MB limit');
+    }
+
+    const fileExt = mime.extension(file.mimetype) || 'bin';
+    const uniqueName = `${randomBytes(16).toString('hex')}.${fileExt}`;
+    const filePath = path.join(this.uploadDir, folder, uniqueName);
+
+    // Ensure folder exists
+    await fs.mkdir(path.join(this.uploadDir, folder), { recursive: true });
+    await fs.writeFile(filePath, file.buffer);
+
+    return {
+      url: `/uploads/${folder}/${uniqueName}`,
+      filename: uniqueName,
+      originalName: file.originalname,
+      size: file.size,
+      mimeType: file.mimetype,
+    };
+  }
+
   // Helper method to get file statistics
   async getUploadStats(userId: string) {
     const files = await this.prisma.mediaFile.findMany({

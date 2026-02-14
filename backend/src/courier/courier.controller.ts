@@ -8,9 +8,13 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrderService } from './services/order.service';
 import { QuestService } from './services/quest.service';
 import { SurgeService } from './services/surge.service';
 import { PreferencesService } from './services/preferences.service';
@@ -24,6 +28,7 @@ import { TrainingService } from './services/training.service';
 @UseGuards(JwtAuthGuard)
 export class CourierController {
   constructor(
+    private orderService: OrderService,
     private questService: QuestService,
     private surgeService: SurgeService,
     private preferencesService: PreferencesService,
@@ -90,34 +95,13 @@ export class CourierController {
 
   // Tax & Earnings Export
   @Get('tax/monthly')
-  async getMonthlyEarnings(@Query('month') month: string) {
-    return {
-      key: month,
-      label: month,
-      totalEarnings: 0,
-      deliveryFees: 0,
-      tips: 0,
-      bonuses: 0,
-      deductions: 0,
-      netIncome: 0,
-      deliveries: 0,
-      distance: 0,
-    };
+  async getMonthlyEarnings(@Request() req: any, @Query('month') month: string) {
+    return this.orderService.getEarningsSummary(req.user.sub, 'monthly', month);
   }
 
   @Get('tax/yearly')
-  async getYearlyEarnings(@Query('year') year: string) {
-    return {
-      year,
-      totalEarnings: 0,
-      deliveryFees: 0,
-      tips: 0,
-      bonuses: 0,
-      deductions: 0,
-      netIncome: 0,
-      deliveries: 0,
-      distance: 0,
-    };
+  async getYearlyEarnings(@Request() req: any, @Query('year') year: string) {
+    return this.orderService.getEarningsSummary(req.user.sub, 'yearly', year);
   }
 
   @Post('tax/export')
@@ -244,6 +228,74 @@ export class CourierController {
   @Get('insurance/claims')
   async getInsuranceClaims(@Request() req: any) {
     return this.insuranceService.getClaims(req.user.sub);
+  }
+
+  // ─── Order Accept / Decline / Proof / Rate ───
+  @Post('orders/:id/accept')
+  async acceptOrder(@Request() req: any, @Param('id') id: string) {
+    return this.orderService.acceptOrder(req.user.sub, id);
+  }
+
+  @Post('orders/:id/decline')
+  async declineOrder(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.orderService.declineOrder(req.user.sub, id, data.reason, data.details);
+  }
+
+  @Patch('orders/:id/status')
+  async updateCourierOrderStatus(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('status') status: string,
+  ) {
+    return this.orderService.updateOrderStatus(req.user.sub, id, status);
+  }
+
+  @Post('orders/:id/delivery-proof')
+  @UseInterceptors(FileInterceptor('photo'))
+  async uploadDeliveryProof(
+    @Request() req: any,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() data: any,
+  ) {
+    return this.orderService.uploadDeliveryProof(
+      req.user.sub, id, file, data.notes, data.deliveryType,
+    );
+  }
+
+  @Post('orders/:id/rate-customer')
+  async rateCustomer(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.orderService.rateCustomer(
+      req.user.sub, id, data.rating, data.tags || [], data.comment,
+    );
+  }
+
+  @Get('orders/:id')
+  async getOrderDetails(@Request() req: any, @Param('id') id: string) {
+    return this.orderService.getOrderDetails(req.user.sub, id);
+  }
+
+  @Get('orders/available')
+  async getAvailableDeliveries(@Request() req: any, @Query('filter') filter?: string) {
+    return this.orderService.getAvailableDeliveries(req.user.sub, filter);
+  }
+
+  @Post('orders/:id/waiting-started')
+  async markWaitingStarted(@Request() req: any, @Param('id') id: string) {
+    return this.orderService.markWaitingStarted(req.user.sub, id);
+  }
+
+  @Get('orders/:id/waiting-time')
+  async getWaitingTime(@Request() req: any, @Param('id') id: string) {
+    return this.orderService.getWaitingTime(req.user.sub, id);
   }
 
   // Referral with real data
