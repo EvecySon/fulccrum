@@ -134,18 +134,10 @@ export default function SchedulingScreen({ navigation }: any) {
   };
 
   const handleBookSlot = async (slotId: string, date: string) => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`Book shift on ${date}?\nSlot: ${slotId.slice(0, 8)}...\nZone: ${selectedZone}`);
-      if (!confirmed) return;
-    }
     setBookingLoading(slotId);
     try {
       await courierScheduleAPI.bookShift(slotId, date, selectedZone);
-      if (Platform.OS === 'web') {
-        window.alert('Shift booked successfully!');
-      } else {
-        showAlert('Success', 'Shift booked successfully');
-      }
+      showAlert('Success', 'Shift booked successfully');
       await loadSchedule();
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to book shift';
