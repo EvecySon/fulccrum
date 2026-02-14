@@ -6,11 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   TextInput,
   Modal,
   Switch,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -131,7 +133,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
   const openCreateSlot = () => {
     setEditingSlot(null);
     setSlotForm({
-      startTime: '', endTime: '', zone: selectedZone, totalSpots: '15',
+      startTime: '6:00 AM', endTime: '9:00 AM', zone: selectedZone, totalSpots: '15',
       demand: 'medium', surgeMultiplier: '1.0', estimatedEarnings: '15000',
       active: true, sortOrder: String(slots.length),
     });
@@ -150,9 +152,17 @@ export default function ScheduleManagementScreen({ navigation }: any) {
     setShowSlotModal(true);
   };
 
+  const showError = (title: string, msg: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${msg}`);
+    } else {
+      showAlert(title, msg);
+    }
+  };
+
   const saveSlot = async () => {
     if (!slotForm.startTime || !slotForm.endTime) {
-      showAlert('Error', 'Start time and end time are required');
+      showError('Error', 'Start time and end time are required');
       return;
     }
     setSaving(true);
@@ -173,7 +183,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
       loadData();
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to save slot. Is the backend running?';
-      showAlert('Error', msg);
+      showError('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -214,7 +224,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
 
   const saveZone = async () => {
     if (!zoneForm.key || !zoneForm.name) {
-      showAlert('Error', 'Key and name are required');
+      showError('Error', 'Key and name are required');
       return;
     }
     setSaving(true);
@@ -232,7 +242,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
       loadData();
     } catch (e: any) {
       const msg = e?.data?.message || e?.message || 'Failed to save zone. Is the backend running?';
-      showAlert('Error', msg);
+      showError('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -584,13 +594,17 @@ export default function ScheduleManagementScreen({ navigation }: any) {
                 <Text style={styles.switchLabel}>Active</Text>
                 <Switch value={slotForm.active} onValueChange={(v) => setSlotForm({ ...slotForm, active: v })} trackColor={{ true: colors.teal }} />
               </View>
-              <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={saveSlot} disabled={saving}>
+              <Pressable
+                style={({ pressed }) => [styles.saveBtn, saving && { opacity: 0.6 }, pressed && { opacity: 0.8 }, Platform.OS === 'web' && { cursor: 'pointer' as any }]}
+                onPress={saveSlot}
+                disabled={saving}
+              >
                 {saving ? (
                   <ActivityIndicator size="small" color={colors.textWhite} />
                 ) : (
                   <Text style={styles.saveBtnText}>{editingSlot ? 'Update Slot' : 'Create Slot'}</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
@@ -652,13 +666,17 @@ export default function ScheduleManagementScreen({ navigation }: any) {
                 <Text style={styles.switchLabel}>Active</Text>
                 <Switch value={zoneForm.active} onValueChange={(v) => setZoneForm({ ...zoneForm, active: v })} trackColor={{ true: colors.teal }} />
               </View>
-              <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={saveZone} disabled={saving}>
+              <Pressable
+                style={({ pressed }) => [styles.saveBtn, saving && { opacity: 0.6 }, pressed && { opacity: 0.8 }, Platform.OS === 'web' && { cursor: 'pointer' as any }]}
+                onPress={saveZone}
+                disabled={saving}
+              >
                 {saving ? (
                   <ActivityIndicator size="small" color={colors.textWhite} />
                 ) : (
                   <Text style={styles.saveBtnText}>{editingZone ? 'Update Zone' : 'Create Zone'}</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
