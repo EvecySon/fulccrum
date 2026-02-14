@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -32,8 +33,10 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
   const [selected, setSelected] = useState('');
   const [details, setDetails] = useState('');
 
+  const canSubmit = selected !== '' && (selected !== 'other' || details.trim().length > 0);
+
   const handleSubmit = () => {
-    if (!selected) return;
+    if (!canSubmit) return;
     onSubmit(orderId, selected, details.trim() || undefined);
     setSelected('');
     setDetails('');
@@ -54,51 +57,48 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
 
           <Text style={styles.subtitle}>Your feedback helps us improve order matching</Text>
 
-          {DECLINE_REASONS.map((reason) => (
-            <TouchableOpacity
-              key={reason.key}
-              style={[styles.reasonRow, selected === reason.key && styles.reasonRowActive]}
-              onPress={() => setSelected(reason.key)}
-            >
-              <View style={[styles.reasonIcon, selected === reason.key && { backgroundColor: colors.teal + '15' }]}>
-                <Ionicons
-                  name={reason.icon as any}
-                  size={20}
-                  color={selected === reason.key ? colors.teal : colors.textSecondary}
-                />
-              </View>
-              <Text style={[styles.reasonLabel, selected === reason.key && { color: colors.teal, fontWeight: '700' }]}>
-                {reason.label}
-              </Text>
-              {selected === reason.key && (
-                <Ionicons name="checkmark-circle" size={22} color={colors.teal} />
-              )}
-            </TouchableOpacity>
-          ))}
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.reasonsList}>
+            {DECLINE_REASONS.map((reason) => (
+              <TouchableOpacity
+                key={reason.key}
+                style={[styles.reasonRow, selected === reason.key && styles.reasonRowActive]}
+                onPress={() => setSelected(reason.key)}
+              >
+                <View style={[styles.reasonIcon, selected === reason.key && { backgroundColor: colors.teal + '15' }]}>
+                  <Ionicons
+                    name={reason.icon as any}
+                    size={20}
+                    color={selected === reason.key ? colors.teal : colors.textSecondary}
+                  />
+                </View>
+                <Text style={[styles.reasonLabel, selected === reason.key && { color: colors.teal, fontWeight: '700' }]}>
+                  {reason.label}
+                </Text>
+                {selected === reason.key && (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.teal} />
+                )}
+              </TouchableOpacity>
+            ))}
 
-          {selected === 'other' && (
-            <TextInput
-              style={styles.detailsInput}
-              placeholder="Tell us more..."
-              placeholderTextColor={colors.textLight}
-              value={details}
-              onChangeText={setDetails}
-              multiline
-            />
-          )}
+            {selected === 'other' && (
+              <TextInput
+                style={styles.detailsInput}
+                placeholder="Tell us more..."
+                placeholderTextColor={colors.textLight}
+                value={details}
+                onChangeText={setDetails}
+                multiline
+              />
+            )}
+          </ScrollView>
 
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.skipBtn} onPress={() => { onSubmit(orderId, 'no_reason'); setSelected(''); }}>
-              <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitBtn, !selected && { opacity: 0.5 }]}
-              onPress={handleSubmit}
-              disabled={!selected}
-            >
-              <Text style={styles.submitText}>Submit & Decline</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.submitBtn, !canSubmit && { opacity: 0.5 }]}
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+          >
+            <Text style={styles.submitText}>Submit & Decline</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   subtitle: { fontSize: 13, color: colors.textLight, marginBottom: 16 },
+  reasonsList: { maxHeight: 380 },
   reasonRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,21 +171,8 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  skipBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.lightGray,
-  },
-  skipText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
   submitBtn: {
-    flex: 2,
+    marginTop: 16,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
