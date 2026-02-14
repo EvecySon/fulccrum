@@ -33,8 +33,10 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
   const [selected, setSelected] = useState('');
   const [details, setDetails] = useState('');
 
+  const canSubmit = selected !== '' && (selected !== 'other' || details.trim().length > 0);
+
   const handleSubmit = () => {
-    if (!selected) return;
+    if (!canSubmit) return;
     onSubmit(orderId, selected, details.trim() || undefined);
     setSelected('');
     setDetails('');
@@ -91,9 +93,9 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
           </ScrollView>
 
           <TouchableOpacity
-            style={[styles.submitBtn, !selected && { opacity: 0.5 }]}
+            style={[styles.submitBtn, !canSubmit && { opacity: 0.5 }]}
             onPress={handleSubmit}
-            disabled={!selected}
+            disabled={!canSubmit}
           >
             <Text style={styles.submitText}>Submit & Decline</Text>
           </TouchableOpacity>
