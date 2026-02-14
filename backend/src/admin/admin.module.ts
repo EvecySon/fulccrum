@@ -15,6 +15,7 @@ import { ModerationService } from './services/moderation.service';
 import { ComplianceService } from './services/compliance.service';
 import { CampaignService } from './services/campaign.service';
 import { AnalyticsService } from './services/analytics.service';
+import { SchedulingService } from '../courier/services/scheduling.service';
 import { FinanceController } from './controllers/finance.controller';
 import { OperationsController } from './controllers/operations.controller';
 import { RBACController } from './controllers/rbac.controller';
@@ -45,6 +46,7 @@ import { AnalyticsController } from './controllers/analytics.controller';
     ComplianceService,
     CampaignService,
     AnalyticsService,
+    SchedulingService,
   ],
   exports: [
     AdminService,

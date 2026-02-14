@@ -52,6 +52,9 @@ import PromoCodeManagerScreen from '../screens/admin/marketing/PromoCodeManagerS
 import CustomReportsScreen from '../screens/admin/analytics/CustomReportsScreen';
 import CohortAnalysisScreen from '../screens/admin/analytics/CohortAnalysisScreen';
 
+// Schedule Management
+import ScheduleManagementScreen from '../screens/admin/ScheduleManagementScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -161,6 +164,9 @@ export default function AdminNavigator() {
       {/* Analytics Screens */}
       <Stack.Screen name="CustomReports" component={CustomReportsScreen} />
       <Stack.Screen name="CohortAnalysis" component={CohortAnalysisScreen} />
+
+      {/* Schedule Management */}
+      <Stack.Screen name="ScheduleManagement" component={ScheduleManagementScreen} />
     </Stack.Navigator>
   );
 }

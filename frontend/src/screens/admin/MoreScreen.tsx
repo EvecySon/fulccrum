@@ -28,6 +28,7 @@ const menuSections = [
       { icon: 'map-outline', label: 'Live Operations', desc: 'Real-time order tracking', screen: 'LiveOperationsMap', color: colors.navy },
       { icon: 'alert-circle-outline', label: 'Incident Management', desc: 'Track & resolve incidents', screen: 'IncidentManagement', color: colors.error },
       { icon: 'time-outline', label: 'SLA Monitoring', desc: 'Monitor service levels', screen: 'SLAMonitoring', color: colors.warning },
+      { icon: 'calendar-outline', label: 'Schedule Management', desc: 'Manage courier shifts, zones & slots', screen: 'ScheduleManagement', color: colors.teal },
     ],
   },
   {

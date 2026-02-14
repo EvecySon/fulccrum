@@ -269,6 +269,8 @@ export const ordersAPI = {
     api.get(`/orders/available/deliveries?page=${page}&limit=${limit}`),
   reorder: (orderId: string) => api.post(`/orders/${orderId}/reorder`),
   cancel: (orderId: string, reason?: string) => api.post(`/orders/${orderId}/cancel`, { reason }),
+  addTip: (orderId: string, amount: number) => api.post(`/orders/${orderId}/tip`, { amount }),
+  getReceipt: (orderId: string) => api.get(`/orders/${orderId}/receipt`),
 };
 
 // ─── Menu API ───
@@ -348,6 +350,7 @@ export const reviewsAPI = {
 // ─── Promos API ───
 export const promosAPI = {
   validate: (code: string, orderAmount: number) => api.post('/promos/validate', { code, orderAmount }),
+  getActive: () => api.get('/promos?activeOnly=true'),
   getAll: (page = 1, activeOnly = true) => api.get(`/promos?page=${page}&activeOnly=${activeOnly}`),
   get: (id: string) => api.get(`/promos/${id}`),
   getStats: (id: string) => api.get(`/promos/${id}/stats`),
@@ -450,6 +453,18 @@ export const adminAPI = {
   createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
     api.post('/admin/admins', data),
   removeAdmin: (userId: string) => api.delete(`/admin/admins/${userId}`),
+  // Schedule management
+  getScheduleSlots: (zone?: string) => api.get(`/admin/schedule/slots${zone ? `?zone=${zone}` : ''}`),
+  upsertScheduleSlot: (data: any) => api.post('/admin/schedule/slots', data),
+  deleteScheduleSlot: (id: string) => api.delete(`/admin/schedule/slots/${id}`),
+  getScheduleZones: () => api.get('/admin/schedule/zones'),
+  upsertScheduleZone: (data: any) => api.post('/admin/schedule/zones', data),
+  deleteScheduleZone: (id: string) => api.delete(`/admin/schedule/zones/${id}`),
+  getScheduleStats: (zone?: string, startDate?: string, endDate?: string) =>
+    api.get(`/admin/schedule/stats?zone=${zone || 'default'}${startDate ? `&startDate=${startDate}` : ''}${endDate ? `&endDate=${endDate}` : ''}`),
+  getScheduleNoShows: (resolved = false) => api.get(`/admin/schedule/no-shows?resolved=${resolved}`),
+  resolveNoShow: (id: string) => api.patch(`/admin/schedule/no-shows/${id}/resolve`),
+  markNoShow: (courierId: string, bookingId: string) => api.post(`/admin/schedule/no-shows/${courierId}/${bookingId}`),
 };
 
 // ─── Finance API ───
@@ -834,10 +849,14 @@ export const courierSurgeAPI = {
 
 // ─── Courier Scheduling API ───
 export const courierScheduleAPI = {
-  getSchedule: (week: string) => api.get(`/courier/schedule?week=${week}`),
-  bookShift: (slotId: string, date: string) => api.post('/courier/schedule/book', { slotId, date }),
-  dropShift: (slotId: string) => api.delete(`/courier/schedule/${slotId}`),
+  getSchedule: (week: string, zone?: string) =>
+    api.get(`/courier/schedule?week=${week}${zone ? `&zone=${zone}` : ''}`),
+  bookShift: (slotId: string, date: string, zone?: string) =>
+    api.post('/courier/schedule/book', { slotId, date, zone: zone || 'default' }),
+  dropShift: (bookingId: string) => api.delete(`/courier/schedule/${bookingId}`),
   getMyShifts: () => api.get('/courier/schedule/my-shifts'),
+  getZones: () => api.get('/courier/schedule/zones'),
+  getNoShows: () => api.get('/courier/schedule/no-shows'),
 };
 
 // ─── Courier Preferences API ───

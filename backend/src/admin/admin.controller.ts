@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -6,12 +6,16 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { InviteMerchantDto } from './dto/invite-merchant.dto';
 import { InviteCourierDto } from './dto/invite-courier.dto';
 import { ApproveCourierDto } from './dto/approve-courier.dto';
+import { SchedulingService } from '../courier/services/scheduling.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private schedulingService: SchedulingService,
+  ) {}
 
   @Get('users')
   async getAllUsers(
@@ -203,5 +207,63 @@ export class AdminController {
   @Patch('couriers/:id/documents/:docId/verify')
   async verifyCourierDocument(@Request() req: any, @Param('id') id: string, @Param('docId') docId: string) {
     return this.adminService.verifyDocument(req.user.role, id, docId);
+  }
+
+  // ─── Schedule Management ───
+  @Get('schedule/slots')
+  async getScheduleSlots(@Query('zone') zone?: string) {
+    return this.schedulingService.getGlobalSlots(zone || 'default');
+  }
+
+  @Post('schedule/slots')
+  async upsertScheduleSlot(@Body() data: any) {
+    return this.schedulingService.upsertGlobalSlot(data);
+  }
+
+  @Delete('schedule/slots/:id')
+  async deleteScheduleSlot(@Param('id') id: string) {
+    return this.schedulingService.deleteGlobalSlot(id);
+  }
+
+  @Get('schedule/zones')
+  async getScheduleZones() {
+    return this.schedulingService.getZones();
+  }
+
+  @Post('schedule/zones')
+  async upsertScheduleZone(@Body() data: any) {
+    return this.schedulingService.upsertZone(data);
+  }
+
+  @Delete('schedule/zones/:id')
+  async deleteScheduleZone(@Param('id') id: string) {
+    return this.schedulingService.deleteZone(id);
+  }
+
+  @Get('schedule/stats')
+  async getScheduleStats(
+    @Query('zone') zone?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.schedulingService.getBookingStats(zone || 'default', startDate, endDate);
+  }
+
+  @Get('schedule/no-shows')
+  async getNoShows(@Query('resolved') resolved?: string) {
+    return this.schedulingService.getAllNoShows(resolved === 'true');
+  }
+
+  @Patch('schedule/no-shows/:id/resolve')
+  async resolveNoShow(@Param('id') id: string) {
+    return this.schedulingService.resolveNoShow(id);
+  }
+
+  @Post('schedule/no-shows/:courierId/:bookingId')
+  async markNoShow(
+    @Param('courierId') courierId: string,
+    @Param('bookingId') bookingId: string,
+  ) {
+    return this.schedulingService.markNoShow(courierId, bookingId);
   }
 }

@@ -133,6 +133,7 @@ model User {
   maintenanceLogs         MaintenanceLog[]         @relation("MaintenanceLogs")
   courierTrainingProgress CourierTrainingProgress[] @relation("CourierTrainingProgress")
   verificationAttempts    VerificationAttempt[]     @relation("CourierVerificationAttempts")
+  scheduleNoShows         ScheduleNoShow[]         @relation("ScheduleNoShows")
 
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
@@ -1630,17 +1631,73 @@ model BusinessCategory {
 model CourierScheduleSlot {
   id              String   @id @default(uuid()) @db.Uuid
   courierId       String   @map("courier_id") @db.Uuid
+  scheduleSlotId  String   @map("schedule_slot_id") @db.Uuid
   date            DateTime @db.Date
   startTime       String   @map("start_time") @db.VarChar(10)
   endTime         String   @map("end_time") @db.VarChar(10)
   demand          String   @db.VarChar(20)
   surgeMultiplier Float    @default(1.0) @map("surge_multiplier")
+  zone            String   @default("default") @db.VarChar(50)
+  status          String   @default("booked") @db.VarChar(20) // booked, completed, no_show, cancelled
   createdAt       DateTime @default(now()) @map("created_at")
   
-  courier User @relation("CourierScheduleSlots", fields: [courierId], references: [id], onDelete: Cascade)
+  courier      User         @relation("CourierScheduleSlots", fields: [courierId], references: [id], onDelete: Cascade)
+  scheduleSlot ScheduleSlot @relation(fields: [scheduleSlotId], references: [id], onDelete: Cascade)
 
   @@index([courierId, date])
+  @@index([scheduleSlotId, date])
+  @@index([zone, date, startTime])
   @@map("courier_schedule_slots")
+}
+
+model ScheduleSlot {
+  id              String   @id @default(uuid()) @db.Uuid
+  startTime       String   @map("start_time") @db.VarChar(10)
+  endTime         String   @map("end_time") @db.VarChar(10)
+  zone            String   @default("default") @db.VarChar(50)
+  totalSpots      Int      @default(15) @map("total_spots")
+  demand          String   @default("medium") @db.VarChar(20)
+  surgeMultiplier Float    @default(1.0) @map("surge_multiplier")
+  estimatedEarnings Int    @default(15000) @map("estimated_earnings")
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  bookings CourierScheduleSlot[]
+
+  @@unique([startTime, endTime, zone])
+  @@index([zone, active])
+  @@map("schedule_slots")
+}
+
+model ScheduleZone {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(100)
+  latitude  Float
+  longitude Float
+  radius    Float    @default(5.0) // km
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([active])
+  @@map("schedule_zones")
+}
+
+model ScheduleNoShow {
+  id        String   @id @default(uuid()) @db.Uuid
+  courierId String   @map("courier_id") @db.Uuid
+  slotId    String   @map("slot_id") @db.Uuid
+  date      DateTime @db.Date
+  penalty   String   @default("warning") @db.VarChar(20) // warning, reduced_priority, booking_ban
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  courier User @relation("ScheduleNoShows", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, resolved])
+  @@map("schedule_no_shows")
 }
 
 model Quest {

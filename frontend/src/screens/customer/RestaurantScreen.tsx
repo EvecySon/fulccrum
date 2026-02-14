@@ -8,22 +8,55 @@ import {
   Image,
   FlatList,
   Alert,
+  Share,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
 import ReportContentModal from '../../components/ReportContentModal';
+import { useCart } from '../../contexts/CartContext';
+import { hapticImpact } from '../../utils/haptics';
+import { withMock, mockGetMenuItems } from '../../services/mockApi';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [showReport, setShowReport] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const { addItem, items, updateQuantity, removeItem } = useCart();
+
+  const getItemQty = (menuItemId: string) => {
+    const found = items.find(i => i.menuItemId === menuItemId);
+    return found?.quantity || 0;
+  };
+
+  const handleQuickAdd = (item: any) => {
+    hapticImpact('light');
+    addItem(
+      { id: restaurant.id, name: restaurant.name, image: restaurant.image },
+      { menuItemId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1 }
+    );
+  };
+
+  const handleQuickRemove = (item: any) => {
+    hapticImpact('light');
+    const qty = getItemQty(item.id);
+    if (qty <= 1) {
+      removeItem(item.id);
+    } else {
+      updateQuantity(item.id, qty - 1);
+    }
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await menuAPI.getItems(restaurant.id);
+        const res = await withMock(
+          () => menuAPI.getItems(restaurant.id),
+          () => mockGetMenuItems(restaurant.id)
+        );
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setMenuItems(data);
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
@@ -61,7 +94,24 @@ export default function RestaurantScreen({ route, navigation }: any) {
           </View>
         )}
       </View>
-      <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+      <View>
+        <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+        {getItemQty(item.id) === 0 ? (
+          <TouchableOpacity style={styles.quickAddBtn} onPress={() => handleQuickAdd(item)}>
+            <Ionicons name="add" size={18} color={colors.textWhite} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.quickQtyRow}>
+            <TouchableOpacity style={styles.quickQtyBtn} onPress={() => handleQuickRemove(item)}>
+              <Ionicons name={getItemQty(item.id) <= 1 ? 'trash-outline' : 'remove'} size={14} color={colors.textWhite} />
+            </TouchableOpacity>
+            <Text style={styles.quickQtyText}>{getItemQty(item.id)}</Text>
+            <TouchableOpacity style={styles.quickQtyBtn} onPress={() => handleQuickAdd(item)}>
+              <Ionicons name="add" size={14} color={colors.textWhite} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -78,7 +128,7 @@ export default function RestaurantScreen({ route, navigation }: any) {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareBtn}>
+          <TouchableOpacity style={styles.shareBtn} onPress={() => Share.share({ message: `Check out ${restaurant.name} on Fulccrum!`, title: restaurant.name })}>
             <Ionicons name="share-outline" size={24} color={colors.textWhite} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.shareBtn, { right: 60 }]} onPress={() => setShowReport(true)}>
@@ -122,16 +172,55 @@ export default function RestaurantScreen({ route, navigation }: any) {
 
           {/* Dietary Badges */}
           <View style={styles.dietaryRow}>
-            <View style={styles.dietaryBadge}>
-              <Text style={styles.dietaryText}>Gluten Free</Text>
-            </View>
-            <View style={styles.dietaryBadge}>
-              <Text style={styles.dietaryText}>Halal</Text>
-            </View>
-            <View style={styles.dietaryBadge}>
-              <Text style={styles.dietaryText}>Vegan Options</Text>
-            </View>
+            {(restaurant.dietaryOptions || ['Gluten Free', 'Halal', 'Vegan Options']).map((d: string, i: number) => (
+              <View key={i} style={styles.dietaryBadge}>
+                <Text style={styles.dietaryText}>{d}</Text>
+              </View>
+            ))}
           </View>
+
+          {/* Restaurant Info Toggle */}
+          <TouchableOpacity style={styles.infoToggle} onPress={() => setShowInfo(!showInfo)}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.teal} />
+            <Text style={styles.infoToggleText}>{showInfo ? 'Hide Info' : 'Restaurant Info'}</Text>
+            <Ionicons name={showInfo ? 'chevron-up' : 'chevron-down'} size={16} color={colors.teal} />
+          </TouchableOpacity>
+
+          {showInfo && (
+            <View style={styles.infoPanel}>
+              {restaurant.address && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={18} color={colors.textLight} />
+                  <Text style={styles.infoText}>{restaurant.address}</Text>
+                </View>
+              )}
+              {restaurant.phone && (
+                <TouchableOpacity style={styles.infoRow} onPress={() => Linking.openURL(`tel:${restaurant.phone}`)}>
+                  <Ionicons name="call-outline" size={18} color={colors.textLight} />
+                  <Text style={[styles.infoText, { color: colors.teal }]}>{restaurant.phone}</Text>
+                </TouchableOpacity>
+              )}
+              {(restaurant.businessHours || restaurant.hours) && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="time-outline" size={18} color={colors.textLight} />
+                  <Text style={styles.infoText}>
+                    {typeof (restaurant.businessHours || restaurant.hours) === 'string'
+                      ? (restaurant.businessHours || restaurant.hours)
+                      : 'Mon-Sun: 8:00 AM - 10:00 PM'}
+                  </Text>
+                </View>
+              )}
+              {restaurant.minimumOrder && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="cart-outline" size={18} color={colors.textLight} />
+                  <Text style={styles.infoText}>Min. order: ₦{Number(restaurant.minimumOrder).toLocaleString()}</Text>
+                </View>
+              )}
+              {!restaurant.address && !restaurant.phone && !restaurant.businessHours && !restaurant.hours && !restaurant.minimumOrder && (
+                <Text style={styles.infoText}>No additional info available</Text>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Category Filter */}
@@ -160,6 +249,26 @@ export default function RestaurantScreen({ route, navigation }: any) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Popular Items */}
+        {menuItems.filter((i: any) => i.isPopular).length > 0 && selectedCategory === 'All' && (
+          <View style={styles.popularSection}>
+            <Text style={styles.popularSectionTitle}>🔥 Most Popular</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+              {menuItems.filter((i: any) => i.isPopular).slice(0, 5).map((item: any) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.popularCard}
+                  onPress={() => navigation.navigate('MenuItem', { item, restaurant })}
+                >
+                  <Image source={{ uri: item.image }} style={styles.popularCardImage} />
+                  <Text style={styles.popularCardName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.popularCardPrice}>₦{item.price?.toFixed(0)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
@@ -398,5 +507,124 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 12,
+  },
+  quickAddBtn: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.teal,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  quickQtyRow: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: 16,
+    paddingHorizontal: 2,
+    gap: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  quickQtyBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickQtyText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textWhite,
+    minWidth: 16,
+    textAlign: 'center',
+  },
+  infoToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.teal + '08',
+    borderRadius: 10,
+  },
+  infoToggleText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.teal,
+  },
+  infoPanel: {
+    marginTop: 12,
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  popularSection: {
+    marginBottom: 12,
+  },
+  popularSectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  popularCard: {
+    width: 120,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  popularCardImage: {
+    width: '100%',
+    height: 80,
+  },
+  popularCardName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+  },
+  popularCardPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.teal,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    marginTop: 2,
   },
 });

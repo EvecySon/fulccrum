@@ -1,7 +1,10 @@
 # Backend Endpoints Required by Frontend
 
-> **Generated: Feb 12, 2026**
-> This document lists every backend API endpoint the admin frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
+> **Updated: Feb 14, 2026**
+> This document lists every backend API endpoint the frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
+>
+> **Recent changes (Feb 13-14):** Scheduling system fully implemented (Glovo parity), admin Schedule Management screen built, courier booking flow working end-to-end, DB schema migrated with `ScheduleSlot`, `ScheduleZone`, `ScheduleNoShow` models.
+> **Customer App Sprint (Feb 14):** 30 features implemented (8 P0, 11 P1, 11 P2). New Section 10 added with 6 new/enhanced backend endpoints needed. New screens: DealsScreen, OnboardingScreen. New components: SkeletonLoader, haptics utility. Enhanced: CartScreen (pickup, scheduling, delivery instructions, address picker, map preview), OrderTrackingScreen (cancel, ETA countdown, tip, receipt, animated status), HomeScreen (open/closed, price range, pull-to-refresh), SearchScreen (sort, dietary filters, free delivery), RestaurantScreen (info panel, popular items, quick add, share).
 
 ---
 
@@ -312,37 +315,103 @@ model BusinessCategory {
 }
 ```
 
-### 8.3 Scheduling / Shift Booking
+### 8.3 Scheduling / Shift Booking (✅ FULLY IMPLEMENTED — Glovo Parity)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/courier/schedule?week=2026-02-10` | Get available shifts for the week |
-| `POST` | `/courier/schedule/book` | Book a shift slot |
-| `DELETE` | `/courier/schedule/:slotId` | Drop a booked shift |
-| `GET` | `/courier/schedule/my-shifts` | Get courier's booked shifts |
+> **Updated: Feb 13, 2026** — Complete rewrite with real DB capacity, tier-based booking, zones, no-show penalties, admin CRUD.
 
-**Book Shift Body:**
+#### Courier Endpoints
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/courier/schedule?week=2026-02-10&zone=default` | ✅ Done | Get week schedule with real capacity, tier info, no-show count |
+| `POST` | `/courier/schedule/book` | ✅ Done | Book a shift (auto-approved, capacity + overlap + tier checks) |
+| `DELETE` | `/courier/schedule/:bookingId` | ✅ Done | Drop a booked shift (warns if <2h before) |
+| `GET` | `/courier/schedule/my-shifts` | ✅ Done | Get courier's upcoming booked shifts |
+| `GET` | `/courier/schedule/zones` | ✅ Done | Get available scheduling zones |
+| `GET` | `/courier/schedule/no-shows` | ✅ Done | Get courier's no-show history |
+
+#### Admin Endpoints
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/schedule/slots?zone=default` | ✅ Done | Get global schedule slot config |
+| `POST` | `/admin/schedule/slots` | ✅ Done | Create/update a schedule slot |
+| `DELETE` | `/admin/schedule/slots/:id` | ✅ Done | Delete a schedule slot |
+| `GET` | `/admin/schedule/zones` | ✅ Done | Get all scheduling zones |
+| `POST` | `/admin/schedule/zones` | ✅ Done | Create/update a zone |
+| `DELETE` | `/admin/schedule/zones/:id` | ✅ Done | Delete a zone |
+| `GET` | `/admin/schedule/stats?zone=&startDate=&endDate=` | ✅ Done | Booking stats (fill rate, no-shows, etc.) |
+| `GET` | `/admin/schedule/no-shows?resolved=false` | ✅ Done | List all no-shows for review |
+| `PATCH` | `/admin/schedule/no-shows/:id/resolve` | ✅ Done | Resolve a no-show penalty |
+| `POST` | `/admin/schedule/no-shows/:courierId/:bookingId` | ✅ Done | Mark a courier as no-show |
+
+#### Book Shift Body:
 ```json
 {
-  "slotId": "string",
-  "date": "2026-02-14"
+  "slotId": "uuid",
+  "date": "2026-02-14",
+  "zone": "default"
 }
 ```
 
-**Time Slot Shape:**
+#### Schedule Response Shape:
 ```json
 {
-  "id": "string",
-  "startTime": "12:00 PM",
-  "endTime": "3:00 PM",
-  "demand": "low | medium | high | peak",
-  "spotsLeft": 2,
-  "totalSpots": 15,
-  "estimatedEarnings": 18000,
-  "surgeMultiplier": 1.5,
-  "booked": false
+  "schedule": [
+    {
+      "date": "2026-02-14",
+      "canBook": true,
+      "slots": [
+        {
+          "id": "uuid",
+          "startTime": "12:00 PM",
+          "endTime": "3:00 PM",
+          "demand": "peak",
+          "spotsLeft": 2,
+          "totalSpots": 15,
+          "estimatedEarnings": 18000,
+          "surgeMultiplier": 1.5,
+          "booked": false,
+          "bookingId": null,
+          "canBook": true
+        }
+      ]
+    }
+  ],
+  "tier": "excellent",
+  "bookingWindowDays": 7,
+  "noShowCount": 0,
+  "banned": false,
+  "zone": "default"
 }
 ```
+
+#### Tier System (Glovo-style):
+| Tier | Rating | Deliveries | Booking Window |
+|------|--------|------------|----------------|
+| Excellent | ≥4.8 | ≥200 | 7 days ahead |
+| Good | ≥4.5 | ≥100 | 5 days ahead |
+| Standard | Any | Any | 3 days ahead |
+
+#### No-Show Penalties (escalating):
+| Count (30 days) | Penalty |
+|-----------------|---------|
+| 1st | Warning |
+| 2nd | Reduced priority |
+| 3rd+ | Temporary booking ban |
+
+#### New Prisma Models:
+- `ScheduleSlot` — Global time block config (per zone)
+- `ScheduleZone` — Geographic zones for scheduling
+- `ScheduleNoShow` — No-show penalty tracking
+- `CourierScheduleSlot` — Enhanced with `scheduleSlotId`, `zone`, `status`
+
+#### Key Behaviors:
+- **Auto-approved** — booking is instant if spots available (no admin approval)
+- **Multiple slots per day** — allowed if times don't overlap
+- **Real capacity** — `spotsLeft` computed from DB bookings count
+- **Booked riders get order priority** — `hasActiveShift()` helper for order assignment
+- **Late drop warning** — dropping <2h before shift triggers warning
 
 ### 8.4 Quests & Bonuses
 
@@ -726,9 +795,40 @@ For reference, these endpoints already exist and are fully implemented:
 
 ---
 
-## Summary of Work Needed
+## Summary of Work Needed (Updated Feb 14, 2026)
 
-### Priority 1 — Document System (blocks merchant/courier review)
+### ✅ DONE — Scheduling System (Glovo Parity)
+All scheduling endpoints are fully implemented and tested end-to-end:
+- Courier: `GET /courier/schedule`, `POST /courier/schedule/book`, `DELETE /courier/schedule/:bookingId`, `GET /courier/schedule/my-shifts`, `GET /courier/schedule/zones`, `GET /courier/schedule/no-shows`
+- Admin: Full CRUD for slots and zones, stats, no-show management
+- Prisma models: `ScheduleSlot`, `ScheduleZone`, `ScheduleNoShow` (migrated)
+- Frontend: Admin `ScheduleManagementScreen` + Courier `SchedulingScreen` fully wired
+
+### ✅ DONE — Courier Core Endpoints
+All these exist in `courier.controller.ts` and work:
+- Quests: `GET /courier/quests`, `GET /courier/quests/:id`, `POST /courier/quests/:id/claim`, `GET /courier/quests/summary`
+- Surge: `GET /courier/surge-zones`, `GET /courier/hourly-demand`, `GET /courier/surge-stats`
+- Preferences: `GET /courier/preferences`, `PATCH /courier/preferences`
+- Tax: `GET /courier/tax/monthly`, `GET /courier/tax/yearly`, `POST /courier/tax/export`
+- Insurance: `GET /courier/insurance/plan`, `GET /courier/insurance/plans`, `PATCH /courier/insurance/plan`, `POST /courier/insurance/claims`, `GET /courier/insurance/claims`
+- Training: `GET /courier/training/modules`, `POST /courier/training/:moduleId/complete-lesson`, `GET /courier/training/progress`
+- Maintenance: `GET /courier/reminders`, `PATCH /courier/reminders/:id`, `POST /courier/maintenance-log`, `GET /courier/maintenance-log`
+- Referral: `GET /courier/referral`, `GET /courier/referral/history`, `POST /courier/referral/apply`
+- Orders: `POST /courier/orders/:id/accept`, `POST /courier/orders/:id/decline`, `PATCH /courier/orders/:id/status`, `POST /courier/orders/:id/delivery-proof`, `POST /courier/orders/:id/rate-customer`, `GET /courier/orders/:id`, `GET /courier/orders/available`, `POST /courier/orders/:id/waiting-started`, `GET /courier/orders/:id/waiting-time`
+- Fleet: `GET /courier/performance`, `GET /courier/predictions`, `GET /courier/dispatch`, `GET /courier/route-optimize/:orderId`, `GET /courier/delivery-methods`
+- Gamification: `GET /courier/achievements`, `GET /courier/tiers`, `GET /courier/leaderboard`, `POST /courier/achievements/:achievementId/claim`
+- Safety: `POST /courier/safety/emergency`, `GET /courier/support`, `POST /courier/support`, `POST /courier/safety/location-share`, `GET /courier/safety/events`
+
+### Priority 1 — Missing Courier Endpoints (frontend wired, backend NOT built)
+| Priority | Endpoint | Frontend API | Description |
+|----------|----------|-------------|-------------|
+| **P0** | `GET /courier/orders/history?status=&page=` | `courierOrdersAPI.getHistory()` | Past deliveries for courier. Query `Order` where `driverId = req.user.sub`. |
+| **P0** | `GET /courier/orders/active` | `courierOrdersAPI.getActive()` | Active orders (stacked). Query `Order` where `driverId = req.user.sub` AND status IN ('accepted','picked_up','in_transit'). |
+| **P1** | `POST /courier/verification/selfie` | `courierVerificationAPI.submitSelfie()` | Selfie identity verification (multipart upload). Needs `VerificationAttempt` Prisma model. |
+| **P1** | `GET /courier/verification/status` | `courierVerificationAPI.getStatus()` | Current verification status. |
+| **P1** | `GET /courier/verification/history` | `courierVerificationAPI.getHistory()` | Past verification attempts. |
+
+### Priority 2 — Document System (blocks merchant/courier review)
 1. Add `Document` model to Prisma schema
 2. Run `prisma migrate`
 3. Implement `GET /admin/merchants/:id/documents` (query Document table)
@@ -737,13 +837,21 @@ For reference, these endpoints already exist and are fully implemented:
 6. Build `POST /documents/upload` for merchant/courier onboarding
 7. Build `GET /documents/my-documents` for merchants/couriers to see their uploads
 
-### Priority 2 — Flesh out stubs
+### Priority 3 — Admin Stubs (need real logic)
 1. `GET /admin/merchants/:id/application` — return full application with documents
 2. `GET /admin/couriers` — already queries DB, just needs real data
 3. `GET /admin/couriers/pending` — already queries DB, just needs real data
 4. `POST /admin/merchants/:id/request-documents` — send email notification
 
-### Priority 3 — Already done, just verify
+### Priority 4 — Business Category CRUD
+1. `GET /admin/categories` — list all business categories
+2. `POST /admin/categories` — create category
+3. `PATCH /admin/categories/:key` — update category
+4. `DELETE /admin/categories/:key` — delete category
+5. `GET /categories` — public, list active categories
+6. Needs `BusinessCategory` Prisma model
+
+### Priority 5 — Already done, just verify
 1. `POST /report/content` — created, writes to ContentModerationQueue
 2. `GET /report/my-reports` — created, queries by reportedBy in resourceData
 3. All courier approve/reject/suspend/reactivate endpoints — wired up
@@ -940,3 +1048,189 @@ model VerificationAttempt {
 | Selfie Verification | `screens/courier/SelfieVerificationScreen.tsx` | `courierVerificationAPI` |
 | Heat Map (with map overlays) | `screens/courier/HeatMapScreen.tsx` | `courierSurgeAPI` |
 | Dashboard (auto-nav + live earnings) | `screens/courier/DashboardScreen.tsx` | `analyticsAPI`, `courierOrdersAPI` |
+
+---
+
+## 10. Customer App — New Backend Endpoints Required
+
+> **Added: Feb 14, 2026**
+> These endpoints are required by the new customer app features implemented in this sprint (P0/P1/P2 feature parity with Uber Eats / Glovo).
+
+---
+
+### 10.1 Scheduled / Future Orders
+
+The frontend sends `scheduledFor` (ISO datetime string) in the order creation payload. The backend needs to:
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders` | 🔧 Enhance | Accept optional `scheduledFor` field. If present, set order status to `scheduled` instead of `pending`. Trigger preparation workflow at the right time. |
+
+**Order payload additions:**
+```json
+{
+  "scheduledFor": "2026-02-15T18:30:00",
+  "fulfillmentType": "delivery" | "pickup",
+  "deliveryOption": "hand_to_customer" | "leave_at_door" | "meet_outside",
+  "deliveryNote": "Gate code 1234"
+}
+```
+
+**Prisma schema changes needed:**
+```prisma
+// Add to Order model:
+scheduledFor     DateTime?
+fulfillmentType  String    @default("delivery") // "delivery" | "pickup"
+deliveryOption   String?   // "hand_to_customer" | "leave_at_door" | "meet_outside"
+deliveryNote     String?
+```
+
+---
+
+### 10.2 Order Cancellation
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/cancel` | ✅ Exists | Cancel an order. Should only work for `pending` or `accepted` status. Body: `{ reason?: string }` |
+
+**Backend logic needed:** Validate that order is in `pending` or `accepted` status. Refund payment if already charged. Notify restaurant and courier (if assigned). Set status to `cancelled`.
+
+---
+
+### 10.3 Post-Delivery Tipping
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/tip` | ❌ New | Add a tip after delivery. Body: `{ amount: number }`. Should credit the courier's wallet. |
+
+**Backend logic:** Validate order is `delivered`. Validate tip amount > 0. Debit customer wallet/card. Credit courier wallet. Create transaction records. Send notification to courier.
+
+---
+
+### 10.4 Order Receipt / Invoice
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/orders/:orderId/receipt` | ❌ New | Generate and return order receipt data (or send via email). Returns JSON with full order breakdown. |
+
+**Response shape:**
+```json
+{
+  "orderNumber": "ABC123",
+  "restaurant": "Restaurant Name",
+  "items": [{ "name": "Item", "quantity": 2, "price": 1500 }],
+  "subtotal": 3000,
+  "deliveryFee": 500,
+  "serviceFee": 150,
+  "tax": 200,
+  "tip": 100,
+  "discount": 0,
+  "total": 3950,
+  "paymentMethod": "wallet",
+  "deliveredAt": "2026-02-14T19:30:00Z",
+  "deliveryAddress": "123 Main St, Lagos"
+}
+```
+
+---
+
+### 10.5 Active Promos for Customer
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/promos?activeOnly=true` | ✅ Exists | Get all active promos. Used by Deals screen. |
+
+No new endpoint needed — existing `promosAPI.getAll(1, true)` works.
+
+---
+
+### 10.6 Business Hours & Open/Closed Status
+
+The frontend checks `isOpen` and `businessHours` fields on restaurant objects. The backend needs to:
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/search/businesses` | 🔧 Enhance | Include `isOpen` (boolean), `businessHours` (JSON), `minimumOrder` (number), `priceRange` (string), `deliveryTime` (string) in response. |
+
+**Prisma schema additions (Business model):**
+```prisma
+// Add to Business model if not present:
+isOpen          Boolean   @default(true)
+businessHours   Json?     // { "monday": { "open": "08:00", "close": "22:00" }, ... }
+minimumOrder    Float?
+priceRange      String?   // "₦", "₦₦", "₦₦₦"
+estimatedDeliveryTime String? // "25-35 min"
+```
+
+---
+
+### 10.7 Pickup Orders
+
+The frontend sends `fulfillmentType: "pickup"` in the order payload. Backend needs to:
+
+- Accept `fulfillmentType` field (`delivery` | `pickup`)
+- Skip driver assignment for pickup orders
+- Set `deliveryFee` to 0 for pickup
+- Skip delivery address validation for pickup
+- Different status flow: `pending` → `accepted` → `preparing` → `ready_for_pickup` → `picked_up`
+
+**New OrderStatus enum values needed:**
+```prisma
+enum OrderStatus {
+  // existing...
+  ready_for_pickup
+  picked_up
+}
+```
+
+---
+
+### 10.8 Delivery Instructions
+
+Already handled by the enhanced order creation payload (Section 10.1). The `deliveryOption` and `deliveryNote` fields are sent with the order. Backend needs to:
+
+- Store these fields on the Order model
+- Pass them to the courier in the order details
+- Display in courier's ActiveDeliveryScreen
+
+---
+
+### 10.9 Reorder
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/reorder` | ✅ Exists | Clone a past order's items into a new order. Should check item availability. |
+
+---
+
+### 10.10 Summary — New Endpoints to Build
+
+| Priority | Endpoint | Controller | Service Method |
+|----------|----------|------------|----------------|
+| **P0** | `POST /orders/:id/tip` | `orders.controller.ts` | `ordersService.addTip(orderId, customerId, amount)` |
+| **P0** | Enhance `POST /orders` | `orders.controller.ts` | Accept `scheduledFor`, `fulfillmentType`, `deliveryOption`, `deliveryNote` |
+| **P0** | Enhance `GET /search/businesses` | `search.controller.ts` | Return `isOpen`, `businessHours`, `minimumOrder`, `priceRange`, `deliveryTime` |
+| **P1** | `GET /orders/:id/receipt` | `orders.controller.ts` | `ordersService.getReceipt(orderId)` |
+| **P1** | Pickup order flow | `orders.service.ts` | Handle `fulfillmentType: 'pickup'` — skip driver, different status flow |
+| **P2** | Scheduled order cron | `orders.service.ts` | Process scheduled orders at their `scheduledFor` time |
+
+### 10.11 Frontend Files Reference
+
+| Screen / Component | File | API Client |
+|---------------------|------|------------|
+| Cart (checkout) | `screens/customer/CartScreen.tsx` | `ordersAPI`, `addressesAPI`, `feesAPI`, `promosAPI` |
+| Order Tracking | `screens/customer/OrderTrackingScreen.tsx` | `ordersAPI`, `locationAPI` |
+| Home (restaurant cards) | `screens/customer/HomeScreen.tsx` | `searchAPI`, `analyticsAPI` |
+| Search (filters/sort) | `screens/customer/SearchScreen.tsx` | `searchAPI` |
+| Restaurant (info/menu) | `screens/customer/RestaurantScreen.tsx` | `menuAPI` |
+| Menu Item (suggestions) | `screens/customer/MenuItemScreen.tsx` | `menuAPI` |
+| Deals & Offers | `screens/customer/DealsScreen.tsx` | `promosAPI`, `searchAPI` |
+| Onboarding | `screens/customer/OnboardingScreen.tsx` | — (local only) |
+| Feedback (photo reviews) | `screens/customer/FeedbackScreen.tsx` | `reviewsAPI`, `ordersAPI` |
+
+### 10.12 New Utility Files Created
+
+| File | Purpose |
+|------|---------|
+| `components/SkeletonLoader.tsx` | Reusable skeleton loading components (restaurant cards, menu items, orders) |
+| `utils/haptics.ts` | Cross-platform haptic feedback utility (wraps expo-haptics) |
