@@ -1,7 +1,9 @@
 # Backend Endpoints Required by Frontend
 
-> **Generated: Feb 12, 2026**
-> This document lists every backend API endpoint the admin frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
+> **Updated: Feb 14, 2026**
+> This document lists every backend API endpoint the frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
+>
+> **Recent changes (Feb 13-14):** Scheduling system fully implemented (Glovo parity), admin Schedule Management screen built, courier booking flow working end-to-end, DB schema migrated with `ScheduleSlot`, `ScheduleZone`, `ScheduleNoShow` models.
 
 ---
 
@@ -792,9 +794,40 @@ For reference, these endpoints already exist and are fully implemented:
 
 ---
 
-## Summary of Work Needed
+## Summary of Work Needed (Updated Feb 14, 2026)
 
-### Priority 1 — Document System (blocks merchant/courier review)
+### ✅ DONE — Scheduling System (Glovo Parity)
+All scheduling endpoints are fully implemented and tested end-to-end:
+- Courier: `GET /courier/schedule`, `POST /courier/schedule/book`, `DELETE /courier/schedule/:bookingId`, `GET /courier/schedule/my-shifts`, `GET /courier/schedule/zones`, `GET /courier/schedule/no-shows`
+- Admin: Full CRUD for slots and zones, stats, no-show management
+- Prisma models: `ScheduleSlot`, `ScheduleZone`, `ScheduleNoShow` (migrated)
+- Frontend: Admin `ScheduleManagementScreen` + Courier `SchedulingScreen` fully wired
+
+### ✅ DONE — Courier Core Endpoints
+All these exist in `courier.controller.ts` and work:
+- Quests: `GET /courier/quests`, `GET /courier/quests/:id`, `POST /courier/quests/:id/claim`, `GET /courier/quests/summary`
+- Surge: `GET /courier/surge-zones`, `GET /courier/hourly-demand`, `GET /courier/surge-stats`
+- Preferences: `GET /courier/preferences`, `PATCH /courier/preferences`
+- Tax: `GET /courier/tax/monthly`, `GET /courier/tax/yearly`, `POST /courier/tax/export`
+- Insurance: `GET /courier/insurance/plan`, `GET /courier/insurance/plans`, `PATCH /courier/insurance/plan`, `POST /courier/insurance/claims`, `GET /courier/insurance/claims`
+- Training: `GET /courier/training/modules`, `POST /courier/training/:moduleId/complete-lesson`, `GET /courier/training/progress`
+- Maintenance: `GET /courier/reminders`, `PATCH /courier/reminders/:id`, `POST /courier/maintenance-log`, `GET /courier/maintenance-log`
+- Referral: `GET /courier/referral`, `GET /courier/referral/history`, `POST /courier/referral/apply`
+- Orders: `POST /courier/orders/:id/accept`, `POST /courier/orders/:id/decline`, `PATCH /courier/orders/:id/status`, `POST /courier/orders/:id/delivery-proof`, `POST /courier/orders/:id/rate-customer`, `GET /courier/orders/:id`, `GET /courier/orders/available`, `POST /courier/orders/:id/waiting-started`, `GET /courier/orders/:id/waiting-time`
+- Fleet: `GET /courier/performance`, `GET /courier/predictions`, `GET /courier/dispatch`, `GET /courier/route-optimize/:orderId`, `GET /courier/delivery-methods`
+- Gamification: `GET /courier/achievements`, `GET /courier/tiers`, `GET /courier/leaderboard`, `POST /courier/achievements/:achievementId/claim`
+- Safety: `POST /courier/safety/emergency`, `GET /courier/support`, `POST /courier/support`, `POST /courier/safety/location-share`, `GET /courier/safety/events`
+
+### Priority 1 — Missing Courier Endpoints (frontend wired, backend NOT built)
+| Priority | Endpoint | Frontend API | Description |
+|----------|----------|-------------|-------------|
+| **P0** | `GET /courier/orders/history?status=&page=` | `courierOrdersAPI.getHistory()` | Past deliveries for courier. Query `Order` where `driverId = req.user.sub`. |
+| **P0** | `GET /courier/orders/active` | `courierOrdersAPI.getActive()` | Active orders (stacked). Query `Order` where `driverId = req.user.sub` AND status IN ('accepted','picked_up','in_transit'). |
+| **P1** | `POST /courier/verification/selfie` | `courierVerificationAPI.submitSelfie()` | Selfie identity verification (multipart upload). Needs `VerificationAttempt` Prisma model. |
+| **P1** | `GET /courier/verification/status` | `courierVerificationAPI.getStatus()` | Current verification status. |
+| **P1** | `GET /courier/verification/history` | `courierVerificationAPI.getHistory()` | Past verification attempts. |
+
+### Priority 2 — Document System (blocks merchant/courier review)
 1. Add `Document` model to Prisma schema
 2. Run `prisma migrate`
 3. Implement `GET /admin/merchants/:id/documents` (query Document table)
@@ -803,13 +836,21 @@ For reference, these endpoints already exist and are fully implemented:
 6. Build `POST /documents/upload` for merchant/courier onboarding
 7. Build `GET /documents/my-documents` for merchants/couriers to see their uploads
 
-### Priority 2 — Flesh out stubs
+### Priority 3 — Admin Stubs (need real logic)
 1. `GET /admin/merchants/:id/application` — return full application with documents
 2. `GET /admin/couriers` — already queries DB, just needs real data
 3. `GET /admin/couriers/pending` — already queries DB, just needs real data
 4. `POST /admin/merchants/:id/request-documents` — send email notification
 
-### Priority 3 — Already done, just verify
+### Priority 4 — Business Category CRUD
+1. `GET /admin/categories` — list all business categories
+2. `POST /admin/categories` — create category
+3. `PATCH /admin/categories/:key` — update category
+4. `DELETE /admin/categories/:key` — delete category
+5. `GET /categories` — public, list active categories
+6. Needs `BusinessCategory` Prisma model
+
+### Priority 5 — Already done, just verify
 1. `POST /report/content` — created, writes to ContentModerationQueue
 2. `GET /report/my-reports` — created, queries by reportedBy in resourceData
 3. All courier approve/reject/suspend/reactivate endpoints — wired up
