@@ -9,7 +9,6 @@ import {
   TextInput,
   Modal,
   Switch,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -100,6 +99,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
   // No-shows state
   const [noShows, setNoShows] = useState<NoShow[]>([]);
   const [showResolved, setShowResolved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadData(); }, [activeTab, selectedZone, showResolved]);
 
@@ -120,7 +120,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
         setNoShows(Array.isArray(res) ? res : res?.data || []);
       }
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to load data');
+      showAlert('Error', e?.message || 'Failed to load data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -152,9 +152,10 @@ export default function ScheduleManagementScreen({ navigation }: any) {
 
   const saveSlot = async () => {
     if (!slotForm.startTime || !slotForm.endTime) {
-      Alert.alert('Error', 'Start time and end time are required');
+      showAlert('Error', 'Start time and end time are required');
       return;
     }
+    setSaving(true);
     try {
       await adminAPI.upsertScheduleSlot({
         id: editingSlot?.id,
@@ -171,7 +172,10 @@ export default function ScheduleManagementScreen({ navigation }: any) {
       setShowSlotModal(false);
       loadData();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to save slot');
+      const msg = e?.data?.message || e?.message || 'Failed to save slot. Is the backend running?';
+      showAlert('Error', msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -185,7 +189,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
             await adminAPI.deleteScheduleSlot(slot.id);
             loadData();
           } catch (e: any) {
-            Alert.alert('Error', e?.message || 'Failed to delete');
+            showAlert('Error', e?.message || 'Failed to delete');
           }
         },
       },
@@ -210,9 +214,10 @@ export default function ScheduleManagementScreen({ navigation }: any) {
 
   const saveZone = async () => {
     if (!zoneForm.key || !zoneForm.name) {
-      Alert.alert('Error', 'Key and name are required');
+      showAlert('Error', 'Key and name are required');
       return;
     }
+    setSaving(true);
     try {
       await adminAPI.upsertScheduleZone({
         id: editingZone?.id,
@@ -226,7 +231,10 @@ export default function ScheduleManagementScreen({ navigation }: any) {
       setShowZoneModal(false);
       loadData();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to save zone');
+      const msg = e?.data?.message || e?.message || 'Failed to save zone. Is the backend running?';
+      showAlert('Error', msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -240,7 +248,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
             await adminAPI.deleteScheduleZone(zone.id);
             loadData();
           } catch (e: any) {
-            Alert.alert('Error', e?.message || 'Failed to delete');
+            showAlert('Error', e?.message || 'Failed to delete');
           }
         },
       },
@@ -253,7 +261,7 @@ export default function ScheduleManagementScreen({ navigation }: any) {
       await adminAPI.resolveNoShow(id);
       loadData();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to resolve');
+      showAlert('Error', e?.message || 'Failed to resolve');
     }
   };
 
@@ -576,8 +584,12 @@ export default function ScheduleManagementScreen({ navigation }: any) {
                 <Text style={styles.switchLabel}>Active</Text>
                 <Switch value={slotForm.active} onValueChange={(v) => setSlotForm({ ...slotForm, active: v })} trackColor={{ true: colors.teal }} />
               </View>
-              <TouchableOpacity style={styles.saveBtn} onPress={saveSlot}>
-                <Text style={styles.saveBtnText}>{editingSlot ? 'Update Slot' : 'Create Slot'}</Text>
+              <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={saveSlot} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator size="small" color={colors.textWhite} />
+                ) : (
+                  <Text style={styles.saveBtnText}>{editingSlot ? 'Update Slot' : 'Create Slot'}</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -640,8 +652,12 @@ export default function ScheduleManagementScreen({ navigation }: any) {
                 <Text style={styles.switchLabel}>Active</Text>
                 <Switch value={zoneForm.active} onValueChange={(v) => setZoneForm({ ...zoneForm, active: v })} trackColor={{ true: colors.teal }} />
               </View>
-              <TouchableOpacity style={styles.saveBtn} onPress={saveZone}>
-                <Text style={styles.saveBtnText}>{editingZone ? 'Update Zone' : 'Create Zone'}</Text>
+              <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={saveZone} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator size="small" color={colors.textWhite} />
+                ) : (
+                  <Text style={styles.saveBtnText}>{editingZone ? 'Update Zone' : 'Create Zone'}</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
