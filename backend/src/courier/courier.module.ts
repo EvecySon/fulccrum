@@ -9,6 +9,7 @@ import { ReferralService } from './services/referral.service';
 import { InsuranceService } from './services/insurance.service';
 import { TrainingService } from './services/training.service';
 import { OrderService } from './services/order.service';
+import { VerificationService } from './services/verification.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UploadModule } from '../upload/upload.module';
 
@@ -25,6 +26,7 @@ import { UploadModule } from '../upload/upload.module';
     InsuranceService,
     TrainingService,
     OrderService,
+    VerificationService,
   ],
   exports: [
     QuestService,
@@ -36,6 +38,7 @@ import { UploadModule } from '../upload/upload.module';
     InsuranceService,
     TrainingService,
     OrderService,
+    VerificationService,
   ],
 })
 export class CourierModule {}

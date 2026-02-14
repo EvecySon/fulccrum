@@ -55,6 +55,13 @@ enum NotificationType {
   system_alert
   support_message
   review_request
+  order
+  promo
+  earnings
+  system
+  quest
+  safety
+  document
 }
 
 enum WithdrawalStatus {
@@ -125,6 +132,7 @@ model User {
   insuranceClaims         InsuranceClaim[]         @relation("InsuranceClaims")
   maintenanceLogs         MaintenanceLog[]         @relation("MaintenanceLogs")
   courierTrainingProgress CourierTrainingProgress[] @relation("CourierTrainingProgress")
+  verificationAttempts    VerificationAttempt[]     @relation("CourierVerificationAttempts")
 
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
@@ -1834,5 +1842,20 @@ model SurgeZone {
   @@index([active, expiresAt])
   @@index([latitude, longitude])
   @@map("surge_zones")
+}
+
+model VerificationAttempt {
+  id         String   @id @default(uuid()) @db.Uuid
+  courierId  String   @map("courier_id") @db.Uuid
+  photoUrl   String   @map("photo_url") @db.Text
+  verified   Boolean
+  confidence Float    @default(0)
+  reason     String?  @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  courier User @relation("CourierVerificationAttempts", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, createdAt])
+  @@map("verification_attempts")
 }
 

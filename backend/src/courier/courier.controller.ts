@@ -23,6 +23,7 @@ import { MaintenanceService } from './services/maintenance.service';
 import { ReferralService } from './services/referral.service';
 import { InsuranceService } from './services/insurance.service';
 import { TrainingService } from './services/training.service';
+import { VerificationService } from './services/verification.service';
 
 @Controller('courier')
 @UseGuards(JwtAuthGuard)
@@ -37,6 +38,7 @@ export class CourierController {
     private referralService: ReferralService,
     private insuranceService: InsuranceService,
     private trainingService: TrainingService,
+    private verificationService: VerificationService,
   ) {}
 
   // Quests & Bonuses
@@ -312,5 +314,42 @@ export class CourierController {
   @Post('referral/apply')
   async applyReferralCode(@Request() req: any, @Body() data: any) {
     return this.referralService.applyReferralCode(req.user.sub, data.code);
+  }
+
+  // Order History & Active Orders
+  @Get('orders/history')
+  async getOrderHistory(
+    @Request() req: any,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+  ) {
+    const pageNum = page ? parseInt(page) : 1;
+    return this.orderService.getOrderHistory(req.user.sub, status, pageNum);
+  }
+
+  @Get('orders/active')
+  async getActiveOrders(@Request() req: any) {
+    return this.orderService.getActiveOrders(req.user.sub);
+  }
+
+  // Selfie Verification
+  @Post('verification/selfie')
+  @UseInterceptors(FileInterceptor('selfie'))
+  async submitSelfie(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() data: any,
+  ) {
+    return this.verificationService.submitSelfie(req.user.sub, file, data.reason);
+  }
+
+  @Get('verification/status')
+  async getVerificationStatus(@Request() req: any) {
+    return this.verificationService.getStatus(req.user.sub);
+  }
+
+  @Get('verification/history')
+  async getVerificationHistory(@Request() req: any) {
+    return this.verificationService.getHistory(req.user.sub);
   }
 }

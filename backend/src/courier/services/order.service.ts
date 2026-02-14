@@ -221,6 +221,146 @@ export class OrderService {
     };
   }
 
+  async getOrderHistory(courierId: string, status?: string, page: number = 1) {
+    const limit = 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      driverId: courierId,
+      status: { in: ['delivered', 'cancelled'] },
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        business: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        items: true,
+        review: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    return orders.map(order => {
+      const createdAt = new Date(order.createdAt);
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let dateLabel: string;
+      if (diffDays === 0) dateLabel = 'Today';
+      else if (diffDays === 1) dateLabel = 'Yesterday';
+      else if (diffDays < 7) dateLabel = `${diffDays} days ago`;
+      else dateLabel = createdAt.toLocaleDateString();
+
+      const timeLabel = createdAt.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+
+      const basePay = Number(order.deliveryFee || 0);
+      const tip = Number(order.tipAmount || 0);
+      const bonus = 0;
+      const total = basePay + tip + bonus;
+
+      return {
+        id: order.id,
+        restaurant: `${order.business.user.firstName} ${order.business.user.lastName}`,
+        customer: `${order.customer.firstName} ${order.customer.lastName}`,
+        status: order.status,
+        date: dateLabel,
+        time: timeLabel,
+        basePay,
+        tip,
+        bonus,
+        total,
+        distance: '0 km',
+        duration: '0 min',
+        items: order.items.length,
+        rating: order.review?.rating || 0,
+        pickupAddress: order.business.address || '',
+        dropoffAddress: order.deliveryAddress?.street || '',
+      };
+    });
+  }
+
+  async getActiveOrders(courierId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        driverId: courierId,
+        status: { in: ['accepted', 'picked_up', 'in_transit'] },
+      },
+      include: {
+        business: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        items: true,
+        deliveryAddress: true,
+      },
+      orderBy: { acceptedAt: 'asc' },
+    });
+
+    return orders.map((order, index) => {
+      const basePay = Number(order.deliveryFee || 0);
+      const tip = Number(order.tipAmount || 0);
+      const total = basePay + tip;
+
+      return {
+        id: order.id,
+        restaurant: `${order.business.user.firstName} ${order.business.user.lastName}`,
+        customer: `${order.customer.firstName} ${order.customer.lastName}`,
+        status: order.status === 'accepted' ? 'pickup' : 'delivering',
+        estimatedTime: '12 min',
+        pay: total,
+        items: order.items.length,
+        isActive: index === 0,
+        pickupCoords: {
+          latitude: order.business.latitude || 0,
+          longitude: order.business.longitude || 0,
+        },
+        dropoffCoords: {
+          latitude: order.deliveryAddress?.latitude || 0,
+          longitude: order.deliveryAddress?.longitude || 0,
+        },
+        pickupAddress: order.business.address || '',
+        dropoffAddress: order.deliveryAddress?.street || '',
+      };
+    });
+  }
+
   async getEarningsSummary(courierId: string, period: 'monthly' | 'yearly', key: string) {
     let startDate: Date;
     let endDate: Date;
