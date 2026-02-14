@@ -58,7 +58,14 @@ export default function DeclineReasonModal({ visible, orderId, onSubmit, onClose
             <TouchableOpacity
               key={reason.key}
               style={[styles.reasonRow, selected === reason.key && styles.reasonRowActive]}
-              onPress={() => setSelected(reason.key)}
+              onPress={() => {
+                setSelected(reason.key);
+                if (reason.key !== 'other') {
+                  onSubmit(orderId, reason.key);
+                  setSelected('');
+                  setDetails('');
+                }
+              }}
             >
               <View style={[styles.reasonIcon, selected === reason.key && { backgroundColor: colors.teal + '15' }]}>
                 <Ionicons
