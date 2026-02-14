@@ -174,23 +174,37 @@ export class CourierController {
 
   // Scheduling
   @Get('schedule')
-  async getSchedule(@Request() req: any, @Query('week') week: string) {
-    return this.schedulingService.getWeekSchedule(req.user.sub, week);
+  async getSchedule(
+    @Request() req: any,
+    @Query('week') week: string,
+    @Query('zone') zone?: string,
+  ) {
+    return this.schedulingService.getWeekSchedule(req.user.sub, week, zone || 'default');
   }
 
   @Post('schedule/book')
   async bookShift(@Request() req: any, @Body() data: any) {
-    return this.schedulingService.bookShift(req.user.sub, data.slotId, data.date);
+    return this.schedulingService.bookShift(req.user.sub, data.slotId, data.date, data.zone || 'default');
   }
 
-  @Delete('schedule/:slotId')
-  async dropShift(@Request() req: any, @Param('slotId') slotId: string) {
-    return this.schedulingService.dropShift(req.user.sub, slotId);
+  @Delete('schedule/:bookingId')
+  async dropShift(@Request() req: any, @Param('bookingId') bookingId: string) {
+    return this.schedulingService.dropShift(req.user.sub, bookingId);
   }
 
   @Get('schedule/my-shifts')
   async getMyShifts(@Request() req: any) {
     return this.schedulingService.getMyShifts(req.user.sub);
+  }
+
+  @Get('schedule/zones')
+  async getScheduleZones() {
+    return this.schedulingService.getZones();
+  }
+
+  @Get('schedule/no-shows')
+  async getMyNoShows(@Request() req: any) {
+    return this.schedulingService.getNoShowHistory(req.user.sub);
   }
 
   // Maintenance & Reminders

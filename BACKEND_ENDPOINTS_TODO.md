@@ -312,37 +312,103 @@ model BusinessCategory {
 }
 ```
 
-### 8.3 Scheduling / Shift Booking
+### 8.3 Scheduling / Shift Booking (✅ FULLY IMPLEMENTED — Glovo Parity)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/courier/schedule?week=2026-02-10` | Get available shifts for the week |
-| `POST` | `/courier/schedule/book` | Book a shift slot |
-| `DELETE` | `/courier/schedule/:slotId` | Drop a booked shift |
-| `GET` | `/courier/schedule/my-shifts` | Get courier's booked shifts |
+> **Updated: Feb 13, 2026** — Complete rewrite with real DB capacity, tier-based booking, zones, no-show penalties, admin CRUD.
 
-**Book Shift Body:**
+#### Courier Endpoints
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/courier/schedule?week=2026-02-10&zone=default` | ✅ Done | Get week schedule with real capacity, tier info, no-show count |
+| `POST` | `/courier/schedule/book` | ✅ Done | Book a shift (auto-approved, capacity + overlap + tier checks) |
+| `DELETE` | `/courier/schedule/:bookingId` | ✅ Done | Drop a booked shift (warns if <2h before) |
+| `GET` | `/courier/schedule/my-shifts` | ✅ Done | Get courier's upcoming booked shifts |
+| `GET` | `/courier/schedule/zones` | ✅ Done | Get available scheduling zones |
+| `GET` | `/courier/schedule/no-shows` | ✅ Done | Get courier's no-show history |
+
+#### Admin Endpoints
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/admin/schedule/slots?zone=default` | ✅ Done | Get global schedule slot config |
+| `POST` | `/admin/schedule/slots` | ✅ Done | Create/update a schedule slot |
+| `DELETE` | `/admin/schedule/slots/:id` | ✅ Done | Delete a schedule slot |
+| `GET` | `/admin/schedule/zones` | ✅ Done | Get all scheduling zones |
+| `POST` | `/admin/schedule/zones` | ✅ Done | Create/update a zone |
+| `DELETE` | `/admin/schedule/zones/:id` | ✅ Done | Delete a zone |
+| `GET` | `/admin/schedule/stats?zone=&startDate=&endDate=` | ✅ Done | Booking stats (fill rate, no-shows, etc.) |
+| `GET` | `/admin/schedule/no-shows?resolved=false` | ✅ Done | List all no-shows for review |
+| `PATCH` | `/admin/schedule/no-shows/:id/resolve` | ✅ Done | Resolve a no-show penalty |
+| `POST` | `/admin/schedule/no-shows/:courierId/:bookingId` | ✅ Done | Mark a courier as no-show |
+
+#### Book Shift Body:
 ```json
 {
-  "slotId": "string",
-  "date": "2026-02-14"
+  "slotId": "uuid",
+  "date": "2026-02-14",
+  "zone": "default"
 }
 ```
 
-**Time Slot Shape:**
+#### Schedule Response Shape:
 ```json
 {
-  "id": "string",
-  "startTime": "12:00 PM",
-  "endTime": "3:00 PM",
-  "demand": "low | medium | high | peak",
-  "spotsLeft": 2,
-  "totalSpots": 15,
-  "estimatedEarnings": 18000,
-  "surgeMultiplier": 1.5,
-  "booked": false
+  "schedule": [
+    {
+      "date": "2026-02-14",
+      "canBook": true,
+      "slots": [
+        {
+          "id": "uuid",
+          "startTime": "12:00 PM",
+          "endTime": "3:00 PM",
+          "demand": "peak",
+          "spotsLeft": 2,
+          "totalSpots": 15,
+          "estimatedEarnings": 18000,
+          "surgeMultiplier": 1.5,
+          "booked": false,
+          "bookingId": null,
+          "canBook": true
+        }
+      ]
+    }
+  ],
+  "tier": "excellent",
+  "bookingWindowDays": 7,
+  "noShowCount": 0,
+  "banned": false,
+  "zone": "default"
 }
 ```
+
+#### Tier System (Glovo-style):
+| Tier | Rating | Deliveries | Booking Window |
+|------|--------|------------|----------------|
+| Excellent | ≥4.8 | ≥200 | 7 days ahead |
+| Good | ≥4.5 | ≥100 | 5 days ahead |
+| Standard | Any | Any | 3 days ahead |
+
+#### No-Show Penalties (escalating):
+| Count (30 days) | Penalty |
+|-----------------|---------|
+| 1st | Warning |
+| 2nd | Reduced priority |
+| 3rd+ | Temporary booking ban |
+
+#### New Prisma Models:
+- `ScheduleSlot` — Global time block config (per zone)
+- `ScheduleZone` — Geographic zones for scheduling
+- `ScheduleNoShow` — No-show penalty tracking
+- `CourierScheduleSlot` — Enhanced with `scheduleSlotId`, `zone`, `status`
+
+#### Key Behaviors:
+- **Auto-approved** — booking is instant if spots available (no admin approval)
+- **Multiple slots per day** — allowed if times don't overlap
+- **Real capacity** — `spotsLeft` computed from DB bookings count
+- **Booked riders get order priority** — `hasActiveShift()` helper for order assignment
+- **Late drop warning** — dropping <2h before shift triggers warning
 
 ### 8.4 Quests & Bonuses
 
