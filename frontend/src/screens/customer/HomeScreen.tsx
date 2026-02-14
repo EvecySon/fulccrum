@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,13 @@ import {
   FlatList,
   Dimensions,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI, addressesAPI, notificationsAPI } from '../../services/api';
+import { withMock, mockSearchBusinesses, mockGetTrending, mockGetNotifications } from '../../services/mockApi';
+import { mockAddresses } from '../../services/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { getActiveCategories } from '../../config/businessCategories';
@@ -33,6 +36,34 @@ const moods = [
 
 const { width } = Dimensions.get('window');
 
+// Helper: check if a business is currently open
+const isBusinessOpen = (restaurant: any) => {
+  if (restaurant.isOpen === false) return false;
+  if (restaurant.isOpen === true) return true;
+  // Check business hours if available
+  if (restaurant.businessHours) {
+    const now = new Date();
+    const day = now.toLocaleDateString('en-US', { weekday: 'lowercase' as any }).toLowerCase();
+    const hours = restaurant.businessHours[day] || restaurant.businessHours;
+    if (hours?.open && hours?.close) {
+      const currentTime = now.getHours() * 100 + now.getMinutes();
+      const openTime = parseInt(hours.open.replace(':', ''));
+      const closeTime = parseInt(hours.close.replace(':', ''));
+      return currentTime >= openTime && currentTime <= closeTime;
+    }
+  }
+  return true; // Default to open if no hours data
+};
+
+// Helper: price range indicator
+const getPriceRange = (restaurant: any) => {
+  if (restaurant.priceRange) return restaurant.priceRange;
+  const avg = restaurant.averagePrice || restaurant.avgPrice || 0;
+  if (avg >= 5000) return '₦₦₦';
+  if (avg >= 2000) return '₦₦';
+  return '₦';
+};
+
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const { itemCount } = useCart();
@@ -41,6 +72,7 @@ export default function HomeScreen({ navigation }: any) {
   const [trendingItems, setTrendingItems] = useState<any[]>([]);
   const [notifCount, setNotifCount] = useState(0);
   const [defaultAddress, setDefaultAddress] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadRestaurants();
@@ -49,9 +81,18 @@ export default function HomeScreen({ navigation }: any) {
     loadNotifCount();
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadRestaurants(), loadTrending(), loadAddress(), loadNotifCount()]);
+    setRefreshing(false);
+  }, []);
+
   const loadAddress = async () => {
     try {
-      const res = await addressesAPI.getAll();
+      const res = await withMock(
+        () => addressesAPI.getAll(),
+        () => mockAddresses
+      );
       const addrs = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       const def = addrs.find((a: any) => a.isDefault) || addrs[0];
       if (def) setDefaultAddress(`${def.streetAddress}${def.city ? `, ${def.city}` : ''}`);
@@ -60,7 +101,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadNotifCount = async () => {
     try {
-      const res = await notificationsAPI.getAll();
+      const res = await withMock(
+        () => notificationsAPI.getAll(),
+        () => mockGetNotifications()
+      );
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setNotifCount(data.filter((n: any) => !n.isRead).length);
     } catch {}
@@ -68,7 +112,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadRestaurants = async () => {
     try {
-      const res = await searchAPI.searchBusinesses('');
+      const res = await withMock(
+        () => searchAPI.searchBusinesses(''),
+        () => mockSearchBusinesses('')
+      );
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setRestaurants(data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load restaurants'); }
@@ -76,7 +123,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadTrending = async () => {
     try {
-      const res = await analyticsAPI.topPerformers('menu_items', 5);
+      const res = await withMock(
+        () => analyticsAPI.topPerformers('menu_items', 5),
+        () => mockGetTrending()
+      );
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setTrendingItems(data);
     } catch { /* trending is optional */ }
@@ -104,47 +154,83 @@ export default function HomeScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
-  const renderRestaurant = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.restaurantCard}
-      onPress={() => navigation.navigate('Restaurant', { restaurant: item })}
-    >
-      <Image source={{ uri: item.image }} style={styles.restaurantImage} />
-      <View style={styles.restaurantInfo}>
-        <View style={styles.restaurantHeader}>
-          <Text style={styles.restaurantName}>{item.name}</Text>
-          <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={14} color={colors.warning} />
-            <Text style={styles.ratingText}>{item.rating}</Text>
-          </View>
+  const renderRestaurant = ({ item }: any) => {
+    const open = isBusinessOpen(item);
+    const priceRange = getPriceRange(item);
+    return (
+      <TouchableOpacity
+        style={[styles.restaurantCard, !open && styles.restaurantCardClosed]}
+        onPress={() => navigation.navigate('Restaurant', { restaurant: item })}
+      >
+        <View>
+          <Image source={{ uri: item.image }} style={[styles.restaurantImage, !open && { opacity: 0.5 }]} />
+          {!open && (
+            <View style={styles.closedOverlay}>
+              <Text style={styles.closedText}>Closed</Text>
+            </View>
+          )}
+          {open && item.deliveryTime && (
+            <View style={styles.etaChip}>
+              <Ionicons name="time" size={12} color={colors.textWhite} />
+              <Text style={styles.etaChipText}>{item.deliveryTime}</Text>
+            </View>
+          )}
         </View>
-        {item.cuisine ? <Text style={styles.cuisineText}>{item.cuisine}</Text> : null}
-        <View style={styles.restaurantMeta}>
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={14} color={colors.textLight} />
-            <Text style={styles.metaText}>{item.deliveryTime}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="bicycle-outline" size={14} color={colors.textLight} />
-            <Text style={styles.metaText}>{item.deliveryFee}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="location-outline" size={14} color={colors.textLight} />
-            <Text style={styles.metaText}>{item.distance}</Text>
-          </View>
-        </View>
-        {(item.tags?.length ?? 0) > 0 && (
-          <View style={styles.tagsRow}>
-            {item.tags.map((tag: string, index: number) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
+        <View style={styles.restaurantInfo}>
+          <View style={styles.restaurantHeader}>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.restaurantName} numberOfLines={1}>{item.name}</Text>
+                {open ? (
+                  <View style={styles.openBadge}><Text style={styles.openBadgeText}>Open</Text></View>
+                ) : (
+                  <View style={styles.closedBadge}><Text style={styles.closedBadgeText}>Closed</Text></View>
+                )}
               </View>
-            ))}
+            </View>
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={14} color={colors.warning} />
+              <Text style={styles.ratingText}>{item.rating}</Text>
+            </View>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+          {item.cuisine ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Text style={styles.cuisineText}>{item.cuisine}</Text>
+              <Text style={styles.priceRangeText}>{priceRange}</Text>
+            </View>
+          ) : null}
+          <View style={styles.restaurantMeta}>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={14} color={colors.textLight} />
+              <Text style={styles.metaText}>{item.deliveryTime || '25-35 min'}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="bicycle-outline" size={14} color={colors.textLight} />
+              <Text style={styles.metaText}>{item.deliveryFee || 'Free'}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="location-outline" size={14} color={colors.textLight} />
+              <Text style={styles.metaText}>{item.distance || '—'}</Text>
+            </View>
+            {item.minimumOrder ? (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaText}>Min ₦{Number(item.minimumOrder).toLocaleString()}</Text>
+              </View>
+            ) : null}
+          </View>
+          {(item.tags?.length ?? 0) > 0 && (
+            <View style={styles.tagsRow}>
+              {item.tags.map((tag: string, index: number) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderTrending = ({ item }: any) => (
     <TouchableOpacity style={styles.trendingCard}>
@@ -207,6 +293,7 @@ export default function HomeScreen({ navigation }: any) {
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />}
       >
         {/* Categories */}
         <FlatList
@@ -543,9 +630,70 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  restaurantCardClosed: {
+    opacity: 0.75,
+  },
   restaurantImage: {
     width: '100%',
     height: 160,
+  },
+  closedOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  closedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textWhite,
+  },
+  etaChip: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  etaChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textWhite,
+  },
+  openBadge: {
+    backgroundColor: colors.success + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  openBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  closedBadge: {
+    backgroundColor: colors.error + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  closedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.error,
+  },
+  priceRangeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.teal,
   },
   restaurantInfo: {
     padding: 14,

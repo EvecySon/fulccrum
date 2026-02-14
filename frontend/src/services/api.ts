@@ -269,6 +269,8 @@ export const ordersAPI = {
     api.get(`/orders/available/deliveries?page=${page}&limit=${limit}`),
   reorder: (orderId: string) => api.post(`/orders/${orderId}/reorder`),
   cancel: (orderId: string, reason?: string) => api.post(`/orders/${orderId}/cancel`, { reason }),
+  addTip: (orderId: string, amount: number) => api.post(`/orders/${orderId}/tip`, { amount }),
+  getReceipt: (orderId: string) => api.get(`/orders/${orderId}/receipt`),
 };
 
 // ─── Menu API ───
@@ -348,6 +350,7 @@ export const reviewsAPI = {
 // ─── Promos API ───
 export const promosAPI = {
   validate: (code: string, orderAmount: number) => api.post('/promos/validate', { code, orderAmount }),
+  getActive: () => api.get('/promos?activeOnly=true'),
   getAll: (page = 1, activeOnly = true) => api.get(`/promos?page=${page}&activeOnly=${activeOnly}`),
   get: (id: string) => api.get(`/promos/${id}`),
   getStats: (id: string) => api.get(`/promos/${id}/stats`),

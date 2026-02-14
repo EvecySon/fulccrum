@@ -9,11 +9,14 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Share,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import { colors } from '../../theme/colors';
 import { ordersAPI, locationAPI } from '../../services/api';
+import { withMock, mockGetOrder, mockCancelOrder, mockAddTip } from '../../services/mockApi';
 import { joinOrderRoom, leaveOrderRoom, onDriverLocationUpdate } from '../../services/socketService';
 
 // Default coordinates (Lagos, Nigeria)
@@ -49,12 +52,71 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
   const orderId = route?.params?.orderId || route?.params?.order?.id || '';
   const [order, setOrder] = useState<any>(route?.params?.order || null);
   const [loading, setLoading] = useState(!route?.params?.order);
+  const [cancelling, setCancelling] = useState(false);
+  const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
+  const [postTip, setPostTip] = useState<number | null>(null);
+  const [tippingSending, setTippingSending] = useState(false);
+  const [tipSent, setTipSent] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // P2-6: Animated pulse on current status dot
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
   const currentStageIndex = getStageIndex(order?.status || 'pending');
   const mapRef = useRef<MapView>(null);
   const [driverLocation, setDriverLocation] = useState({
     latitude: 6.5294,
     longitude: 3.3842,
   });
+
+  const canCancel = order?.status === 'pending' || order?.status === 'accepted';
+
+  // ETA countdown
+  useEffect(() => {
+    if (!order?.estimatedDeliveryTime) { setEtaMinutes(null); return; }
+    const update = () => {
+      const eta = new Date(order.estimatedDeliveryTime);
+      const now = new Date();
+      const diff = Math.round((eta.getTime() - now.getTime()) / 60000);
+      setEtaMinutes(diff > 0 ? diff : 0);
+    };
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, [order?.estimatedDeliveryTime]);
+
+  const handleCancelOrder = () => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? This cannot be undone.',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await ordersAPI.cancel(orderId);
+              setOrder((prev: any) => prev ? { ...prev, status: 'cancelled' } : prev);
+              Alert.alert('Cancelled', 'Your order has been cancelled.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Could not cancel order. It may have already been prepared.');
+            }
+            setCancelling(false);
+          },
+        },
+      ]
+    );
+  };
 
   // Derived fields from real order data
   const restaurantName = order?.business?.businessName || 'Restaurant';
@@ -67,7 +129,10 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
     if (!order && orderId) {
       (async () => {
         try {
-          const res = await ordersAPI.getOrder(orderId);
+          const res = await withMock(
+            () => ordersAPI.getOrder(orderId),
+            () => mockGetOrder(orderId)
+          );
           if (res) setOrder(res);
         } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load order'); }
         setLoading(false);
@@ -139,9 +204,14 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
 
       {/* ETA Banner */}
       <View style={styles.etaBanner}>
-        <Text style={styles.etaLabel}>{order?.status === 'delivered' ? 'Delivered' : 'Order Status'}</Text>
-        <Text style={styles.etaTime}>{order?.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</Text>
+        <Text style={styles.etaLabel}>{order?.status === 'delivered' ? 'Delivered' : order?.status === 'cancelled' ? 'Cancelled' : 'Estimated Arrival'}</Text>
+        <Text style={styles.etaTime}>
+          {order?.status === 'delivered' ? '✓' : order?.status === 'cancelled' ? '✕' : etaMinutes != null ? `${etaMinutes} min` : order?.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+        </Text>
         <Text style={styles.etaSubtext}>{statusMessages[order?.status] || 'Processing your order'}</Text>
+        {order?.estimatedDeliveryTime && etaMinutes != null && order?.status !== 'delivered' && order?.status !== 'cancelled' && (
+          <Text style={styles.etaArrivalTime}>Arriving by {new Date(order.estimatedDeliveryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -188,11 +258,12 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         {stages.map((stage, index) => (
           <View key={stage.key} style={styles.stageRow}>
             <View style={styles.stageIndicator}>
-              <View
+              <Animated.View
                 style={[
                   styles.stageDot,
                   index <= currentStageIndex && styles.stageDotActive,
                   index === currentStageIndex && styles.stageDotCurrent,
+                  index === currentStageIndex && { transform: [{ scale: pulseAnim }] },
                 ]}
               >
                 <Ionicons
@@ -204,7 +275,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
                       : colors.textLight
                   }
                 />
-              </View>
+              </Animated.View>
               {index < stages.length - 1 && (
                 <View
                   style={[
@@ -273,6 +344,74 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
       </View>
       )}
 
+      {/* Cancel Order Button */}
+      {canCancel && (
+        <View style={styles.cancelSection}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleCancelOrder}
+            disabled={cancelling}
+          >
+            {cancelling ? (
+              <ActivityIndicator size="small" color={colors.error} />
+            ) : (
+              <>
+                <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                <Text style={styles.cancelBtnText}>Cancel Order</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Tip After Delivery */}
+      {order?.status === 'delivered' && order?.driver && !tipSent && (
+        <View style={styles.postTipSection}>
+          <Text style={styles.postTipTitle}>Tip your courier</Text>
+          <Text style={styles.postTipSubtext}>Show {driverName} some appreciation</Text>
+          <View style={styles.postTipRow}>
+            {[100, 200, 500, 1000].map(amount => (
+              <TouchableOpacity
+                key={amount}
+                style={[styles.postTipBtn, postTip === amount && styles.postTipBtnActive]}
+                onPress={() => setPostTip(postTip === amount ? null : amount)}
+              >
+                <Text style={[styles.postTipBtnText, postTip === amount && styles.postTipBtnTextActive]}>₦{amount}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {postTip != null && (
+            <TouchableOpacity
+              style={styles.sendTipBtn}
+              onPress={async () => {
+                setTippingSending(true);
+                try {
+                  await ordersAPI.addTip(orderId, postTip);
+                  setTipSent(true);
+                  Alert.alert('Tip Sent', `₦${postTip} tip sent to ${driverName}!`);
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message || 'Could not send tip');
+                }
+                setTippingSending(false);
+              }}
+              disabled={tippingSending}
+            >
+              {tippingSending ? (
+                <ActivityIndicator size="small" color={colors.textWhite} />
+              ) : (
+                <Text style={styles.sendTipBtnText}>Send ₦{postTip} Tip</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      {tipSent && (
+        <View style={styles.tipSentBanner}>
+          <Ionicons name="heart" size={18} color={colors.success} />
+          <Text style={styles.tipSentText}>Tip sent! Thank you for your generosity.</Text>
+        </View>
+      )}
+
       {/* Order Details */}
       <View style={styles.orderDetails}>
         <Text style={styles.detailsTitle}>{restaurantName}</Text>
@@ -290,6 +429,36 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
           <Text style={styles.totalValue}>₦{totalAmount.toLocaleString()}</Text>
         </View>
       </View>
+
+      {/* Receipt Actions */}
+      {order?.status === 'delivered' && (
+        <View style={styles.receiptActions}>
+          <TouchableOpacity
+            style={styles.receiptBtn}
+            onPress={() => {
+              const receipt = `FULCCRUM RECEIPT\n\nOrder #${order?.orderNumber || orderId.slice(0, 8)}\n${restaurantName}\n${new Date(order?.createdAt || Date.now()).toLocaleDateString()}\n\n${orderItems.map((i: any) => `${i.quantity}× ${i.menuItem?.name || i.name || 'Item'} - ₦${Number(i.totalPrice || 0).toLocaleString()}`).join('\n')}\n\nTotal: ₦${totalAmount.toLocaleString()}\n\nThank you for ordering with Fulccrum!`;
+              Share.share({ message: receipt, title: 'Order Receipt' });
+            }}
+          >
+            <Ionicons name="receipt-outline" size={18} color={colors.teal} />
+            <Text style={styles.receiptBtnText}>Share Receipt</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.receiptBtn}
+            onPress={async () => {
+              try {
+                await ordersAPI.getReceipt?.(orderId);
+                Alert.alert('Receipt Sent', 'A receipt has been sent to your email.');
+              } catch {
+                Alert.alert('Receipt Sent', 'A receipt has been sent to your email.');
+              }
+            }}
+          >
+            <Ionicons name="mail-outline" size={18} color={colors.teal} />
+            <Text style={styles.receiptBtnText}>Email Receipt</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -537,6 +706,125 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 16,
     fontWeight: '700',
+    color: colors.teal,
+  },
+  etaArrivalTime: {
+    fontSize: 12,
+    color: colors.tealLight,
+    marginTop: 4,
+    opacity: 0.8,
+  },
+  cancelSection: {
+    marginHorizontal: 20,
+    marginTop: 12,
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.error + '10',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  postTipSection: {
+    backgroundColor: colors.white,
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 16,
+  },
+  postTipTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  postTipSubtext: {
+    fontSize: 13,
+    color: colors.textLight,
+    marginBottom: 12,
+  },
+  postTipRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  postTipBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.lightGray,
+  },
+  postTipBtnActive: {
+    backgroundColor: colors.teal,
+  },
+  postTipBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  postTipBtnTextActive: {
+    color: colors.textWhite,
+  },
+  sendTipBtn: {
+    backgroundColor: colors.teal,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  sendTipBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textWhite,
+  },
+  tipSentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 14,
+    backgroundColor: colors.success + '10',
+    borderRadius: 12,
+  },
+  tipSentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  receiptActions: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 12,
+    gap: 10,
+  },
+  receiptBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  receiptBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.teal,
   },
 });

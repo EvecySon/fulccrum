@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, usersAPI, notificationsAPI, saveTokens, loadTokens, clearTokens } from '../services/api';
 import { Platform } from 'react-native';
+import { USE_MOCK } from '../services/mockApi';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -56,6 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { access, refresh } = await loadTokens();
       if (!access) {
         console.log('[Auth] No stored token found');
+        if (USE_MOCK) {
+          console.log('[Auth] Mock mode — auto-login as test customer');
+          setUser({
+            id: 'mock-user-1',
+            email: 'ada@test.com',
+            firstName: 'Ada',
+            lastName: 'Okafor',
+            phone: '+234 801 234 5678',
+            role: 'customer',
+            avatarUrl: undefined,
+          });
+        }
         return;
       }
       console.log('[Auth] Token loaded, restoring session...');
@@ -91,13 +104,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[Auth] Session restored for', profile?.email);
       } catch (profileErr: any) {
         console.log('[Auth] getProfile failed, status:', profileErr?.status);
-        // If 401, the request() wrapper already tried refresh token.
-        // Only clear tokens if we truly can't recover.
-        if (profileErr?.status === 401) {
+        if (USE_MOCK && !profileErr?.status) {
+          // Backend unreachable in dev — use mock user
+          console.log('[Auth] Using mock user for testing');
+          setUser({
+            id: 'mock-user-1',
+            email: 'ada@test.com',
+            firstName: 'Ada',
+            lastName: 'Okafor',
+            phone: '+234 801 234 5678',
+            role: 'customer',
+            avatarUrl: undefined,
+          });
+        } else if (profileErr?.status === 401) {
           console.log('[Auth] Token expired and refresh failed, clearing');
           await clearTokens();
         }
-        // For other errors (network, 500, etc.) don't clear — keep tokens for retry
       }
     } catch (error) {
       console.log('[Auth] checkAuth error:', error);

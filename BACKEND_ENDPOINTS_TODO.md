@@ -4,6 +4,7 @@
 > This document lists every backend API endpoint the frontend expects. Endpoints marked ✅ already exist in the backend. Endpoints marked 🔧 have stub implementations (need real logic). Endpoints marked ❌ are completely new and need to be built from scratch.
 >
 > **Recent changes (Feb 13-14):** Scheduling system fully implemented (Glovo parity), admin Schedule Management screen built, courier booking flow working end-to-end, DB schema migrated with `ScheduleSlot`, `ScheduleZone`, `ScheduleNoShow` models.
+> **Customer App Sprint (Feb 14):** 30 features implemented (8 P0, 11 P1, 11 P2). New Section 10 added with 6 new/enhanced backend endpoints needed. New screens: DealsScreen, OnboardingScreen. New components: SkeletonLoader, haptics utility. Enhanced: CartScreen (pickup, scheduling, delivery instructions, address picker, map preview), OrderTrackingScreen (cancel, ETA countdown, tip, receipt, animated status), HomeScreen (open/closed, price range, pull-to-refresh), SearchScreen (sort, dietary filters, free delivery), RestaurantScreen (info panel, popular items, quick add, share).
 
 ---
 
@@ -1047,3 +1048,189 @@ model VerificationAttempt {
 | Selfie Verification | `screens/courier/SelfieVerificationScreen.tsx` | `courierVerificationAPI` |
 | Heat Map (with map overlays) | `screens/courier/HeatMapScreen.tsx` | `courierSurgeAPI` |
 | Dashboard (auto-nav + live earnings) | `screens/courier/DashboardScreen.tsx` | `analyticsAPI`, `courierOrdersAPI` |
+
+---
+
+## 10. Customer App — New Backend Endpoints Required
+
+> **Added: Feb 14, 2026**
+> These endpoints are required by the new customer app features implemented in this sprint (P0/P1/P2 feature parity with Uber Eats / Glovo).
+
+---
+
+### 10.1 Scheduled / Future Orders
+
+The frontend sends `scheduledFor` (ISO datetime string) in the order creation payload. The backend needs to:
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders` | 🔧 Enhance | Accept optional `scheduledFor` field. If present, set order status to `scheduled` instead of `pending`. Trigger preparation workflow at the right time. |
+
+**Order payload additions:**
+```json
+{
+  "scheduledFor": "2026-02-15T18:30:00",
+  "fulfillmentType": "delivery" | "pickup",
+  "deliveryOption": "hand_to_customer" | "leave_at_door" | "meet_outside",
+  "deliveryNote": "Gate code 1234"
+}
+```
+
+**Prisma schema changes needed:**
+```prisma
+// Add to Order model:
+scheduledFor     DateTime?
+fulfillmentType  String    @default("delivery") // "delivery" | "pickup"
+deliveryOption   String?   // "hand_to_customer" | "leave_at_door" | "meet_outside"
+deliveryNote     String?
+```
+
+---
+
+### 10.2 Order Cancellation
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/cancel` | ✅ Exists | Cancel an order. Should only work for `pending` or `accepted` status. Body: `{ reason?: string }` |
+
+**Backend logic needed:** Validate that order is in `pending` or `accepted` status. Refund payment if already charged. Notify restaurant and courier (if assigned). Set status to `cancelled`.
+
+---
+
+### 10.3 Post-Delivery Tipping
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/tip` | ❌ New | Add a tip after delivery. Body: `{ amount: number }`. Should credit the courier's wallet. |
+
+**Backend logic:** Validate order is `delivered`. Validate tip amount > 0. Debit customer wallet/card. Credit courier wallet. Create transaction records. Send notification to courier.
+
+---
+
+### 10.4 Order Receipt / Invoice
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/orders/:orderId/receipt` | ❌ New | Generate and return order receipt data (or send via email). Returns JSON with full order breakdown. |
+
+**Response shape:**
+```json
+{
+  "orderNumber": "ABC123",
+  "restaurant": "Restaurant Name",
+  "items": [{ "name": "Item", "quantity": 2, "price": 1500 }],
+  "subtotal": 3000,
+  "deliveryFee": 500,
+  "serviceFee": 150,
+  "tax": 200,
+  "tip": 100,
+  "discount": 0,
+  "total": 3950,
+  "paymentMethod": "wallet",
+  "deliveredAt": "2026-02-14T19:30:00Z",
+  "deliveryAddress": "123 Main St, Lagos"
+}
+```
+
+---
+
+### 10.5 Active Promos for Customer
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/promos?activeOnly=true` | ✅ Exists | Get all active promos. Used by Deals screen. |
+
+No new endpoint needed — existing `promosAPI.getAll(1, true)` works.
+
+---
+
+### 10.6 Business Hours & Open/Closed Status
+
+The frontend checks `isOpen` and `businessHours` fields on restaurant objects. The backend needs to:
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/search/businesses` | 🔧 Enhance | Include `isOpen` (boolean), `businessHours` (JSON), `minimumOrder` (number), `priceRange` (string), `deliveryTime` (string) in response. |
+
+**Prisma schema additions (Business model):**
+```prisma
+// Add to Business model if not present:
+isOpen          Boolean   @default(true)
+businessHours   Json?     // { "monday": { "open": "08:00", "close": "22:00" }, ... }
+minimumOrder    Float?
+priceRange      String?   // "₦", "₦₦", "₦₦₦"
+estimatedDeliveryTime String? // "25-35 min"
+```
+
+---
+
+### 10.7 Pickup Orders
+
+The frontend sends `fulfillmentType: "pickup"` in the order payload. Backend needs to:
+
+- Accept `fulfillmentType` field (`delivery` | `pickup`)
+- Skip driver assignment for pickup orders
+- Set `deliveryFee` to 0 for pickup
+- Skip delivery address validation for pickup
+- Different status flow: `pending` → `accepted` → `preparing` → `ready_for_pickup` → `picked_up`
+
+**New OrderStatus enum values needed:**
+```prisma
+enum OrderStatus {
+  // existing...
+  ready_for_pickup
+  picked_up
+}
+```
+
+---
+
+### 10.8 Delivery Instructions
+
+Already handled by the enhanced order creation payload (Section 10.1). The `deliveryOption` and `deliveryNote` fields are sent with the order. Backend needs to:
+
+- Store these fields on the Order model
+- Pass them to the courier in the order details
+- Display in courier's ActiveDeliveryScreen
+
+---
+
+### 10.9 Reorder
+
+| Method | Endpoint | Status | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/orders/:orderId/reorder` | ✅ Exists | Clone a past order's items into a new order. Should check item availability. |
+
+---
+
+### 10.10 Summary — New Endpoints to Build
+
+| Priority | Endpoint | Controller | Service Method |
+|----------|----------|------------|----------------|
+| **P0** | `POST /orders/:id/tip` | `orders.controller.ts` | `ordersService.addTip(orderId, customerId, amount)` |
+| **P0** | Enhance `POST /orders` | `orders.controller.ts` | Accept `scheduledFor`, `fulfillmentType`, `deliveryOption`, `deliveryNote` |
+| **P0** | Enhance `GET /search/businesses` | `search.controller.ts` | Return `isOpen`, `businessHours`, `minimumOrder`, `priceRange`, `deliveryTime` |
+| **P1** | `GET /orders/:id/receipt` | `orders.controller.ts` | `ordersService.getReceipt(orderId)` |
+| **P1** | Pickup order flow | `orders.service.ts` | Handle `fulfillmentType: 'pickup'` — skip driver, different status flow |
+| **P2** | Scheduled order cron | `orders.service.ts` | Process scheduled orders at their `scheduledFor` time |
+
+### 10.11 Frontend Files Reference
+
+| Screen / Component | File | API Client |
+|---------------------|------|------------|
+| Cart (checkout) | `screens/customer/CartScreen.tsx` | `ordersAPI`, `addressesAPI`, `feesAPI`, `promosAPI` |
+| Order Tracking | `screens/customer/OrderTrackingScreen.tsx` | `ordersAPI`, `locationAPI` |
+| Home (restaurant cards) | `screens/customer/HomeScreen.tsx` | `searchAPI`, `analyticsAPI` |
+| Search (filters/sort) | `screens/customer/SearchScreen.tsx` | `searchAPI` |
+| Restaurant (info/menu) | `screens/customer/RestaurantScreen.tsx` | `menuAPI` |
+| Menu Item (suggestions) | `screens/customer/MenuItemScreen.tsx` | `menuAPI` |
+| Deals & Offers | `screens/customer/DealsScreen.tsx` | `promosAPI`, `searchAPI` |
+| Onboarding | `screens/customer/OnboardingScreen.tsx` | — (local only) |
+| Feedback (photo reviews) | `screens/customer/FeedbackScreen.tsx` | `reviewsAPI`, `ordersAPI` |
+
+### 10.12 New Utility Files Created
+
+| File | Purpose |
+|------|---------|
+| `components/SkeletonLoader.tsx` | Reusable skeleton loading components (restaurant cards, menu items, orders) |
+| `utils/haptics.ts` | Cross-platform haptic feedback utility (wraps expo-haptics) |

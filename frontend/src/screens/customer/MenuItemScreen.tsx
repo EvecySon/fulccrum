@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
+import { withMock, mockGetModifiers, mockGetMenuItems } from '../../services/mockApi';
 import ReportContentModal from '../../components/ReportContentModal';
 
 
@@ -22,14 +23,30 @@ export default function MenuItemScreen({ route, navigation }: any) {
   const [showReport, setShowReport] = useState(false);
   const [selectedCustomizations, setSelectedCustomizations] = useState<string[]>([]);
   const [modifierGroups, setModifierGroups] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await menuAPI.getModifiers(restaurant?.id || 'me');
+        const res = await withMock(
+          () => menuAPI.getModifiers(restaurant?.id || 'me'),
+          () => mockGetModifiers()
+        );
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setModifierGroups(data);
       } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load modifiers'); }
+    })();
+    // Load frequently ordered together suggestions
+    (async () => {
+      try {
+        const res = await withMock(
+          () => menuAPI.getItems(restaurant?.id),
+          () => mockGetMenuItems(restaurant?.id)
+        );
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const others = data.filter((i: any) => i.id !== item.id).slice(0, 4);
+        setSuggestions(others);
+      } catch {}
     })();
   }, [restaurant?.id]);
 
@@ -229,6 +246,26 @@ export default function MenuItemScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Frequently Ordered Together */}
+        {suggestions.length > 0 && (
+          <View style={styles.suggestionsSection}>
+            <Text style={styles.sectionTitle}>Frequently Ordered Together</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
+              {suggestions.map((s: any) => (
+                <TouchableOpacity
+                  key={s.id}
+                  style={styles.suggestionCard}
+                  onPress={() => navigation.push('MenuItem', { item: s, restaurant })}
+                >
+                  <Image source={{ uri: s.image }} style={styles.suggestionImage} />
+                  <Text style={styles.suggestionName} numberOfLines={1}>{s.name}</Text>
+                  <Text style={styles.suggestionPrice}>₦{s.price?.toFixed(0)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={{ height: 120 }} />
       </ScrollView>
 
@@ -374,6 +411,36 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     gap: 20,
+  },
+  suggestionsSection: {
+    backgroundColor: colors.white,
+    padding: 16,
+    marginTop: 8,
+  },
+  suggestionCard: {
+    width: 110,
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  suggestionImage: {
+    width: '100%',
+    height: 70,
+  },
+  suggestionName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+  },
+  suggestionPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.teal,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    marginTop: 2,
   },
   metaItem: {
     flexDirection: 'row',
