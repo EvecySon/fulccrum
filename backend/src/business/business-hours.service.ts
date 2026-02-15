@@ -24,7 +24,6 @@ export class BusinessHoursService {
       const businesses = await this.prisma.businessProfile.findMany({
         where: {
           verificationStatus: 'approved',
-          businessHours: { not: null },
         },
         select: {
           userId: true,
@@ -66,7 +65,7 @@ export class BusinessHoursService {
     }
 
     const now = new Date();
-    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'lowercase' }) as keyof BusinessHours;
+    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof BusinessHours;
     const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
 
     const todayHours = businessHours[dayOfWeek];
