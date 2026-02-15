@@ -299,7 +299,7 @@ export class OrderService {
         items: order.items.length,
         rating: order.review?.rating || 0,
         pickupAddress: order.business.address || '',
-        dropoffAddress: order.deliveryAddress?.street || '',
+        dropoffAddress: order.deliveryAddress?.streetAddress || '',
       };
     });
   }
@@ -356,7 +356,7 @@ export class OrderService {
           longitude: order.deliveryAddress?.longitude || 0,
         },
         pickupAddress: order.business.address || '',
-        dropoffAddress: order.deliveryAddress?.street || '',
+        dropoffAddress: order.deliveryAddress?.streetAddress || '',
       };
     });
   }

@@ -92,14 +92,7 @@ export class VerificationService {
   }
 
   async getVerificationRequirements(courierId: string) {
-    const [user, documents, latestSelfie] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: courierId },
-        select: {
-          backgroundCheckStatus: true,
-          backgroundCheckDate: true,
-        },
-      }),
+    const [documents, latestSelfie] = await Promise.all([
       this.prisma.document.findMany({
         where: { userId: courierId },
         select: {
@@ -138,20 +131,8 @@ export class VerificationService {
       }
     }
 
-    // Check background check
-    if (!user?.backgroundCheckStatus || user.backgroundCheckStatus === 'pending') {
-      requirements.push({
-        type: 'background_check',
-        status: 'pending',
-        message: 'Background check in progress',
-      });
-    } else if (user.backgroundCheckStatus === 'failed') {
-      requirements.push({
-        type: 'background_check',
-        status: 'failed',
-        message: 'Background check failed - contact support',
-      });
-    }
+    // Background check status would go here when schema is updated
+    // Placeholder for future implementation
 
     // Check document expiration
     for (const doc of documents) {
