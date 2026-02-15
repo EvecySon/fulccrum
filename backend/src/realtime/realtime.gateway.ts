@@ -100,6 +100,13 @@ export class RealtimeGateway {
     });
   }
 
+  emitToUser(userId: string, event: string, data: any) {
+    this.server.to(`user:${userId}`).emit(event, {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   emitLocationUpdate(orderId: string, driverId: string, location: { latitude: number; longitude: number }) {
     this.server.to(`order:${orderId}`).emit('location:update', {
       orderId,
@@ -112,13 +119,6 @@ export class RealtimeGateway {
   emitNotification(userId: string, notification: any) {
     this.server.to(`user:${userId}`).emit('notification', {
       ...notification,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  emitToUser(userId: string, event: string, data: any) {
-    this.server.to(`user:${userId}`).emit(event, {
-      ...data,
       timestamp: new Date().toISOString(),
     });
   }
