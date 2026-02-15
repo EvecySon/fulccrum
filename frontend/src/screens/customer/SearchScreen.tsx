@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { withMock, mockSearchBusinesses, mockGetPopularSearches } from '../../services/mockApi';
+import { withMock, mockSearchBusinesses, mockGetPopularSearches, normalizeRestaurants } from '../../services/mockApi';
 
 const SORT_OPTIONS = [
   { key: 'relevance', label: 'Relevance', icon: 'sparkles' },
@@ -95,7 +95,7 @@ export default function SearchScreen({ navigation }: any) {
           () => mockSearchBusinesses(text)
         );
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setResults(data);
+        setResults(normalizeRestaurants(data));
       } catch (e: any) {
         Alert.alert('Error', e?.message || 'Something went wrong');
         setResults([]);

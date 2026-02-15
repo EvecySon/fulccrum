@@ -116,6 +116,13 @@ export class RealtimeGateway {
     });
   }
 
+  emitToUser(userId: string, event: string, data: any) {
+    this.server.to(`user:${userId}`).emit(event, {
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   emitToRole(role: string, event: string, data: any) {
     this.server.to(`role:${role}`).emit(event, {
       ...data,

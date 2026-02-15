@@ -92,14 +92,7 @@ export class VerificationService {
   }
 
   async getVerificationRequirements(courierId: string) {
-    const [user, documents, latestSelfie] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: courierId },
-        select: {
-          backgroundCheckStatus: true,
-          backgroundCheckDate: true,
-        },
-      }),
+    const [documents, latestSelfie] = await Promise.all([
       this.prisma.document.findMany({
         where: { userId: courierId },
         select: {
@@ -138,18 +131,19 @@ export class VerificationService {
       }
     }
 
-    // Check background check
-    if (!user?.backgroundCheckStatus || user.backgroundCheckStatus === 'pending') {
+    // Check national ID verification as background check proxy
+    const bgDoc = documents.find(d => d.type === 'national_id');
+    if (!bgDoc || bgDoc.status === 'uploaded') {
       requirements.push({
         type: 'background_check',
         status: 'pending',
-        message: 'Background check in progress',
+        message: 'ID verification in progress',
       });
-    } else if (user.backgroundCheckStatus === 'failed') {
+    } else if (bgDoc.status === 'rejected') {
       requirements.push({
         type: 'background_check',
         status: 'failed',
-        message: 'Background check failed - contact support',
+        message: 'ID verification failed - contact support',
       });
     }
 

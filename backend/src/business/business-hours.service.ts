@@ -2,16 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface BusinessHours {
-  monday?: { open: string; close: string; closed?: boolean };
-  tuesday?: { open: string; close: string; closed?: boolean };
-  wednesday?: { open: string; close: string; closed?: boolean };
-  thursday?: { open: string; close: string; closed?: boolean };
-  friday?: { open: string; close: string; closed?: boolean };
-  saturday?: { open: string; close: string; closed?: boolean };
-  sunday?: { open: string; close: string; closed?: boolean };
-}
-
 @Injectable()
 export class BusinessHoursService {
   private readonly logger = new Logger(BusinessHoursService.name);
@@ -24,7 +14,7 @@ export class BusinessHoursService {
       const businesses = await this.prisma.businessProfile.findMany({
         where: {
           verificationStatus: 'approved',
-          businessHours: { not: null },
+          businessHours: { some: {} },
         },
         select: {
           userId: true,
@@ -37,14 +27,14 @@ export class BusinessHoursService {
       let updatedCount = 0;
 
       for (const business of businesses) {
-        const shouldBeOpen = this.isBusinessOpen(business.businessHours as any);
-        
+        const shouldBeOpen = this.isOpenNow(business.businessHours);
+
         if (business.isOpen !== shouldBeOpen) {
           await this.prisma.businessProfile.update({
             where: { userId: business.userId },
             data: { isOpen: shouldBeOpen },
           });
-          
+
           updatedCount++;
           this.logger.log(
             `Updated ${business.businessName} status to ${shouldBeOpen ? 'OPEN' : 'CLOSED'}`,
@@ -60,41 +50,43 @@ export class BusinessHoursService {
     }
   }
 
-  isBusinessOpen(businessHours: BusinessHours | null): boolean {
-    if (!businessHours) {
-      return true; // Default to open if no hours specified
-    }
+  /** Check if a business is open right now based on its BusinessHours rows */
+  isOpenNow(hours: { dayOfWeek: number; openingTime: string; closingTime: string; isClosed: boolean }[]): boolean {
+    if (!hours || hours.length === 0) return true; // Default open if no hours set
 
     const now = new Date();
-    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'lowercase' }) as keyof BusinessHours;
-    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+    const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM
 
-    const todayHours = businessHours[dayOfWeek];
+    const todayHours = hours.find(h => h.dayOfWeek === dayOfWeek);
+    if (!todayHours || todayHours.isClosed) return false;
 
-    if (!todayHours || todayHours.closed) {
-      return false;
-    }
-
-    const { open, close } = todayHours;
+    const { openingTime, closingTime } = todayHours;
 
     // Handle cases where closing time is past midnight
-    if (close < open) {
-      return currentTime >= open || currentTime < close;
+    if (closingTime < openingTime) {
+      return currentTime >= openingTime || currentTime < closingTime;
     }
 
-    return currentTime >= open && currentTime < close;
+    return currentTime >= openingTime && currentTime < closingTime;
   }
 
-  async setBusinessHours(businessId: string, hours: BusinessHours) {
-    const business = await this.prisma.businessProfile.update({
-      where: { userId: businessId },
-      data: {
-        businessHours: hours as any,
-        isOpen: this.isBusinessOpen(hours),
-      },
-    });
+  async setBusinessHours(businessId: string, hoursData: { dayOfWeek: number; openingTime: string; closingTime: string; isClosed?: boolean }[]) {
+    // Upsert each day
+    for (const day of hoursData) {
+      await this.prisma.businessHours.upsert({
+        where: { businessId_dayOfWeek: { businessId, dayOfWeek: day.dayOfWeek } },
+        update: { openingTime: day.openingTime, closingTime: day.closingTime, isClosed: day.isClosed ?? false },
+        create: { businessId, dayOfWeek: day.dayOfWeek, openingTime: day.openingTime, closingTime: day.closingTime, isClosed: day.isClosed ?? false },
+      });
+    }
 
-    return business;
+    // Refresh open status
+    const allHours = await this.prisma.businessHours.findMany({ where: { businessId } });
+    const isOpen = this.isOpenNow(allHours);
+    await this.prisma.businessProfile.update({ where: { userId: businessId }, data: { isOpen } });
+
+    return allHours;
   }
 
   async toggleBusinessOpen(businessId: string, isOpen: boolean) {
@@ -105,20 +97,21 @@ export class BusinessHoursService {
   }
 
   async getBusinessHours(businessId: string) {
-    const business = await this.prisma.businessProfile.findUnique({
-      where: { userId: businessId },
-      select: {
-        businessHours: true,
-        isOpen: true,
-      },
-    });
+    const [hours, business] = await Promise.all([
+      this.prisma.businessHours.findMany({
+        where: { businessId },
+        orderBy: { dayOfWeek: 'asc' },
+      }),
+      this.prisma.businessProfile.findUnique({
+        where: { userId: businessId },
+        select: { isOpen: true },
+      }),
+    ]);
 
     return {
-      hours: business?.businessHours as BusinessHours,
+      hours,
       isOpen: business?.isOpen ?? true,
-      currentStatus: business?.businessHours 
-        ? this.isBusinessOpen(business.businessHours as any)
-        : true,
+      currentStatus: this.isOpenNow(hours),
     };
   }
 }

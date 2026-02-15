@@ -17,7 +17,7 @@ import { menuAPI } from '../../services/api';
 import ReportContentModal from '../../components/ReportContentModal';
 import { useCart } from '../../contexts/CartContext';
 import { hapticImpact } from '../../utils/haptics';
-import { withMock, mockGetMenuItems } from '../../services/mockApi';
+import { withMock, mockGetMenuItems, normalizeMenuItems } from '../../services/mockApi';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
@@ -25,7 +25,7 @@ export default function RestaurantScreen({ route, navigation }: any) {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const { addItem, items, updateQuantity, removeItem } = useCart();
+  const { addItem, items, updateQuantity, removeItem, itemCount, subtotal } = useCart();
 
   const getItemQty = (menuItemId: string) => {
     const found = items.find(i => i.menuItemId === menuItemId);
@@ -58,7 +58,7 @@ export default function RestaurantScreen({ route, navigation }: any) {
           () => mockGetMenuItems(restaurant.id)
         );
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setMenuItems(data);
+        setMenuItems(normalizeMenuItems(data));
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, [restaurant.id]);
@@ -287,6 +287,21 @@ export default function RestaurantScreen({ route, navigation }: any) {
         resourceId={restaurant.id}
         resourceName={restaurant.name}
       />
+
+      {/* Floating Cart Bar */}
+      {itemCount > 0 && (
+        <TouchableOpacity
+          style={styles.floatingCartBar}
+          onPress={() => navigation.navigate('Cart')}
+          activeOpacity={0.9}
+        >
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{itemCount}</Text>
+          </View>
+          <Text style={styles.cartBarText}>View Cart</Text>
+          <Text style={styles.cartBarPrice}>₦{subtotal.toLocaleString()}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -626,5 +641,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 8,
     marginTop: 2,
+  },
+  floatingCartBar: {
+    position: 'absolute',
+    bottom: 24,
+    left: 20,
+    right: 20,
+    backgroundColor: colors.teal,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  cartBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 10,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cartBarText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cartBarPrice: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

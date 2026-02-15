@@ -255,6 +255,7 @@ export class OrderService {
         },
         items: true,
         review: true,
+        deliveryAddress: true,
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -299,7 +300,7 @@ export class OrderService {
         items: order.items.length,
         rating: order.review?.rating || 0,
         pickupAddress: order.business.address || '',
-        dropoffAddress: order.deliveryAddress?.street || '',
+        dropoffAddress: order.deliveryAddress?.streetAddress || '',
       };
     });
   }
@@ -348,15 +349,15 @@ export class OrderService {
         items: order.items.length,
         isActive: index === 0,
         pickupCoords: {
-          latitude: order.business.latitude || 0,
-          longitude: order.business.longitude || 0,
+          latitude: 0,
+          longitude: 0,
         },
         dropoffCoords: {
-          latitude: order.deliveryAddress?.latitude || 0,
-          longitude: order.deliveryAddress?.longitude || 0,
+          latitude: Number(order.deliveryAddress?.latitude || 0),
+          longitude: Number(order.deliveryAddress?.longitude || 0),
         },
         pickupAddress: order.business.address || '',
-        dropoffAddress: order.deliveryAddress?.street || '',
+        dropoffAddress: order.deliveryAddress?.streetAddress || '',
       };
     });
   }

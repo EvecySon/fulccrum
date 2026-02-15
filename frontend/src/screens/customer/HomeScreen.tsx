@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI, addressesAPI, notificationsAPI } from '../../services/api';
-import { withMock, mockSearchBusinesses, mockGetTrending, mockGetNotifications } from '../../services/mockApi';
+import { withMock, mockSearchBusinesses, mockGetTrending, mockGetNotifications, normalizeRestaurants } from '../../services/mockApi';
 import { mockAddresses } from '../../services/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -117,7 +117,7 @@ export default function HomeScreen({ navigation }: any) {
         () => mockSearchBusinesses('')
       );
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      setRestaurants(data);
+      setRestaurants(normalizeRestaurants(data));
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load restaurants'); }
   };
 

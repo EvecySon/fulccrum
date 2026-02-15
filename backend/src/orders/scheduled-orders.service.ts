@@ -89,7 +89,6 @@ export class ScheduledOrdersService {
           where: { id: order.id },
           data: {
             status: 'cancelled',
-            cancelledAt: now,
           },
         });
 
