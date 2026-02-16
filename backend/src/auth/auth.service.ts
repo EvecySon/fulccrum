@@ -147,7 +147,7 @@ export class AuthService {
         resource: 'auth',
         status: 'failure',
         ipAddress,
-        metadata: { email: dto.email, reason: 'user_not_found' },
+        changes: { email: dto.email, reason: 'user_not_found' },
       });
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -161,7 +161,7 @@ export class AuthService {
         resource: 'auth',
         status: 'failure',
         ipAddress,
-        metadata: { reason: 'account_locked', minutesRemaining },
+        changes: { reason: 'account_locked', minutesRemaining },
       });
       throw new UnauthorizedException(
         `Account is locked due to too many failed login attempts. Please try again in ${minutesRemaining} minutes.`
@@ -177,7 +177,7 @@ export class AuthService {
         resource: 'auth',
         status: 'failure',
         ipAddress,
-        metadata: { reason: 'account_deleted' },
+        changes: { reason: 'account_deleted' },
       });
       throw new UnauthorizedException('This account has been deleted and cannot be accessed');
     }
@@ -190,7 +190,7 @@ export class AuthService {
         resource: 'auth',
         status: 'failure',
         ipAddress,
-        metadata: { reason: 'account_suspended' },
+        changes: { reason: 'account_suspended' },
       });
       throw new UnauthorizedException('This account has been suspended. Please contact support');
     }
@@ -230,7 +230,7 @@ export class AuthService {
         resource: 'auth',
         status: 'failure',
         ipAddress,
-        metadata: { 
+        changes: { 
           reason: 'invalid_password',
           failedAttempts: newFailedAttempts,
           locked: newFailedAttempts >= this.MAX_LOGIN_ATTEMPTS,
@@ -298,7 +298,7 @@ export class AuthService {
       resource: 'auth',
       status: 'success',
       ipAddress,
-      metadata: { role: user.role },
+      changes: { role: user.role },
     });
 
     const accessToken = await this.signAccessToken(user.id, user.role);

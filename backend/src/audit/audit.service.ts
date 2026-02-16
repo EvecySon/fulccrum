@@ -3,12 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface AuditLogData {
   userId?: string;
+  adminUserId?: string;
   action: string;
   resource: string;
-  status: 'success' | 'failure' | 'error';
+  resourceId?: string;
+  status?: 'success' | 'failure' | 'error';
   ipAddress: string;
   userAgent?: string;
-  metadata?: Record<string, any>;
+  changes?: Record<string, any>;
 }
 
 @Injectable()
@@ -20,12 +22,14 @@ export class AuditService {
       await this.prisma.auditLog.create({
         data: {
           userId: data.userId,
+          adminUserId: data.adminUserId,
           action: data.action,
           resource: data.resource,
+          resourceId: data.resourceId,
           status: data.status,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
-          metadata: data.metadata,
+          changes: data.changes,
         },
       });
     } catch (error) {
