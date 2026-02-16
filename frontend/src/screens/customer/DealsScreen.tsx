@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { promosAPI, searchAPI } from '../../services/api';
-import { withMock, mockGetActivePromos, mockSearchBusinesses } from '../../services/mockApi';
+import { withMock, mockGetActivePromos, mockSearchBusinesses, normalizeRestaurants } from '../../services/mockApi';
 
 type Deal = {
   id: string;
@@ -50,7 +50,8 @@ export default function DealsScreen({ navigation }: any) {
         setDeals(data);
       }
       if (restaurantsRes.status === 'fulfilled') {
-        const data = Array.isArray(restaurantsRes.value?.data) ? restaurantsRes.value.data : Array.isArray(restaurantsRes.value) ? restaurantsRes.value : [];
+        const raw = Array.isArray(restaurantsRes.value?.data) ? restaurantsRes.value.data : Array.isArray(restaurantsRes.value) ? restaurantsRes.value : [];
+        const data = normalizeRestaurants(raw);
         setFreeDeliveryRestaurants(data.filter((r: any) => !r.deliveryFee || r.deliveryFee === 'Free' || r.deliveryFee === 0 || r.deliveryFee === '₦0'));
       }
     } catch {}

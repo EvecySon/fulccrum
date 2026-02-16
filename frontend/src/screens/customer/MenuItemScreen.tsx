@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
-import { withMock, mockGetModifiers, mockGetMenuItems } from '../../services/mockApi';
+import { withMock, mockGetModifiers, mockGetMenuItems, normalizeMenuItems } from '../../services/mockApi';
 import ReportContentModal from '../../components/ReportContentModal';
 
 
@@ -43,7 +43,8 @@ export default function MenuItemScreen({ route, navigation }: any) {
           () => menuAPI.getItems(restaurant?.id),
           () => mockGetMenuItems(restaurant?.id)
         );
-        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const raw = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const data = normalizeMenuItems(raw);
         const others = data.filter((i: any) => i.id !== item.id).slice(0, 4);
         setSuggestions(others);
       } catch {}

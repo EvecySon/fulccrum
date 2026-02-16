@@ -42,6 +42,42 @@ export async function withMock<T>(realCall: () => Promise<T>, mockFallback: () =
   }
 }
 
+// ─── Normalize backend restaurant data to frontend shape ───
+export function normalizeRestaurant(r: any): any {
+  if (!r) return r;
+  return {
+    ...r,
+    id: r.id || r.userId,
+    name: r.name || r.businessName,
+    image: r.image || r.logoUrl || r.coverImageUrl,
+    deliveryTime: r.deliveryTime || r.estimatedDeliveryTime || r.averagePreparationTime,
+    minimumOrder: r.minimumOrder ?? r.minimumOrderAmount,
+    cuisine: r.cuisine || r.description,
+  };
+}
+
+export function normalizeRestaurants(data: any[]): any[] {
+  return data.map(normalizeRestaurant);
+}
+
+// ─── Normalize backend menu item data to frontend shape ───
+export function normalizeMenuItem(item: any): any {
+  if (!item) return item;
+  return {
+    ...item,
+    image: item.image || (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : undefined),
+    category: typeof item.category === 'string' ? item.category : item.category?.name || 'Uncategorized',
+    prepTime: item.prepTime || (item.preparationTime ? `${item.preparationTime} min` : undefined),
+    calories: item.calories || item.nutritionalInfo?.calories,
+    isPopular: item.isPopular ?? item.isFeatured ?? false,
+    customizations: item.customizations || [],
+  };
+}
+
+export function normalizeMenuItems(data: any[]): any[] {
+  return data.map(normalizeMenuItem);
+}
+
 // ─── Mock Handlers ───
 
 export const mockSearchBusinesses = (query: string) => {

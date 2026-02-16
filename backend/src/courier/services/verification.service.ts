@@ -131,8 +131,21 @@ export class VerificationService {
       }
     }
 
-    // Background check status would go here when schema is updated
-    // Placeholder for future implementation
+    // Check national ID verification as background check proxy
+    const bgDoc = documents.find(d => d.type === 'national_id');
+    if (!bgDoc || bgDoc.status === 'uploaded') {
+      requirements.push({
+        type: 'background_check',
+        status: 'pending',
+        message: 'ID verification in progress',
+      });
+    } else if (bgDoc.status === 'rejected') {
+      requirements.push({
+        type: 'background_check',
+        status: 'failed',
+        message: 'ID verification failed - contact support',
+      });
+    }
 
     // Check document expiration
     for (const doc of documents) {

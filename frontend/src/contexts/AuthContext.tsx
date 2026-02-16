@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, usersAPI, notificationsAPI, saveTokens, loadTokens, clearTokens } from '../services/api';
 import { Platform } from 'react-native';
-import { USE_MOCK } from '../services/mockApi';
+// Mock user auto-login uses __DEV__ directly (no import needed)
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { access, refresh } = await loadTokens();
       if (!access) {
         console.log('[Auth] No stored token found');
-        if (USE_MOCK) {
-          console.log('[Auth] Mock mode — auto-login as test customer');
+        if (__DEV__) {
+          console.log('[Auth] Dev mode — auto-login as test customer');
           setUser({
             id: 'mock-user-1',
             email: 'ada@test.com',
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[Auth] Session restored for', profile?.email);
       } catch (profileErr: any) {
         console.log('[Auth] getProfile failed, status:', profileErr?.status);
-        if (USE_MOCK && !profileErr?.status) {
+        if (__DEV__ && !profileErr?.status) {
           // Backend unreachable in dev — use mock user
           console.log('[Auth] Using mock user for testing');
           setUser({

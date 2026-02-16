@@ -51,7 +51,8 @@ export default function CartScreen({ navigation }: any) {
   const [deliveryNote, setDeliveryNote] = useState('');
 
   const tip = Math.round(subtotal * (tipPercent / 100));
-  const total = subtotal + deliveryFee + serviceFee + taxAmount + tip - promoDiscount;
+  const effectiveDeliveryFee = fulfillmentType === 'pickup' ? 0 : deliveryFee;
+  const total = subtotal + effectiveDeliveryFee + serviceFee + taxAmount + tip - promoDiscount;
 
   // Load all addresses
   useEffect(() => {
@@ -101,14 +102,15 @@ export default function CartScreen({ navigation }: any) {
     return slots;
   };
 
-  // Load fees when we have address + restaurant
+  // Load fees when we have restaurant (address needed only for delivery)
   useEffect(() => {
-    if (!restaurant || !selectedAddress || subtotal === 0) return;
+    if (!restaurant || subtotal === 0) return;
+    if (fulfillmentType === 'delivery' && !selectedAddress) return;
     (async () => {
       try {
         const fees = await withMock(
-          () => feesAPI.calculate({ businessId: restaurant.id, customerAddressId: selectedAddress.id, subtotal }),
-          () => ({ deliveryFee: mockFees.deliveryFee, serviceFee: Math.round(subtotal * 0.05), taxAmount: Math.round(subtotal * mockFees.taxRate) })
+          () => feesAPI.calculate({ businessId: restaurant.id, customerAddressId: selectedAddress?.id, subtotal }),
+          () => ({ deliveryFee: fulfillmentType === 'pickup' ? 0 : mockFees.deliveryFee, serviceFee: Math.round(subtotal * 0.05), taxAmount: Math.round(subtotal * mockFees.taxRate) })
         );
         setDeliveryFee(fees?.deliveryFee || 0);
         setServiceFee(fees?.serviceFee || 0);
@@ -121,7 +123,7 @@ export default function CartScreen({ navigation }: any) {
         setFeesLoaded(true);
       }
     })();
-  }, [restaurant, selectedAddress, subtotal]);
+  }, [restaurant, selectedAddress, subtotal, fulfillmentType]);
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -145,7 +147,7 @@ export default function CartScreen({ navigation }: any) {
 
   const handleCheckout = async () => {
     if (items.length === 0) return;
-    if (!selectedAddress) {
+    if (fulfillmentType === 'delivery' && !selectedAddress) {
       Alert.alert('No Address', 'Please add a delivery address first.', [
         { text: 'Add Address', onPress: () => navigation.navigate('Addresses') },
         { text: 'Cancel', style: 'cancel' },
@@ -174,12 +176,12 @@ export default function CartScreen({ navigation }: any) {
         businessId: restaurant!.id,
         items: orderItems,
         subtotal,
-        deliveryFee: fulfillmentType === 'pickup' ? 0 : deliveryFee,
+        deliveryFee: effectiveDeliveryFee,
         serviceFee,
         taxAmount,
         tipAmount: tip,
         discountAmount: promoDiscount,
-        totalAmount: fulfillmentType === 'pickup' ? (subtotal + serviceFee + taxAmount + tip - promoDiscount) : total,
+        totalAmount: total,
         paymentMethod,
         specialInstructions: specialInstructions || undefined,
         deliveryAddressId: fulfillmentType === 'pickup' ? undefined : selectedAddress.id,
@@ -612,7 +614,7 @@ export default function CartScreen({ navigation }: any) {
           {placing ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
-            <Text style={styles.checkoutText}>Place Order · ₦{total.toLocaleString()}</Text>
+            <Text style={styles.checkoutText}>Place Order · ₦{Math.max(0, total).toLocaleString()}</Text>
           )}
         </TouchableOpacity>
       </View>
