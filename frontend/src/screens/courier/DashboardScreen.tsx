@@ -40,7 +40,16 @@ const hourlyEarnings = [
 export default function CourierDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
-  const [stats, setStats] = useState(mockCourierStats);
+  const [stats, setStats] = useState({
+    todayEarnings: 0,
+    weeklyEarnings: 0,
+    goalProgress: 0,
+    totalDeliveries: 0,
+    avgDeliveryTime: 0,
+    rating: 0,
+    onlineHours: 0,
+    fuelEfficiency: 0,
+  });
   const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [incomingOrder, setIncomingOrder] = useState<IncomingOrder | null>(null);
   const [showDeclineReason, setShowDeclineReason] = useState(false);
@@ -132,7 +141,7 @@ export default function CourierDashboardScreen({ navigation }: any) {
       {/* Header */}
       <View style={[styles.header, isOnline ? styles.headerOnline : styles.headerOffline]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>Hey, Mike! 👋</Text>
+          <Text style={styles.greeting}>Hey, {user?.firstName || 'Driver'}! 👋</Text>
           <Text style={styles.subtitle}>{isOnline ? 'You\'re online and ready' : 'You\'re currently offline'}</Text>
         </View>
         <TouchableOpacity style={styles.notifBell} onPress={() => navigation.navigate('Notifications')}>

@@ -49,7 +49,8 @@ async function bootstrap() {
   await prisma.enableShutdownHooks(app);
 
   const port = process.env.PORT ?? 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`📱 Mobile access: http://192.168.18.3:${port}`);
 }
 bootstrap();

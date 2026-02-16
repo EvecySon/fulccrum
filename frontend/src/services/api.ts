@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.0.101';
+const DEV_IP = '192.168.18.3';
 
 const getBaseUrl = () => {
   // In production, use your production API URL
@@ -58,7 +58,7 @@ export const clearTokens = async () => {
   await AsyncStorage.removeItem('refreshToken');
 };
 
-// Generic fetch wrapper
+// Generic fetch wrapper with timeout
 async function request<T = any>(
   endpoint: string,
   options: RequestInit = {},
@@ -72,40 +72,56 @@ async function request<T = any>(
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  // Add 10 second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  if (response.status === 401 && accessToken) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-      const retryResponse = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
-      if (!retryResponse.ok) {
-        const errorData = await retryResponse.json().catch(() => ({}));
-        const error: any = new Error(errorData.message || `Request failed (${retryResponse.status})`);
-        error.status = retryResponse.status;
-        error.data = errorData;
-        throw error;
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (response.status === 401 && accessToken) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+        const retryResponse = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+        if (!retryResponse.ok) {
+          const errorData = await retryResponse.json().catch(() => ({}));
+          const error: any = new Error(errorData.message || `Request failed (${retryResponse.status})`);
+          error.status = retryResponse.status;
+          error.data = errorData;
+          throw error;
+        }
+        if (retryResponse.status === 204) return {} as T;
+        return retryResponse.json();
       }
-      if (retryResponse.status === 204) return {} as T;
-      return retryResponse.json();
     }
-  }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const error: any = new Error(errorData.message || `Request failed (${response.status})`);
-    error.status = response.status;
-    error.data = errorData;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error: any = new Error(errorData.message || `Request failed (${response.status})`);
+      error.status = response.status;
+      error.data = errorData;
+      throw error;
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) return {} as T;
+
+    return response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      const timeoutError: any = new Error('Request timeout');
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
     throw error;
   }
-
-  // Handle 204 No Content
-  if (response.status === 204) return {} as T;
-
-  return response.json();
 }
 
 // Refresh token logic
