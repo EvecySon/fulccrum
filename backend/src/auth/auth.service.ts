@@ -8,6 +8,7 @@ import { RefreshTokenService } from './refresh-token.service';
 import { EmailService } from '../messaging/email.service';
 import { TermiiService } from '../messaging/termii.service';
 import { PaystackService } from '../payment/paystack.service';
+import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -22,6 +23,9 @@ import { AppleLoginDto } from './dto/apple-login.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly MAX_LOGIN_ATTEMPTS = 5;
+  private readonly LOCKOUT_DURATION_MINUTES = 15;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -29,6 +33,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly termiiService: TermiiService,
     private readonly paystackService: PaystackService,
+    private readonly auditService: AuditService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -122,7 +127,7 @@ export class AuthService {
     }
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ipAddress: string = '0.0.0.0') {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -136,22 +141,102 @@ export class AuthService {
     console.log('[LOGIN] User found:', user ? { id: user.id, email: user.email, phone: user.phone, status: user.status } : 'NOT FOUND');
 
     if (!user) {
+      // Log failed attempt for non-existent user
+      await this.auditService.log({
+        action: 'login',
+        resource: 'auth',
+        status: 'failure',
+        ipAddress,
+        metadata: { email: dto.email, reason: 'user_not_found' },
+      });
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if account is locked
+    if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+      const minutesRemaining = Math.ceil((user.accountLockedUntil.getTime() - Date.now()) / 60000);
+      await this.auditService.log({
+        userId: user.id,
+        action: 'login',
+        resource: 'auth',
+        status: 'failure',
+        ipAddress,
+        metadata: { reason: 'account_locked', minutesRemaining },
+      });
+      throw new UnauthorizedException(
+        `Account is locked due to too many failed login attempts. Please try again in ${minutesRemaining} minutes.`
+      );
     }
 
     // Check if account has been deleted
     if (user.status === 'deleted') {
       console.log('[LOGIN] BLOCKED - Account is deleted');
+      await this.auditService.log({
+        userId: user.id,
+        action: 'login',
+        resource: 'auth',
+        status: 'failure',
+        ipAddress,
+        metadata: { reason: 'account_deleted' },
+      });
       throw new UnauthorizedException('This account has been deleted and cannot be accessed');
     }
 
     // Check if account is suspended
     if (user.status === 'suspended') {
+      await this.auditService.log({
+        userId: user.id,
+        action: 'login',
+        resource: 'auth',
+        status: 'failure',
+        ipAddress,
+        metadata: { reason: 'account_suspended' },
+      });
       throw new UnauthorizedException('This account has been suspended. Please contact support');
     }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) {
+      // Increment failed login attempts
+      const newFailedAttempts = user.failedLoginAttempts + 1;
+      const updateData: any = {
+        failedLoginAttempts: newFailedAttempts,
+      };
+
+      // Lock account if max attempts reached
+      if (newFailedAttempts >= this.MAX_LOGIN_ATTEMPTS) {
+        const lockoutUntil = new Date();
+        lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
+        updateData.accountLockedUntil = lockoutUntil;
+        
+        console.log(`[LOGIN] Account locked until ${lockoutUntil} after ${newFailedAttempts} failed attempts`);
+        
+        // Send email notification about account lockout
+        await this.emailService.sendEmail(
+          user.email,
+          'Account Locked - Security Alert',
+          `Your account has been locked for ${this.LOCKOUT_DURATION_MINUTES} minutes due to multiple failed login attempts. If this wasn't you, please reset your password immediately.`
+        );
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+
+      await this.auditService.log({
+        userId: user.id,
+        action: 'login',
+        resource: 'auth',
+        status: 'failure',
+        ipAddress,
+        metadata: { 
+          reason: 'invalid_password',
+          failedAttempts: newFailedAttempts,
+          locked: newFailedAttempts >= this.MAX_LOGIN_ATTEMPTS,
+        },
+      });
+
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -196,9 +281,24 @@ export class AuthService {
       };
     }
 
+    // Reset failed login attempts on successful login
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLogin: new Date() },
+      data: { 
+        lastLogin: new Date(),
+        failedLoginAttempts: 0,
+        accountLockedUntil: null,
+      },
+    });
+
+    // Log successful login
+    await this.auditService.log({
+      userId: user.id,
+      action: 'login',
+      resource: 'auth',
+      status: 'success',
+      ipAddress,
+      metadata: { role: user.role },
     });
 
     const accessToken = await this.signAccessToken(user.id, user.role);

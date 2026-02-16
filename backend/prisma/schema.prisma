@@ -89,9 +89,11 @@ model User {
   status        UserStatus @default(active)
   emailVerified Boolean    @default(false) @map("email_verified")
   phoneVerified Boolean    @default(false) @map("phone_verified")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
-  lastLogin     DateTime?  @map("last_login")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  lastLogin           DateTime? @map("last_login")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  accountLockedUntil  DateTime? @map("account_locked_until")
 
   customerProfile CustomerProfile?
   driverProfile   DriverProfile?
@@ -136,6 +138,7 @@ model User {
   courierTrainingProgress CourierTrainingProgress[] @relation("CourierTrainingProgress")
   verificationAttempts    VerificationAttempt[]     @relation("CourierVerificationAttempts")
   scheduleNoShows         ScheduleNoShow[]          @relation("ScheduleNoShows")
+  auditLogs               AuditLog[]                @relation("UserAuditLogs")
 
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
@@ -1924,4 +1927,23 @@ model VerificationAttempt {
 
   @@index([courierId, createdAt])
   @@map("verification_attempts")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  resource    String   @db.VarChar(50)
+  status      String   @db.VarChar(20)
+  ipAddress   String   @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("audit_logs")
 }

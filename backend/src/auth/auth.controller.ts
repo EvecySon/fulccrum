@@ -1,4 +1,5 @@
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import { Body, Controller, Post, Query, Ip } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -17,36 +18,43 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
   }
 
   @Post('verify-registration')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   verifyRegistration(@Body() dto: VerifyRegistrationDto) {
     return this.auth.verifyRegistration(dto);
   }
 
   @Post('resend-otp')
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   resendOtp(@Body() dto: ResendOtpDto) {
     return this.auth.resendVerificationOtp(dto);
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 login attempts per minute
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.auth.login(dto, ip);
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.forgotPassword(dto);
   }
 
   @Post('verify-otp')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.auth.verifyOtp(dto);
   }
 
   @Post('reset-password')
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto);
   }

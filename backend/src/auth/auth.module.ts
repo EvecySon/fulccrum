@@ -8,12 +8,14 @@ import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PaymentModule } from '../payment/payment.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     ConfigModule,
     PrismaModule,
     MessagingModule,
+    AuditModule,
     forwardRef(() => PaymentModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
