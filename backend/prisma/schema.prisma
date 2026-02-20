@@ -291,7 +291,7 @@ model Order {
   specialInstructions String?       @map("special_instructions")
   paymentMethod       String?       @map("payment_method") @db.VarChar(50)
   paymentStatus       PaymentStatus @default(pending) @map("payment_status")
-  paymentId           String?       @map("payment_id") @db.VarChar(255)
+  paymentId           String?       @unique @map("payment_id") @db.VarChar(255)
   deliveryAddressId   String?       @map("delivery_address_id") @db.Uuid
 
   scheduledFor    DateTime? @map("scheduled_for")
@@ -362,6 +362,7 @@ model WithdrawalRequest {
   userId            String           @map("user_id") @db.Uuid
   walletId          String           @map("wallet_id") @db.Uuid
   amount            Decimal          @db.Decimal(10, 2)
+  reference         String           @unique @db.VarChar(100)
   status            WithdrawalStatus @default(pending)
   confirmationCode  String?          @map("confirmation_code") @db.VarChar(6)
   codeExpiresAt     DateTime?        @map("code_expires_at")

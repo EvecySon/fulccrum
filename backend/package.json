@@ -46,7 +46,7 @@
     "compression": "^1.8.1",
     "firebase-admin": "^13.6.1",
     "helmet": "^8.1.0",
-    "ioredis": "^5.9.2",
+    "ioredis": "^5.9.3",
     "mime-types": "^3.0.2",
     "multer": "^2.0.2",
     "passport": "^0.7.0",

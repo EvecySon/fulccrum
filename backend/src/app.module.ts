@@ -46,6 +46,7 @@ import { CourierGamificationModule } from './courier-gamification/courier-gamifi
 import { CourierSafetyModule } from './courier-safety/courier-safety.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
+import { CommonModule } from './common/common.module';
 import { ReportModule } from './report/report.module';
 import { DocumentsModule } from './documents/documents.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -58,6 +59,7 @@ import { BusinessModule } from './business/business.module';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    CommonModule,
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 minute
       limit: 100, // 100 requests per minute per user/IP

@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/services/cache.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateItemDto } from './dto/create-item.dto';
 import { CreateModifierDto } from './dto/create-modifier.dto';
@@ -9,11 +10,14 @@ import { UpdateInventoryDto } from './dto/update-inventory.dto';
 
 @Injectable()
 export class MenuService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+  ) {}
 
   // MENU CATEGORIES
   async createCategory(businessId: string, dto: CreateCategoryDto) {
-    return this.prisma.menuCategory.create({
+    const category = await this.prisma.menuCategory.create({
       data: {
         businessId,
         name: dto.name,
@@ -22,22 +26,32 @@ export class MenuService {
         isActive: dto.isActive !== undefined ? dto.isActive : true,
       },
     });
+
+    // Invalidate cache
+    await this.cacheService.invalidateBusinessCache(businessId);
+
+    return category;
   }
 
   async getCategories(businessId: string, includeInactive = false) {
-    return this.prisma.menuCategory.findMany({
-      where: {
-        businessId,
-        ...(includeInactive ? {} : { isActive: true }),
-      },
-      include: {
-        items: {
-          where: includeInactive ? {} : { isAvailable: true },
-          orderBy: { displayOrder: 'asc' },
+    const cacheKey = `menu:business:${businessId}:categories:${includeInactive}`;
+
+    // Try to get from cache
+    return this.cacheService.wrap(cacheKey, async () => {
+      return this.prisma.menuCategory.findMany({
+        where: {
+          businessId,
+          ...(includeInactive ? {} : { isActive: true }),
         },
-      },
-      orderBy: { displayOrder: 'asc' },
-    });
+        include: {
+          items: {
+            where: includeInactive ? {} : { isAvailable: true },
+            orderBy: { displayOrder: 'asc' },
+          },
+        },
+        orderBy: { displayOrder: 'asc' },
+      });
+    }, 300); // Cache for 5 minutes
   }
 
   async updateCategory(categoryId: string, businessId: string, dto: Partial<CreateCategoryDto>) {
@@ -49,10 +63,15 @@ export class MenuService {
       throw new ForbiddenException('Category not found or access denied');
     }
 
-    return this.prisma.menuCategory.update({
+    const updated = await this.prisma.menuCategory.update({
       where: { id: categoryId },
       data: dto,
     });
+
+    // Invalidate cache
+    await this.cacheService.invalidateBusinessCache(businessId);
+
+    return updated;
   }
 
   async deleteCategory(categoryId: string, businessId: string) {
@@ -67,6 +86,9 @@ export class MenuService {
     await this.prisma.menuCategory.delete({
       where: { id: categoryId },
     });
+
+    // Invalidate cache
+    await this.cacheService.invalidateBusinessCache(businessId);
 
     return { success: true, message: 'Category deleted successfully' };
   }

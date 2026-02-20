@@ -50,53 +50,113 @@ export class OrdersService {
     const fulfillmentType = dto.fulfillmentType || 'delivery';
     const deliveryFee = fulfillmentType === 'pickup' ? 0 : dto.deliveryFee;
 
-    const order = await this.prisma.order.create({
-      data: {
-        orderNumber,
-        customerId,
-        businessId: dto.businessId,
-        status: initialStatus,
-        subtotal: dto.subtotal,
-        deliveryFee,
-        serviceFee: dto.serviceFee,
-        taxAmount: dto.taxAmount,
-        tipAmount: dto.tipAmount || 0,
-        discountAmount: dto.discountAmount || 0,
-        totalAmount: dto.totalAmount,
-        specialInstructions: instructions || undefined,
-        paymentMethod: dto.paymentMethod,
-        paymentStatus: 'pending',
-        deliveryAddressId: dto.deliveryAddressId || undefined,
-        scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
-        fulfillmentType,
-        deliveryOption: dto.deliveryOption || undefined,
-        deliveryNote: dto.deliveryNote || undefined,
-        items: {
-          create: (dto.items || []).map(item => ({
-            menuItemId: item.menuItemId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            modifiers: item.modifiers || undefined,
-            notes: item.notes || undefined,
-          })),
-        },
-      },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+    // Use transaction to ensure stock validation and order creation are atomic
+    const order = await this.prisma.$transaction(async (tx) => {
+      // Step 1: Validate stock availability for all items
+      for (const item of dto.items || []) {
+        // Check if item is available
+        const menuItem = await tx.menuItem.findUnique({
+          where: { id: item.menuItemId },
+          select: { id: true, name: true, isAvailable: true },
+        });
+
+        if (!menuItem) {
+          throw new BadRequestException(`Menu item ${item.menuItemId} not found`);
+        }
+
+        if (!menuItem.isAvailable) {
+          throw new BadRequestException(`${menuItem.name} is currently unavailable`);
+        }
+
+        // Check inventory with row-level locking to prevent race conditions
+        const inventory = await tx.inventory.findUnique({
+          where: { itemId: item.menuItemId },
+        });
+
+        if (inventory) {
+          // If stock tracking is enabled, validate and decrement
+          if (inventory.currentStock < item.quantity) {
+            throw new BadRequestException(
+              `Insufficient stock for ${menuItem.name}. Only ${inventory.currentStock} available.`
+            );
+          }
+
+          // Decrement stock atomically
+          await tx.inventory.update({
+            where: { itemId: item.menuItemId },
+            data: {
+              currentStock: {
+                decrement: item.quantity,
+              },
+            },
+          });
+
+          // Auto-mark item as unavailable if stock reaches 0
+          const updatedInventory = await tx.inventory.findUnique({
+            where: { itemId: item.menuItemId },
+            select: { currentStock: true },
+          });
+
+          if (updatedInventory && updatedInventory.currentStock <= 0) {
+            await tx.menuItem.update({
+              where: { id: item.menuItemId },
+              data: { isAvailable: false },
+            });
+          }
+        }
+      }
+
+      // Step 2: Create the order
+      const createdOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          customerId,
+          businessId: dto.businessId,
+          status: initialStatus,
+          subtotal: dto.subtotal,
+          deliveryFee,
+          serviceFee: dto.serviceFee,
+          taxAmount: dto.taxAmount,
+          tipAmount: dto.tipAmount || 0,
+          discountAmount: dto.discountAmount || 0,
+          totalAmount: dto.totalAmount,
+          specialInstructions: instructions || undefined,
+          paymentMethod: dto.paymentMethod,
+          paymentStatus: 'pending',
+          deliveryAddressId: dto.deliveryAddressId || undefined,
+          scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
+          fulfillmentType,
+          deliveryOption: dto.deliveryOption || undefined,
+          deliveryNote: dto.deliveryNote || undefined,
+          items: {
+            create: (dto.items || []).map(item => ({
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              modifiers: item.modifiers || undefined,
+              notes: item.notes || undefined,
+            })),
           },
         },
-        items: {
-          include: {
-            menuItem: { select: { id: true, name: true, images: true } },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          items: {
+            include: {
+              menuItem: { select: { id: true, name: true, images: true } },
+            },
           },
         },
-      },
+      });
+
+      return createdOrder;
     });
 
     // Push new order to merchant via WebSocket
@@ -230,6 +290,7 @@ export class OrdersService {
       include: {
         customer: true,
         business: true,
+        items: true,
       },
     });
 
@@ -245,12 +306,41 @@ export class OrdersService {
       throw new BadRequestException(`Cannot cancel order with status: ${order.status}`);
     }
 
-    const cancelledOrder = await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'cancelled',
-        paymentStatus: 'refunded',
-      },
+    // Use transaction to restore stock and cancel order atomically
+    const cancelledOrder = await this.prisma.$transaction(async (tx) => {
+      // Restore stock for all items in the order
+      for (const item of order.items) {
+        const inventory = await tx.inventory.findUnique({
+          where: { itemId: item.menuItemId },
+        });
+
+        if (inventory) {
+          // Increment stock back
+          await tx.inventory.update({
+            where: { itemId: item.menuItemId },
+            data: {
+              currentStock: {
+                increment: item.quantity,
+              },
+            },
+          });
+
+          // Re-enable item if it was disabled due to stock
+          await tx.menuItem.update({
+            where: { id: item.menuItemId },
+            data: { isAvailable: true },
+          });
+        }
+      }
+
+      // Cancel the order
+      return await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'cancelled',
+          paymentStatus: 'refunded',
+        },
+      });
     });
 
     this.realtimeGateway.emitOrderUpdate(orderId, 'cancelled', {

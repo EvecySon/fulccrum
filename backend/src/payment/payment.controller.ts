@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, Delete, Patch, Headers } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { SaveCardDto } from './dto/save-card.dto';
@@ -10,8 +10,12 @@ export class PaymentController {
   constructor(private paymentService: PaymentService) {}
 
   @Post('initialize')
-  async initializePayment(@Request() req: any, @Body() dto: InitializePaymentDto) {
-    return this.paymentService.initializePayment(req.user.sub, dto.orderId, dto.amount);
+  async initializePayment(
+    @Request() req: any,
+    @Body() dto: InitializePaymentDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.paymentService.initializePayment(req.user.sub, dto.orderId, dto.amount, idempotencyKey);
   }
 
   @Get('verify/:reference')

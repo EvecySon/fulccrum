@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaystackService } from './paystack.service';
+import { IdempotencyService } from '../common/services/idempotency.service';
 import axios from 'axios';
 
 @Injectable()
@@ -13,66 +14,85 @@ export class PaymentService {
     private prisma: PrismaService,
     private config: ConfigService,
     private paystackService: PaystackService,
+    private idempotencyService: IdempotencyService,
   ) {
     this.paystackSecretKey = this.config.get('PAYSTACK_SECRET_KEY') || 'sk_test_xxx';
   }
 
-  async initializePayment(userId: string, orderId: string, amount: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: { customer: true },
-    });
+  async initializePayment(userId: string, orderId: string, amount: number, idempotencyKey?: string) {
+    // Generate idempotency key if not provided
+    const key = idempotencyKey || this.idempotencyService.generateKey('payment', userId, orderId);
 
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
-
-    if (order.customerId !== userId) {
-      throw new BadRequestException('Unauthorized');
-    }
-
-    const reference = `ORD-${order.orderNumber}-${Date.now()}`;
-
-    try {
-      const response = await axios.post(
-        `${this.paystackBaseUrl}/transaction/initialize`,
-        {
-          email: order.customer.email,
-          amount: Math.round(amount * 100), // Convert to kobo
-          currency: 'NGN',
-          reference,
-          callback_url: this.config.get('PAYSTACK_CALLBACK_URL') || 'https://your-domain.com/payment/callback',
-          metadata: {
-            orderId: order.id,
-            orderNumber: order.orderNumber,
-            userId,
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.paystackSecretKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      await this.prisma.order.update({
+    // Execute with idempotency protection
+    const result = await this.idempotencyService.execute(key, async () => {
+      const order = await this.prisma.order.findUnique({
         where: { id: orderId },
-        data: {
-          paymentId: reference,
-          paymentStatus: 'pending',
-        },
+        include: { customer: true },
       });
 
-      return {
-        authorizationUrl: response.data.data.authorization_url,
-        accessCode: response.data.data.access_code,
-        reference: response.data.data.reference,
-      };
-    } catch (error) {
-      console.error('[PAYSTACK] Initialize error:', error.response?.data || error.message);
-      throw new BadRequestException('Failed to initialize payment');
-    }
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      if (order.customerId !== userId) {
+        throw new BadRequestException('Unauthorized');
+      }
+
+      // Check if order already has a payment
+      if (order.paymentId && order.paymentStatus === 'paid') {
+        throw new BadRequestException('Order already paid');
+      }
+
+      // Generate unique reference with timestamp and random component
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
+      const reference = `ORD-${order.orderNumber}-${timestamp}-${random}`;
+
+      try {
+        const response = await axios.post(
+          `${this.paystackBaseUrl}/transaction/initialize`,
+          {
+            email: order.customer.email,
+            amount: Math.round(amount * 100), // Convert to kobo
+            currency: 'NGN',
+            reference,
+            callback_url: this.config.get('PAYSTACK_CALLBACK_URL') || 'https://your-domain.com/payment/callback',
+            metadata: {
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              userId,
+              idempotencyKey: key,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.paystackSecretKey}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: {
+            paymentId: reference,
+            paymentStatus: 'pending',
+          },
+        });
+
+        return {
+          authorizationUrl: response.data.data.authorization_url,
+          accessCode: response.data.data.access_code,
+          reference: response.data.data.reference,
+          idempotencyKey: key,
+        };
+      } catch (error) {
+        console.error('[PAYSTACK] Initialize error:', error.response?.data || error.message);
+        throw new BadRequestException('Failed to initialize payment');
+      }
+    });
+
+    return result.data;
   }
 
   async verifyPayment(reference: string) {
