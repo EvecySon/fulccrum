@@ -1,43 +1,106 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/services/cache.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
 
 @Injectable()
 export class LocationService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(LocationService.name);
+  private locationBuffer: Map<string, UpdateLocationDto & { timestamp: Date }> = new Map();
+  private readonly BATCH_INTERVAL_MS = 5000; // Flush to DB every 5 seconds
+  private readonly CACHE_TTL = 30; // Cache location for 30 seconds
+
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+  ) {
+    // Start batch processing
+    this.startBatchProcessor();
+  }
 
   async updateDriverLocation(driverId: string, dto: UpdateLocationDto) {
-    // Verify driver exists and is online
-    const driver = await this.prisma.driverProfile.findUnique({
-      where: { userId: driverId },
+    // Store in Redis cache immediately for real-time tracking
+    const locationData = {
+      driverId,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      accuracy: dto.accuracy,
+      heading: dto.heading,
+      speed: dto.speed,
+      timestamp: new Date(),
+    };
+
+    // Cache in Redis (fast, for real-time queries)
+    await this.cacheService.set(
+      `driver:location:${driverId}`,
+      locationData,
+      this.CACHE_TTL,
+    );
+
+    // Buffer for batch DB write (reduces DB load)
+    this.locationBuffer.set(driverId, {
+      ...dto,
+      timestamp: new Date(),
     });
 
-    if (!driver) {
-      throw new BadRequestException('Driver profile not found');
-    }
+    this.logger.debug(`Location buffered for driver ${driverId}`);
 
-    // Create location record
-    const location = await this.prisma.driverLocation.create({
-      data: {
-        driverId,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
-        accuracy: dto.accuracy,
-        heading: dto.heading,
-        speed: dto.speed,
-      },
-    });
+    return locationData;
+  }
 
-    // Update driver profile with last location update time
-    await this.prisma.driverProfile.update({
-      where: { userId: driverId },
-      data: { lastLocationUpdate: new Date() },
-    });
+  /**
+   * Batch processor - flushes buffered locations to database every 5 seconds
+   * This reduces 6,000 writes/min to ~720 writes/min (12 batches/min)
+   */
+  private startBatchProcessor() {
+    setInterval(async () => {
+      if (this.locationBuffer.size === 0) return;
 
-    return location;
+      const locations = Array.from(this.locationBuffer.entries());
+      this.locationBuffer.clear();
+
+      try {
+        // Batch insert all locations
+        await this.prisma.driverLocation.createMany({
+          data: locations.map(([driverId, data]) => ({
+            driverId,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            accuracy: data.accuracy,
+            heading: data.heading,
+            speed: data.speed,
+            timestamp: data.timestamp,
+          })),
+          skipDuplicates: true,
+        });
+
+        // Update driver profiles (batch)
+        const driverIds = locations.map(([driverId]) => driverId);
+        await this.prisma.driverProfile.updateMany({
+          where: { userId: { in: driverIds } },
+          data: { lastLocationUpdate: new Date() },
+        });
+
+        this.logger.log(`Flushed ${locations.length} location updates to database`);
+      } catch (error) {
+        this.logger.error(`Failed to flush location batch: ${error.message}`);
+        // Re-buffer failed locations for next batch
+        locations.forEach(([driverId, data]) => {
+          this.locationBuffer.set(driverId, data);
+        });
+      }
+    }, this.BATCH_INTERVAL_MS);
   }
 
   async getDriverLocation(driverId: string) {
+    // Check Redis cache first (real-time data)
+    const cached = await this.cacheService.get(`driver:location:${driverId}`);
+    if (cached) {
+      this.logger.debug(`Location cache hit for driver ${driverId}`);
+      return cached;
+    }
+
+    // Fallback to database
     const location = await this.prisma.driverLocation.findFirst({
       where: { driverId },
       orderBy: { timestamp: 'desc' },
@@ -46,6 +109,13 @@ export class LocationService {
     if (!location) {
       throw new BadRequestException('No location data found for driver');
     }
+
+    // Cache the result
+    await this.cacheService.set(
+      `driver:location:${driverId}`,
+      location,
+      this.CACHE_TTL,
+    );
 
     return location;
   }

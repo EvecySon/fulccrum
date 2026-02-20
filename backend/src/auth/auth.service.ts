@@ -9,6 +9,7 @@ import { EmailService } from '../messaging/email.service';
 import { TermiiService } from '../messaging/termii.service';
 import { PaystackService } from '../payment/paystack.service';
 import { AuditService } from '../audit/audit.service';
+import { QueueService } from '../queue/queue.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -34,6 +35,7 @@ export class AuthService {
     private readonly termiiService: TermiiService,
     private readonly paystackService: PaystackService,
     private readonly auditService: AuditService,
+    private readonly queueService: QueueService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -101,8 +103,13 @@ export class AuthService {
         },
       });
 
-      // Send verification email
-      await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+      // Queue verification email (async)
+      await this.queueService.sendEmail({
+        to: user.email,
+        subject: 'Verify Your Email - Fulccrum',
+        template: 'verification',
+        context: { firstName: user.firstName, otp },
+      });
 
       // Send verification SMS if phone provided
       if (user.phone) {
@@ -211,12 +218,16 @@ export class AuthService {
         
         console.log(`[LOGIN] Account locked until ${lockoutUntil} after ${newFailedAttempts} failed attempts`);
         
-        // Send email notification about account lockout
-        await this.emailService.sendEmail(
-          user.email,
-          'Account Locked - Security Alert',
-          `Your account has been locked for ${this.LOCKOUT_DURATION_MINUTES} minutes due to multiple failed login attempts. If this wasn't you, please reset your password immediately.`
-        );
+        // Queue email notification about account lockout (async)
+        await this.queueService.sendEmail({
+          to: user.email,
+          subject: 'Account Locked - Security Alert',
+          template: 'account-lockout',
+          context: {
+            lockoutDuration: this.LOCKOUT_DURATION_MINUTES,
+            message: `Your account has been locked for ${this.LOCKOUT_DURATION_MINUTES} minutes due to multiple failed login attempts. If this wasn't you, please reset your password immediately.`,
+          },
+        });
       }
 
       await this.prisma.user.update({
@@ -259,8 +270,13 @@ export class AuthService {
         },
       });
 
-      // Send verification email
-      await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+      // Queue verification email (async)
+      await this.queueService.sendEmail({
+        to: user.email,
+        subject: 'Verify Your Email - Fulccrum',
+        template: 'verification',
+        context: { firstName: user.firstName, otp },
+      });
 
       // Send SMS if phone exists
       if (user.phone) {
@@ -346,7 +362,13 @@ export class AuthService {
     console.log(`[PASSWORD RESET] OTP for ${user.email}: ${otp}`);
     console.log(`[PASSWORD RESET] Reset token: ${resetToken}`);
 
-    await this.emailService.sendPasswordResetEmail(user.email, user.firstName, otp, resetToken);
+    // Queue password reset email (async)
+    await this.queueService.sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request - Fulccrum',
+      template: 'password-reset',
+      context: { firstName: user.firstName, otp, resetToken },
+    });
 
     if (user.phone) {
       await this.termiiService.sendSMS(
@@ -436,8 +458,13 @@ export class AuthService {
       },
     });
 
-    // Send welcome message
-    await this.emailService.sendWelcomeEmail(user.email, user.firstName);
+    // Queue welcome email (async)
+    await this.queueService.sendEmail({
+      to: user.email,
+      subject: 'Welcome to Fulccrum!',
+      template: 'welcome',
+      context: { firstName: user.firstName },
+    });
 
     if (user.phone) {
       await this.termiiService.sendSMS(
@@ -492,8 +519,13 @@ export class AuthService {
       },
     });
 
-    // Resend verification email
-    await this.emailService.sendVerificationEmail(user.email, user.firstName, otp);
+    // Queue verification email (async)
+    await this.queueService.sendEmail({
+      to: user.email,
+      subject: 'Verify Your Email - Fulccrum',
+      template: 'verification',
+      context: { firstName: user.firstName, otp },
+    });
 
     // Resend SMS if phone provided
     if (user.phone) {
@@ -659,7 +691,13 @@ export class AuthService {
           },
         });
 
-        await this.emailService.sendWelcomeEmail(email, firstName);
+        // Queue welcome email (async)
+        await this.queueService.sendEmail({
+          to: email,
+          subject: 'Welcome to Fulccrum!',
+          template: 'welcome',
+          context: { firstName },
+        });
       }
 
       const accessToken = await this.signAccessToken(user.id, user.role);
@@ -715,7 +753,13 @@ export class AuthService {
           },
         });
 
-        await this.emailService.sendWelcomeEmail(email, 'Apple User');
+        // Queue welcome email (async)
+        await this.queueService.sendEmail({
+          to: email,
+          subject: 'Welcome to Fulccrum!',
+          template: 'welcome',
+          context: { firstName: 'Apple User' },
+        });
       }
 
       const accessToken = await this.signAccessToken(user.id, user.role);
