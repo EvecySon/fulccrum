@@ -57,18 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { access, refresh } = await loadTokens();
       if (!access) {
         console.log('[Auth] No stored token found');
-        if (__DEV__) {
-          console.log('[Auth] Dev mode — auto-login as test customer');
-          setUser({
-            id: 'mock-user-1',
-            email: 'ada@test.com',
-            firstName: 'Ada',
-            lastName: 'Okafor',
-            phone: '+234 801 234 5678',
-            role: 'customer',
-            avatarUrl: undefined,
-          });
-        }
+        // Auto-login disabled - use real credentials from seed data
+        // if (__DEV__) {
+        //   console.log('[Auth] Dev mode — auto-login as test customer');
+        //   setUser({
+        //     id: 'mock-user-1',
+        //     email: 'ada@test.com',
+        //     firstName: 'Ada',
+        //     lastName: 'Okafor',
+        //     phone: '+234 801 234 5678',
+        //     role: 'customer',
+        //     avatarUrl: undefined,
+        //   });
+        // }
         return;
       }
       console.log('[Auth] Token loaded, restoring session...');

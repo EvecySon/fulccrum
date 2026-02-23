@@ -9,6 +9,7 @@ import { RefreshTokenService } from './refresh-token.service';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PaymentModule } from '../payment/payment.module';
 import { AuditModule } from '../audit/audit.module';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuditModule } from '../audit/audit.module';
     PrismaModule,
     MessagingModule,
     AuditModule,
+    QueueModule,
     forwardRef(() => PaymentModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
