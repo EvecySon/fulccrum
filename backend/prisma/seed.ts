@@ -143,9 +143,11 @@ async function main() {
     },
   });
 
-  const pizzaPlace = await prisma.business.create({
+  const pizzaPlace = await prisma.businessProfile.create({
     data: {
-      name: 'Tony\'s Pizza Palace',
+      userId: pizzaOwner.id,
+      businessName: 'Tony\'s Pizza Palace',
+      businessType: 'restaurant',
       description: 'Authentic Italian pizza made with love',
       email: 'orders@tonyspizza.com',
       phone: '+2348078901234',
@@ -155,7 +157,6 @@ async function main() {
       country: 'Nigeria',
       latitude: 6.4281,
       longitude: 3.4219,
-      ownerId: pizzaOwner.id,
       status: 'active',
       isVerified: true,
       cuisineType: 'Italian',
@@ -182,9 +183,11 @@ async function main() {
     },
   });
 
-  const burgerJoint = await prisma.business.create({
+  const burgerJoint = await prisma.businessProfile.create({
     data: {
-      name: 'Bob\'s Burger Joint',
+      userId: burgerOwner.id,
+      businessName: 'Bob\'s Burger Joint',
+      businessType: 'restaurant',
       description: 'Juicy burgers and crispy fries',
       email: 'orders@bobsburgers.com',
       phone: '+2348089012345',
@@ -194,7 +197,6 @@ async function main() {
       country: 'Nigeria',
       latitude: 6.4281,
       longitude: 3.4219,
-      ownerId: burgerOwner.id,
       status: 'active',
       isVerified: true,
       cuisineType: 'American',
@@ -221,9 +223,11 @@ async function main() {
     },
   });
 
-  const jollofSpot = await prisma.business.create({
+  const jollofSpot = await prisma.businessProfile.create({
     data: {
-      name: 'Mama Jollof\'s Kitchen',
+      userId: jollofOwner.id,
+      businessName: 'Mama Jollof\'s Kitchen',
+      businessType: 'restaurant',
       description: 'Authentic Nigerian cuisine',
       email: 'orders@mamajollof.com',
       phone: '+2348090123456',
@@ -233,7 +237,6 @@ async function main() {
       country: 'Nigeria',
       latitude: 6.6018,
       longitude: 3.3515,
-      ownerId: jollofOwner.id,
       status: 'active',
       isVerified: true,
       cuisineType: 'Nigerian',
@@ -502,10 +505,11 @@ async function main() {
     allItems.map((item) =>
       prisma.inventory.create({
         data: {
+          businessId: item.businessId,
           itemId: item.id,
           currentStock: 50,
           minimumStock: 10,
-          trackStock: true,
+          unit: 'pieces',
         },
       })
     )
@@ -523,7 +527,7 @@ async function main() {
       data: {
         userId: customers[0].id,
         label: 'Home',
-        street: '10 Allen Avenue',
+        streetAddress: '10 Allen Avenue',
         city: 'Lagos',
         state: 'Lagos',
         country: 'Nigeria',
@@ -536,7 +540,7 @@ async function main() {
       data: {
         userId: customers[1].id,
         label: 'Home',
-        street: '25 Admiralty Way',
+        streetAddress: '25 Admiralty Way',
         city: 'Lagos',
         state: 'Lagos',
         country: 'Nigeria',
