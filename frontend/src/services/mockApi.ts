@@ -137,6 +137,8 @@ export const mockCreateOrder = (data: any) => {
     driver: null,
     deliveryAddress: mockAddresses.find(a => a.id === data.deliveryAddressId) || mockAddresses[0],
   };
+  // Add to the beginning of mock orders so it appears first
+  mockOrders.unshift(newOrder);
   return newOrder;
 };
 

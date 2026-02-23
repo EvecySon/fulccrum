@@ -49,8 +49,8 @@ function HomeTabs() {
             case 'Home':
               iconName = focused ? 'home' : 'home-outline';
               break;
-            case 'Search':
-              iconName = focused ? 'search' : 'search-outline';
+            case 'Wallet':
+              iconName = focused ? 'wallet' : 'wallet-outline';
               break;
             case 'Orders':
               iconName = focused ? 'receipt' : 'receipt-outline';
@@ -87,7 +87,7 @@ function HomeTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Wallet" component={PaymentMethodsScreen} />
       <Tab.Screen name="Orders" component={OrdersScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>

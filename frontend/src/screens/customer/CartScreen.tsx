@@ -49,6 +49,9 @@ export default function CartScreen({ navigation }: any) {
   // Delivery instructions
   const [deliveryOption, setDeliveryOption] = useState<'hand_to_customer' | 'leave_at_door' | 'meet_outside'>('hand_to_customer');
   const [deliveryNote, setDeliveryNote] = useState('');
+  
+  // Payment confirmation modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const tip = Math.round(subtotal * (tipPercent / 100));
   const effectiveDeliveryFee = fulfillmentType === 'pickup' ? 0 : deliveryFee;
@@ -145,7 +148,7 @@ export default function CartScreen({ navigation }: any) {
     setPromoLoading(false);
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (items.length === 0) return;
     if (fulfillmentType === 'delivery' && !selectedAddress) {
       Alert.alert('No Address', 'Please add a delivery address first.', [
@@ -159,6 +162,12 @@ export default function CartScreen({ navigation }: any) {
       return;
     }
 
+    // Show payment confirmation modal
+    setShowPaymentModal(true);
+  };
+
+  const confirmPayment = async () => {
+    setShowPaymentModal(false);
     setPlacing(true);
     try {
       const orderItems = items.map(item => ({
@@ -600,6 +609,88 @@ export default function CartScreen({ navigation }: any) {
               <Ionicons name="add-circle-outline" size={20} color={colors.teal} />
               <Text style={styles.addAddressText}>Add New Address</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Confirmation Modal */}
+      <Modal visible={showPaymentModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirm Payment</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 16 }}>
+              <View style={{ backgroundColor: colors.lightGray, padding: 16, borderRadius: 12 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>Payment Method</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons 
+                    name={paymentMethod === 'wallet' ? 'wallet' : paymentMethod === 'card' ? 'card' : 'cash'} 
+                    size={24} 
+                    color={colors.teal} 
+                  />
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>
+                    {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'card' ? 'Card' : 'Cash on Delivery'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ backgroundColor: colors.lightGray, padding: 16, borderRadius: 12, gap: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Subtotal</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>₦{subtotal.toLocaleString()}</Text>
+                </View>
+                {effectiveDeliveryFee > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary }}>Delivery Fee</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>₦{effectiveDeliveryFee.toLocaleString()}</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Service Fee</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>₦{serviceFee.toLocaleString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>Tax</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>₦{taxAmount.toLocaleString()}</Text>
+                </View>
+                {tip > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary }}>Tip ({tipPercent}%)</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>₦{tip.toLocaleString()}</Text>
+                  </View>
+                )}
+                {promoDiscount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: colors.success }}>Discount</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.success }}>-₦{promoDiscount.toLocaleString()}</Text>
+                  </View>
+                )}
+                <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>Total</Text>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.teal }}>₦{Math.max(0, total).toLocaleString()}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.scheduleConfirmBtn, placing && { opacity: 0.7 }]} 
+                onPress={confirmPayment}
+                disabled={placing}
+              >
+                {placing ? (
+                  <ActivityIndicator color={colors.textWhite} />
+                ) : (
+                  <Text style={styles.scheduleConfirmText}>
+                    {paymentMethod === 'cash' ? 'Confirm Order' : 'Pay ₦' + Math.max(0, total).toLocaleString()}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
