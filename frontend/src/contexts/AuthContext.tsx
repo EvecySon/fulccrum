@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 // Mock user auto-login uses __DEV__ directly (no import needed)
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { withMock, mockLogin } from '../services/mockApi';
 
 type UserRole = 'customer' | 'business_owner' | 'driver' | 'admin';
 
@@ -159,7 +160,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await authAPI.login(email, password);
+    const response = await withMock(
+      () => authAPI.login(email, password),
+      () => mockLogin(email, password)
+    );
     
     // Check if account is unverified
     if (response.verified === false) {

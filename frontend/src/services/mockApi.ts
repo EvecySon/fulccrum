@@ -170,3 +170,40 @@ export const mockReorder = (orderId: string) => {
     paymentMethod: original.paymentMethod,
   });
 };
+
+export const mockLogin = (email: string, password: string) => {
+  // Mock user database
+  const users = [
+    { id: 'customer-1', email: 'customer1@test.com', firstName: 'Ada', lastName: 'Okafor', role: 'customer', phone: '+234 801 234 5678' },
+    { id: 'customer-2', email: 'customer2@test.com', firstName: 'Chidi', lastName: 'Nwosu', role: 'customer', phone: '+234 802 345 6789' },
+    { id: 'customer-3', email: 'customer3@test.com', firstName: 'Zainab', lastName: 'Ibrahim', role: 'customer', phone: '+234 803 456 7890' },
+    { id: 'merchant-1', email: 'pizza@test.com', firstName: 'Tony', lastName: 'Pizza', role: 'business_owner', phone: '+234 807 890 1234' },
+    { id: 'merchant-2', email: 'burger@test.com', firstName: 'Bob', lastName: 'Burger', role: 'business_owner', phone: '+234 808 901 2345' },
+    { id: 'merchant-3', email: 'jollof@test.com', firstName: 'Mama', lastName: 'Jollof', role: 'business_owner', phone: '+234 809 012 3456' },
+    { id: 'driver-1', email: 'driver1@test.com', firstName: 'Emeka', lastName: 'Okoro', role: 'driver', phone: '+234 805 678 9012' },
+    { id: 'driver-2', email: 'driver2@test.com', firstName: 'Fatima', lastName: 'Bello', role: 'driver', phone: '+234 806 789 0123' },
+    { id: 'admin-1', email: 'admin@fulccrum.com', firstName: 'System', lastName: 'Admin', role: 'admin', phone: '+234 800 000 0000' },
+  ];
+
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  
+  if (!user) {
+    throw new Error('Invalid credentials');
+  }
+
+  // Accept any password in mock mode
+  return {
+    accessToken: 'mock-access-token-' + user.id,
+    refreshToken: 'mock-refresh-token-' + user.id,
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      phone: user.phone,
+      avatarUrl: undefined,
+    },
+    verified: true,
+  };
+};
