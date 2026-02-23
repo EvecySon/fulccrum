@@ -154,17 +154,9 @@ async function main() {
       address: '123 Pizza Street, Lekki, Lagos',
       city: 'Lagos',
       state: 'Lagos',
-      country: 'Nigeria',
-      latitude: 6.4281,
-      longitude: 3.4219,
-      status: 'active',
-      isVerified: true,
-      cuisineType: 'Italian',
-      openingTime: '10:00',
-      closingTime: '22:00',
       deliveryRadius: 10,
-      minimumOrder: 2000,
-      averageDeliveryTime: 30,
+      minimumOrderAmount: 2000,
+      averagePreparationTime: 30,
     },
   });
 
@@ -194,17 +186,9 @@ async function main() {
       address: '456 Burger Avenue, Victoria Island, Lagos',
       city: 'Lagos',
       state: 'Lagos',
-      country: 'Nigeria',
-      latitude: 6.4281,
-      longitude: 3.4219,
-      status: 'active',
-      isVerified: true,
-      cuisineType: 'American',
-      openingTime: '11:00',
-      closingTime: '23:00',
       deliveryRadius: 8,
-      minimumOrder: 1500,
-      averageDeliveryTime: 25,
+      minimumOrderAmount: 1500,
+      averagePreparationTime: 25,
     },
   });
 
@@ -234,17 +218,9 @@ async function main() {
       address: '789 Jollof Road, Ikeja, Lagos',
       city: 'Lagos',
       state: 'Lagos',
-      country: 'Nigeria',
-      latitude: 6.6018,
-      longitude: 3.3515,
-      status: 'active',
-      isVerified: true,
-      cuisineType: 'Nigerian',
-      openingTime: '09:00',
-      closingTime: '21:00',
       deliveryRadius: 12,
-      minimumOrder: 1000,
-      averageDeliveryTime: 35,
+      minimumOrderAmount: 1000,
+      averagePreparationTime: 35,
     },
   });
 
@@ -259,7 +235,7 @@ async function main() {
   const pizzaCategories = await Promise.all([
     prisma.menuCategory.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         name: 'Pizzas',
         description: 'Our signature pizzas',
         displayOrder: 1,
@@ -268,7 +244,7 @@ async function main() {
     }),
     prisma.menuCategory.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         name: 'Sides',
         description: 'Perfect complements',
         displayOrder: 2,
@@ -277,7 +253,7 @@ async function main() {
     }),
     prisma.menuCategory.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         name: 'Drinks',
         description: 'Refreshing beverages',
         displayOrder: 3,
@@ -289,7 +265,7 @@ async function main() {
   const pizzaItems = await Promise.all([
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[0].id,
         name: 'Margherita Pizza',
         description: 'Classic tomato, mozzarella, and basil',
@@ -300,7 +276,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[0].id,
         name: 'Pepperoni Pizza',
         description: 'Loaded with pepperoni and cheese',
@@ -311,7 +287,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[0].id,
         name: 'BBQ Chicken Pizza',
         description: 'Grilled chicken with BBQ sauce',
@@ -322,7 +298,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[1].id,
         name: 'Garlic Bread',
         description: 'Toasted bread with garlic butter',
@@ -333,7 +309,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[1].id,
         name: 'Chicken Wings',
         description: '6 pieces of spicy wings',
@@ -344,7 +320,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: pizzaPlace.id,
+        businessId: pizzaPlace.userId,
         categoryId: pizzaCategories[2].id,
         name: 'Coca Cola',
         description: '50cl bottle',
@@ -359,7 +335,7 @@ async function main() {
   const burgerCategories = await Promise.all([
     prisma.menuCategory.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         name: 'Burgers',
         description: 'Juicy beef burgers',
         displayOrder: 1,
@@ -368,7 +344,7 @@ async function main() {
     }),
     prisma.menuCategory.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         name: 'Sides',
         description: 'Fries and more',
         displayOrder: 2,
@@ -380,7 +356,7 @@ async function main() {
   const burgerItems = await Promise.all([
     prisma.menuItem.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         categoryId: burgerCategories[0].id,
         name: 'Classic Burger',
         description: 'Beef patty, lettuce, tomato, onion',
@@ -391,7 +367,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         categoryId: burgerCategories[0].id,
         name: 'Cheese Burger',
         description: 'With melted cheddar cheese',
@@ -402,7 +378,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         categoryId: burgerCategories[0].id,
         name: 'Double Burger',
         description: 'Two beef patties, double cheese',
@@ -413,7 +389,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: burgerJoint.id,
+        businessId: burgerJoint.userId,
         categoryId: burgerCategories[1].id,
         name: 'French Fries',
         description: 'Crispy golden fries',
@@ -428,7 +404,7 @@ async function main() {
   const jollofCategories = await Promise.all([
     prisma.menuCategory.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         name: 'Rice Dishes',
         description: 'Nigerian rice specialties',
         displayOrder: 1,
@@ -437,7 +413,7 @@ async function main() {
     }),
     prisma.menuCategory.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         name: 'Proteins',
         description: 'Chicken, fish, and beef',
         displayOrder: 2,
@@ -449,7 +425,7 @@ async function main() {
   const jollofItems = await Promise.all([
     prisma.menuItem.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         categoryId: jollofCategories[0].id,
         name: 'Jollof Rice',
         description: 'Spicy Nigerian jollof rice',
@@ -460,7 +436,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         categoryId: jollofCategories[0].id,
         name: 'Fried Rice',
         description: 'Mixed vegetable fried rice',
@@ -471,7 +447,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         categoryId: jollofCategories[1].id,
         name: 'Grilled Chicken',
         description: 'Full chicken grilled to perfection',
@@ -482,7 +458,7 @@ async function main() {
     }),
     prisma.menuItem.create({
       data: {
-        businessId: jollofSpot.id,
+        businessId: jollofSpot.userId,
         categoryId: jollofCategories[1].id,
         name: 'Fried Fish',
         description: 'Crispy fried tilapia',
@@ -525,11 +501,12 @@ async function main() {
   await Promise.all([
     prisma.address.create({
       data: {
-        userId: customers[0].id,
+        user: { connect: { id: customers[0].id } },
         label: 'Home',
         streetAddress: '10 Allen Avenue',
         city: 'Lagos',
         state: 'Lagos',
+        postalCode: '100001',
         country: 'Nigeria',
         latitude: 6.4698,
         longitude: 3.3852,
@@ -538,11 +515,12 @@ async function main() {
     }),
     prisma.address.create({
       data: {
-        userId: customers[1].id,
+        user: { connect: { id: customers[1].id } },
         label: 'Home',
         streetAddress: '25 Admiralty Way',
         city: 'Lagos',
         state: 'Lagos',
+        postalCode: '101233',
         country: 'Nigeria',
         latitude: 6.4281,
         longitude: 3.4219,
