@@ -158,11 +158,14 @@ export class WalletService {
     const confirmationCode = randomInt(100000, 999999).toString();
     const codeExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    const reference = `WD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
     const request = await this.prisma.withdrawalRequest.create({
       data: {
-        userId,
-        walletId: wallet.id,
+        user: { connect: { id: userId } },
+        wallet: { connect: { id: wallet.id } },
         amount,
+        reference,
         confirmationCode,
         codeExpiresAt,
         ipAddress,

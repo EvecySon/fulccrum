@@ -172,7 +172,7 @@ describe('PaymentService - Idempotency', () => {
         return { cached: false, data: result };
       });
 
-      jest.spyOn(require('axios'), 'post').mockImplementation((url, data) => {
+      jest.spyOn(require('axios'), 'post').mockImplementation((url, data: any) => {
         references.push(data.reference);
         return Promise.resolve(mockPaystackResponse);
       });
