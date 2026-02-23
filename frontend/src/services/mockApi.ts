@@ -17,7 +17,7 @@ import {
 } from './mockData';
 
 // Set to true to always use mock data (no backend needed)
-export const USE_MOCK = true;
+export const USE_MOCK = false;
 
 // Delay to simulate network latency
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
