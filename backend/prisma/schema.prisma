@@ -64,6 +64,12 @@ enum NotificationType {
   quest
   safety
   document
+  transactional
+  engagement
+  promotional
+  reminder
+  alert
+  informational
 }
 
 enum WithdrawalStatus {
@@ -139,6 +145,8 @@ model User {
   verificationAttempts    VerificationAttempt[]     @relation("CourierVerificationAttempts")
   scheduleNoShows         ScheduleNoShow[]          @relation("ScheduleNoShows")
   auditLogs               AuditLog[]                @relation("UserAuditLogs")
+  notificationTemplates   NotificationTemplate[]    @relation("NotificationTemplateCreator")
+  notificationLogs        NotificationLog[]         @relation("UserNotificationLogs")
 
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
@@ -1934,4 +1942,62 @@ model VerificationAttempt {
 
   @@index([courierId, createdAt])
   @@map("verification_attempts")
+}
+
+model NotificationTemplate {
+  id           String           @id @default(uuid()) @db.Uuid
+  key          String           @unique @db.VarChar(100)
+  name         String           @db.VarChar(200)
+  description  String?          @db.Text
+  title        String           @db.VarChar(200)
+  body         String           @db.Text
+  type         NotificationType
+  category     String           @db.VarChar(50)
+  targetRole   String[]
+  isScheduled  Boolean          @default(false) @map("is_scheduled")
+  scheduleTime String?          @db.VarChar(50) @map("schedule_time")
+  isActive     Boolean          @default(true) @map("is_active")
+  isDefault    Boolean          @default(false) @map("is_default")
+  variant      String?          @db.VarChar(10)
+  variantGroup String?          @db.VarChar(100) @map("variant_group")
+  sentCount    Int              @default(0) @map("sent_count")
+  openCount    Int              @default(0) @map("open_count")
+  clickCount   Int              @default(0) @map("click_count")
+  createdBy    String?          @map("created_by") @db.Uuid
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  lastUsedAt   DateTime?        @map("last_used_at")
+
+  creator User? @relation("NotificationTemplateCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([key])
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+  @@index([variantGroup])
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  templateId   String?   @map("template_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  title        String    @db.VarChar(200)
+  body         String    @db.Text
+  data         Json?
+  status       String    @db.VarChar(50)
+  platform     String    @db.VarChar(20)
+  sentAt       DateTime  @default(now()) @map("sent_at")
+  deliveredAt  DateTime? @map("delivered_at")
+  openedAt     DateTime? @map("opened_at")
+  clickedAt    DateTime? @map("clicked_at")
+  errorMessage String?   @map("error_message") @db.Text
+
+  user User @relation("UserNotificationLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([userId])
+  @@index([status])
+  @@index([sentAt])
+  @@map("notification_logs")
 }
