@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MulterModule } from '@nestjs/platform-express';
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
+import { StorageFactory } from './storage.factory';
+import { LocalStorageProvider } from './providers/local-storage.provider';
+import { CloudinaryStorageProvider } from './providers/cloudinary-storage.provider';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
@@ -16,7 +19,12 @@ import { AuthModule } from '../auth/auth.module';
     }),
   ],
   controllers: [UploadController],
-  providers: [UploadService],
+  providers: [
+    UploadService,
+    StorageFactory,
+    LocalStorageProvider,
+    CloudinaryStorageProvider,
+  ],
   exports: [UploadService],
 })
 export class UploadModule {}

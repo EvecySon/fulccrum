@@ -55,6 +55,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { CourierModule } from './courier/courier.module';
 import { BusinessModule } from './business/business.module';
 import { MerchantsModule } from './merchants/merchants.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { MerchantsModule } from './merchants/merchants.module';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    CacheModule,
     CommonModule,
     QueueModule,
     HealthModule,

@@ -1,15 +1,12 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import sharp from 'sharp';
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import { StorageFactory } from './storage.factory';
 import { randomBytes } from 'crypto';
 import * as mime from 'mime-types';
 
 @Injectable()
 export class UploadService {
-  private uploadDir: string;
   private maxFileSize: number = 10 * 1024 * 1024; // 10MB
   private allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   private allowedDocumentTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
@@ -17,21 +14,8 @@ export class UploadService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
-  ) {
-    this.uploadDir = this.config.get('UPLOAD_DIR') || path.join(process.cwd(), 'uploads');
-    this.ensureUploadDirExists();
-  }
-
-  private async ensureUploadDirExists() {
-    try {
-      await fs.access(this.uploadDir);
-    } catch {
-      await fs.mkdir(this.uploadDir, { recursive: true });
-      await fs.mkdir(path.join(this.uploadDir, 'thumbnails'), { recursive: true });
-      await fs.mkdir(path.join(this.uploadDir, 'medium'), { recursive: true });
-      await fs.mkdir(path.join(this.uploadDir, 'originals'), { recursive: true });
-    }
-  }
+    private storageFactory: StorageFactory,
+  ) {}
 
   async uploadImage(
     file: Express.Multer.File,
@@ -51,12 +35,13 @@ export class UploadService {
     const fileExt = mime.extension(file.mimetype) || 'jpg';
     const uniqueName = `${randomBytes(16).toString('hex')}.${fileExt}`;
 
-    // Process and save images in different sizes
-    const [thumbnail, medium, original] = await Promise.all([
-      this.createThumbnail(file.buffer, uniqueName),
-      this.createMediumSize(file.buffer, uniqueName),
-      this.saveOriginal(file.buffer, uniqueName),
-    ]);
+    // Use storage provider to upload
+    const storage = this.storageFactory.getProvider();
+    const uploadResult = await storage.uploadImage(file.buffer, uniqueName, {
+      folder: 'originals',
+      generateThumbnail: true,
+      generateMedium: true,
+    });
 
     // Save to database
     const uploadedFile = await this.prisma.mediaFile.create({
@@ -66,9 +51,9 @@ export class UploadService {
         originalName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        url: `/uploads/originals/${uniqueName}`,
-        thumbnailUrl: `/uploads/thumbnails/${uniqueName}`,
-        mediumUrl: `/uploads/medium/${uniqueName}`,
+        url: uploadResult.url,
+        thumbnailUrl: uploadResult.thumbnailUrl,
+        mediumUrl: uploadResult.mediumUrl,
       },
     });
 
@@ -84,44 +69,6 @@ export class UploadService {
     };
   }
 
-  private async createThumbnail(buffer: Buffer, filename: string): Promise<string> {
-    const thumbnailPath = path.join(this.uploadDir, 'thumbnails', filename);
-    
-    await sharp(buffer)
-      .resize(150, 150, {
-        fit: 'cover',
-        position: 'center',
-      })
-      .jpeg({ quality: 80 })
-      .toFile(thumbnailPath);
-
-    return thumbnailPath;
-  }
-
-  private async createMediumSize(buffer: Buffer, filename: string): Promise<string> {
-    const mediumPath = path.join(this.uploadDir, 'medium', filename);
-    
-    await sharp(buffer)
-      .resize(800, 800, {
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 85 })
-      .toFile(mediumPath);
-
-    return mediumPath;
-  }
-
-  private async saveOriginal(buffer: Buffer, filename: string): Promise<string> {
-    const originalPath = path.join(this.uploadDir, 'originals', filename);
-    
-    // Optimize original but keep full size
-    await sharp(buffer)
-      .jpeg({ quality: 90 })
-      .toFile(originalPath);
-
-    return originalPath;
-  }
 
   async uploadDocument(
     file: Express.Multer.File,
@@ -140,10 +87,10 @@ export class UploadService {
     // Generate unique filename
     const fileExt = mime.extension(file.mimetype) || 'pdf';
     const uniqueName = `${randomBytes(16).toString('hex')}.${fileExt}`;
-    const filePath = path.join(this.uploadDir, 'originals', uniqueName);
 
-    // Save file
-    await fs.writeFile(filePath, file.buffer);
+    // Use storage provider
+    const storage = this.storageFactory.getProvider();
+    const uploadResult = await storage.uploadFile(file.buffer, uniqueName, file.mimetype, 'documents');
 
     // Save to database
     const uploadedFile = await this.prisma.mediaFile.create({
@@ -153,7 +100,7 @@ export class UploadService {
         originalName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        url: `/uploads/originals/${uniqueName}`,
+        url: uploadResult.url,
       },
     });
 
@@ -221,26 +168,13 @@ export class UploadService {
   async deleteFile(fileId: string, userId: string) {
     const file = await this.getFile(fileId, userId);
 
-    // Delete physical files
-    const filesToDelete = [
-      path.join(this.uploadDir, 'originals', file.filename),
-    ];
-
-    if (file.thumbnailUrl) {
-      filesToDelete.push(path.join(this.uploadDir, 'thumbnails', file.filename));
-    }
-
-    if (file.mediumUrl) {
-      filesToDelete.push(path.join(this.uploadDir, 'medium', file.filename));
-    }
-
-    await Promise.all(
-      filesToDelete.map(filePath =>
-        fs.unlink(filePath).catch(() => {
-          // Ignore errors if file doesn't exist
-        }),
-      ),
-    );
+    // Delete from storage provider
+    const storage = this.storageFactory.getProvider();
+    await Promise.all([
+      storage.deleteFile(file.url),
+      file.thumbnailUrl ? storage.deleteFile(file.thumbnailUrl) : Promise.resolve(),
+      file.mediumUrl ? storage.deleteFile(file.mediumUrl) : Promise.resolve(),
+    ]);
 
     // Delete from database
     await this.prisma.mediaFile.delete({
@@ -294,14 +228,13 @@ export class UploadService {
 
     const fileExt = mime.extension(file.mimetype) || 'bin';
     const uniqueName = `${randomBytes(16).toString('hex')}.${fileExt}`;
-    const filePath = path.join(this.uploadDir, folder, uniqueName);
 
-    // Ensure folder exists
-    await fs.mkdir(path.join(this.uploadDir, folder), { recursive: true });
-    await fs.writeFile(filePath, file.buffer);
+    // Use storage provider
+    const storage = this.storageFactory.getProvider();
+    const uploadResult = await storage.uploadFile(file.buffer, uniqueName, file.mimetype, folder);
 
     return {
-      url: `/uploads/${folder}/${uniqueName}`,
+      url: uploadResult.url,
       filename: uniqueName,
       originalName: file.originalname,
       size: file.size,
