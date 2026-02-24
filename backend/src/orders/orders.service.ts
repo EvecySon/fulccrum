@@ -165,6 +165,112 @@ export class OrdersService {
     return order;
   }
 
+  async payWithWallet(userId: string, orderId: string) {
+    // Get order details
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        business: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.customerId !== userId) {
+      throw new ForbiddenException('You can only pay for your own orders');
+    }
+
+    if (order.paymentStatus === 'paid') {
+      throw new BadRequestException('Order already paid');
+    }
+
+    // Get customer wallet balance
+    const wallet = await this.prisma.digitalWallet.findUnique({
+      where: { userId },
+    });
+
+    if (!wallet) {
+      throw new BadRequestException('Wallet not found. Please create a wallet first.');
+    }
+
+    const availableBalance = Number(wallet.balance) - Number(wallet.frozenBalance);
+    const orderTotal = Number(order.totalAmount);
+
+    if (availableBalance < orderTotal) {
+      throw new BadRequestException(
+        `Insufficient wallet balance. Available: ₦${availableBalance.toFixed(2)}, Required: ₦${orderTotal.toFixed(2)}`
+      );
+    }
+
+    // Calculate platform fee (2% of total)
+    const platformFeePercentage = 2;
+    const platformFee = (orderTotal * platformFeePercentage) / 100;
+    const merchantEarnings = Number(order.subtotal) - platformFee;
+
+    // Process payment in transaction
+    await this.prisma.$transaction(async (tx) => {
+      // Debit customer wallet
+      await tx.digitalWallet.update({
+        where: { userId },
+        data: {
+          balance: {
+            decrement: orderTotal,
+          },
+        },
+      });
+
+      // Credit merchant wallet
+      const merchantWallet = await tx.digitalWallet.findUnique({
+        where: { userId: order.businessId },
+      });
+
+      if (!merchantWallet) {
+        await tx.digitalWallet.create({
+          data: {
+            userId: order.businessId,
+            balance: merchantEarnings,
+          },
+        });
+      } else {
+        await tx.digitalWallet.update({
+          where: { userId: order.businessId },
+          data: {
+            balance: {
+              increment: merchantEarnings,
+            },
+          },
+        });
+      }
+
+      // Update order payment status
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentStatus: 'paid',
+          paymentMethod: 'wallet',
+        },
+      });
+    });
+
+    console.log(`[WALLET PAYMENT] Order #${order.orderNumber} paid via wallet`);
+    console.log(`[WALLET PAYMENT] Customer wallet debited: ₦${orderTotal.toFixed(2)}`);
+    console.log(`[WALLET PAYMENT] Merchant wallet credited: ₦${merchantEarnings.toFixed(2)}`);
+    console.log(`[WALLET PAYMENT] Platform fee: ₦${platformFee.toFixed(2)}`);
+    console.log(`[WALLET PAYMENT] Driver will be credited ₦${order.deliveryFee} on delivery`);
+
+    return {
+      success: true,
+      message: 'Payment successful',
+      orderNumber: order.orderNumber,
+      amountPaid: orderTotal,
+      paymentMethod: 'wallet',
+      merchantEarnings,
+      platformFee,
+    };
+  }
+
   async getOrder(orderId: string, userId: string, userRole: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },

@@ -111,6 +111,19 @@ export class PaymentService {
       if (data.status === 'success') {
         const orderId = data.metadata.orderId;
         
+        // Get order details with business info
+        const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          include: {
+            business: true,
+          },
+        });
+
+        if (!order) {
+          throw new BadRequestException('Order not found');
+        }
+
+        // Update order payment status
         await this.prisma.order.update({
           where: { id: orderId },
           data: {
@@ -119,12 +132,38 @@ export class PaymentService {
           },
         });
 
+        // Calculate platform fee (2% of total)
+        const totalAmount = Number(order.totalAmount);
+        const platformFeePercentage = 2; // 2% platform fee
+        const platformFee = (totalAmount * platformFeePercentage) / 100;
+        
+        // Merchant gets: subtotal - platform fee
+        const merchantEarnings = Number(order.subtotal) - platformFee;
+
+        // Credit merchant wallet immediately
+        const WalletService = (await import('../wallet/wallet.service')).WalletService;
+        const walletService = new WalletService(this.prisma, this.paystackService);
+        
+        await walletService.creditWallet(
+          order.businessId,
+          merchantEarnings,
+          'order_payment',
+          `Payment for order #${order.orderNumber}`,
+        );
+
+        console.log(`[PAYMENT] Order #${order.orderNumber} paid via ${data.channel}`);
+        console.log(`[PAYMENT] Merchant wallet credited: ₦${merchantEarnings.toFixed(2)}`);
+        console.log(`[PAYMENT] Platform fee: ₦${platformFee.toFixed(2)}`);
+        console.log(`[PAYMENT] Driver will be credited ₦${order.deliveryFee} on delivery`);
+
         return {
           success: true,
           amount: data.amount / 100,
           reference: data.reference,
           paidAt: data.paid_at,
           channel: data.channel,
+          merchantEarnings,
+          platformFee,
         };
       }
 

@@ -4,6 +4,7 @@ import { PickupOrdersService } from './pickup-orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
+import { PayWithWalletDto } from './dto/pay-with-wallet.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('orders')
@@ -17,6 +18,11 @@ export class OrdersController {
   @Post()
   async createOrder(@Request() req: any, @Body() dto: CreateOrderDto) {
     return this.ordersService.createOrder(req.user.sub, dto);
+  }
+
+  @Post('pay-with-wallet')
+  async payWithWallet(@Request() req: any, @Body() dto: PayWithWalletDto) {
+    return this.ordersService.payWithWallet(req.user.sub, dto.orderId);
   }
 
   @Get(':id')
