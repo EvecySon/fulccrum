@@ -524,12 +524,95 @@ async function main() {
         country: 'Nigeria',
         latitude: 6.4281,
         longitude: 3.4219,
-        isDefault: true,
       },
     }),
   ]);
 
-  console.log(`✅ Created sample addresses\n`);
+  console.log(`✅ Created 2 sample addresses\n`);
+
+  // ============================================
+  // 8. CREATE WALLETS WITH TEST BALANCES
+  // ============================================
+  console.log('💰 Creating wallets with test balances...');
+  
+  // Create wallets for customers
+  await Promise.all([
+    prisma.digitalWallet.create({
+      data: {
+        userId: customers[0].id,
+        balance: 50000, // ₦50,000
+        currency: 'NGN',
+      },
+    }),
+    prisma.digitalWallet.create({
+      data: {
+        userId: customers[1].id,
+        balance: 30000, // ₦30,000
+        currency: 'NGN',
+      },
+    }),
+    prisma.digitalWallet.create({
+      data: {
+        userId: customers[2].id,
+        balance: 20000, // ₦20,000
+        currency: 'NGN',
+      },
+    }),
+  ]);
+
+  // Create wallets for drivers
+  await Promise.all([
+    prisma.digitalWallet.create({
+      data: {
+        userId: drivers[0].id,
+        balance: 15000, // ₦15,000
+        currency: 'NGN',
+      },
+    }),
+    prisma.digitalWallet.create({
+      data: {
+        userId: drivers[1].id,
+        balance: 10000, // ₦10,000
+        currency: 'NGN',
+      },
+    }),
+  ]);
+
+  // Create wallets for restaurant owners
+  await Promise.all([
+    prisma.digitalWallet.create({
+      data: {
+        userId: pizzaOwner.id,
+        balance: 100000, // ₦100,000
+        currency: 'NGN',
+      },
+    }),
+    prisma.digitalWallet.create({
+      data: {
+        userId: burgerOwner.id,
+        balance: 75000, // ₦75,000
+        currency: 'NGN',
+      },
+    }),
+    prisma.digitalWallet.create({
+      data: {
+        userId: jollofOwner.id,
+        balance: 50000, // ₦50,000
+        currency: 'NGN',
+      },
+    }),
+  ]);
+
+  // Create wallet for admin
+  await prisma.digitalWallet.create({
+    data: {
+      userId: admin.id,
+      balance: 1000000, // ₦1,000,000 for testing
+      currency: 'NGN',
+    },
+  });
+
+  console.log(`✅ Created wallets for all users with test balances\n`);
 
   // ============================================
   // SUMMARY
@@ -541,15 +624,21 @@ async function main() {
   console.log('👤 Admin User:');
   console.log('   Email: admin@fulccrum.com');
   console.log('   Password: Test123!');
+  console.log('   💰 Wallet: ₦1,000,000');
   console.log('');
   console.log('👥 Test Customers: 3');
-  console.log('   customer1@test.com - Test123!');
-  console.log('   customer2@test.com - Test123!');
-  console.log('   customer3@test.com - Test123!');
+  console.log('   customer1@test.com - Test123! (₦50,000)');
+  console.log('   customer2@test.com - Test123! (₦30,000)');
+  console.log('   customer3@test.com - Test123! (₦20,000)');
   console.log('');
   console.log('🏍️  Test Drivers: 2');
-  console.log('   driver1@test.com - Test123!');
-  console.log('   driver2@test.com - Test123!');
+  console.log('   driver1@test.com - Test123! (₦15,000)');
+  console.log('   driver2@test.com - Test123! (₦10,000)');
+  console.log('');
+  console.log('🏪 Restaurant Owners: 3');
+  console.log('   pizza@test.com - Test123! (₦100,000)');
+  console.log('   burger@test.com - Test123! (₦75,000)');
+  console.log('   jollof@test.com - Test123! (₦50,000)');
   console.log('');
   console.log('🏪 Restaurants: 3');
   console.log('   1. Tony\'s Pizza Palace (Italian)');
@@ -558,8 +647,9 @@ async function main() {
   console.log('');
   console.log('📋 Menu Items: ' + allItems.length);
   console.log('📦 Inventory: All items stocked (50 units each)');
+  console.log('💰 Wallets: All users funded with test balances');
   console.log('═══════════════════════════════════════════\n');
-  console.log('✅ You can now test the complete order flow!');
+  console.log('✅ You can now test the complete order flow with wallet payments!');
   console.log('');
 }
 

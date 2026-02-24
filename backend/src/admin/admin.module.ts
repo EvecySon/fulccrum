@@ -22,6 +22,8 @@ import { RBACController } from './controllers/rbac.controller';
 import { ModerationController } from './controllers/moderation.controller';
 import { MarketingController } from './controllers/marketing.controller';
 import { AnalyticsController } from './controllers/analytics.controller';
+import { AdminWalletController } from './admin-wallet.controller';
+import { AdminWalletService } from './admin-wallet.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, MessagingModule, DocumentsModule],
@@ -33,6 +35,7 @@ import { AnalyticsController } from './controllers/analytics.controller';
     ModerationController,
     MarketingController,
     AnalyticsController,
+    AdminWalletController,
   ],
   providers: [
     AdminService,
@@ -47,6 +50,7 @@ import { AnalyticsController } from './controllers/analytics.controller';
     CampaignService,
     AnalyticsService,
     SchedulingService,
+    AdminWalletService,
   ],
   exports: [
     AdminService,
