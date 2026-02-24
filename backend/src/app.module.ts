@@ -54,6 +54,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CourierModule } from './courier/courier.module';
 import { BusinessModule } from './business/business.module';
+import { MerchantsModule } from './merchants/merchants.module';
 
 @Module({
   imports: [
@@ -123,6 +124,7 @@ import { BusinessModule } from './business/business.module';
     CategoriesModule,
     CourierModule,
     BusinessModule,
+    MerchantsModule,
   ],
   controllers: [AppController],
   providers: [

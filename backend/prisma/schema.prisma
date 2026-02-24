@@ -222,6 +222,14 @@ model BusinessProfile {
   isOpen                 Boolean   @default(true) @map("is_open")
   priceRange             String?   @map("price_range") @db.VarChar(10)
   estimatedDeliveryTime  String?   @map("estimated_delivery_time") @db.VarChar(20)
+  manualStatus           String    @default("auto") @map("manual_status") @db.VarChar(20)
+  lastSeenAt             DateTime? @map("last_seen_at")
+  pausedUntil            DateTime? @map("paused_until")
+  pauseReason            String?   @map("pause_reason") @db.VarChar(200)
+  autoAcceptTimeout      Int       @default(3) @map("auto_accept_timeout")
+  showPhoneToCustomers   Boolean   @default(true) @map("show_phone_to_customers")
+  acceptanceRate         Decimal   @default(100) @map("acceptance_rate") @db.Decimal(5, 2)
+  averageResponseTime    Int       @default(0) @map("average_response_time")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
 
@@ -246,6 +254,7 @@ model BusinessProfile {
   groupOrders         GroupOrder[]              @relation("group_order_business")
   merchantCommissions MerchantCommission[]
   merchantCompliance  MerchantCompliance?
+  activityLogs        MerchantActivityLog[]
 
   @@map("business_profiles")
 }
@@ -297,6 +306,9 @@ model Order {
   pickedUpAt            DateTime? @map("picked_up_at")
   deliveredAt           DateTime? @map("delivered_at")
   estimatedDeliveryTime DateTime? @map("estimated_delivery_time")
+  merchantNotifiedAt    DateTime? @map("merchant_notified_at")
+  timeoutAt             DateTime? @map("timeout_at")
+  merchantResponseTime  Int?      @map("merchant_response_time")
 
   specialInstructions String?       @map("special_instructions")
   paymentMethod       String?       @map("payment_method") @db.VarChar(50)
@@ -2002,6 +2014,21 @@ model NotificationLog {
   @@index([status])
   @@index([sentAt])
   @@map("notification_logs")
+}
+
+model MerchantActivityLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  action     String   @db.VarChar(50)
+  metadata   Json?
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  deviceInfo String?  @map("device_info") @db.VarChar(200)
+  timestamp  DateTime @default(now())
+
+  merchant BusinessProfile @relation(fields: [merchantId], references: [userId], onDelete: Cascade)
+
+  @@index([merchantId, timestamp])
+  @@map("merchant_activity_logs")
 }
 
 model PushToken {
