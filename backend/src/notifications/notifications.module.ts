@@ -5,6 +5,7 @@ import { NotificationTemplateController } from './notification-template.controll
 import { NotificationTemplateService } from './notification-template.service';
 import { PushNotificationController } from './push-notification.controller';
 import { PushNotificationService } from './push-notification.service';
+import { ExpoPushService } from './expo-push.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
@@ -19,11 +20,13 @@ import { AuthModule } from '../auth/auth.module';
     NotificationsService,
     NotificationTemplateService,
     PushNotificationService,
+    ExpoPushService,
   ],
   exports: [
     NotificationsService,
     NotificationTemplateService,
     PushNotificationService,
+    ExpoPushService,
   ],
 })
 export class NotificationsModule {}

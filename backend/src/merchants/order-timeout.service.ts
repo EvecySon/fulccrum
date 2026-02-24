@@ -70,8 +70,8 @@ export class OrderTimeoutService {
           orderId,
           orderNumber: order.orderNumber,
           type: 'timeout',
-          priority: 'high',
         },
+        priority: 'high',
       });
 
       // Notify customer - show merchant phone
@@ -85,6 +85,7 @@ export class OrderTimeoutService {
           merchantName: order.business.businessName,
           type: 'timeout',
         },
+        priority: 'high',
       });
 
       // Log timeout activity
@@ -135,8 +136,8 @@ export class OrderTimeoutService {
         orderId,
         orderNumber: order.orderNumber,
         type: 'new_order',
-        priority: 'high',
       },
+      priority: 'high',
     });
 
     this.logger.log(`Notified merchant for order ${order.orderNumber}`);
@@ -159,6 +160,7 @@ export class OrderTimeoutService {
             orderNumber: order.orderNumber,
             type: 'reminder',
           },
+          priority: 'high',
         });
 
         this.logger.log(`Sent 1-minute reminder for order ${order.orderNumber}`);

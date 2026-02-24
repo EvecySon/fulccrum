@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from './expo-push.service';
 
 export interface RegisterTokenDto {
   token: string;
@@ -19,11 +20,23 @@ export interface UpdateSettingsDto {
   smsNotifications?: boolean;
 }
 
+export interface SendNotificationDto {
+  userId: string;
+  title: string;
+  body: string;
+  data?: any;
+  sound?: 'default' | null;
+  priority?: 'default' | 'normal' | 'high';
+}
+
 @Injectable()
 export class PushNotificationService {
   private readonly logger = new Logger(PushNotificationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private expoPushService: ExpoPushService,
+  ) {}
 
   async registerPushToken(userId: string, dto: RegisterTokenDto) {
     try {
@@ -154,5 +167,38 @@ export class PushNotificationService {
 
     this.logger.log(`Cleaned up ${result.count} old push tokens`);
     return result;
+  }
+
+  async sendToUser(dto: SendNotificationDto) {
+    try {
+      // Check user preferences first
+      const canSend = await this.checkUserPreference(dto.userId, 'orderUpdates');
+      if (!canSend) {
+        this.logger.log(`User ${dto.userId} has disabled notifications`);
+        return { success: false, reason: 'user_disabled' };
+      }
+
+      // Send via Expo Push
+      return await this.expoPushService.sendToUser(dto.userId, {
+        title: dto.title,
+        body: dto.body,
+        data: dto.data,
+        sound: dto.sound ?? 'default',
+        priority: dto.priority ?? 'high',
+      });
+    } catch (error) {
+      this.logger.error(`Failed to send notification to user ${dto.userId}:`, error);
+      throw error;
+    }
+  }
+
+  async sendToMultipleUsers(userIds: string[], notification: Omit<SendNotificationDto, 'userId'>) {
+    return await this.expoPushService.sendToMultipleUsers(userIds, {
+      title: notification.title,
+      body: notification.body,
+      data: notification.data,
+      sound: notification.sound ?? 'default',
+      priority: notification.priority ?? 'high',
+    });
   }
 }
