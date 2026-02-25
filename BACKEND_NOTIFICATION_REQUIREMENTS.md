@@ -440,6 +440,8 @@ export async function autoAssignTicket(ticketId: string) {
 
 ## 7. Database Schema Updates
 
+**IMPORTANT:** See `BACKEND_AGENT_ROLE_SYSTEM.md` for complete agent role system implementation.
+
 ```prisma
 // prisma/schema.prisma
 
@@ -451,6 +453,13 @@ model User {
   status          String   @default("offline") // online, offline, busy, break
   lastSeen        DateTime @default(now())
   assignedTickets Ticket[] @relation("AssignedAgent")
+  
+  // Agent role system (see BACKEND_AGENT_ROLE_SYSTEM.md)
+  agentLevel      AgentLevel?
+  department      Department?
+  permissions     Permission[]
+  maxRefundAmount Float?   @default(0)
+  agentMetrics    AgentMetrics?
 }
 
 model Ticket {
