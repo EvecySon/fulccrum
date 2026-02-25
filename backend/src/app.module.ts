@@ -56,6 +56,10 @@ import { CourierModule } from './courier/courier.module';
 import { BusinessModule } from './business/business.module';
 import { MerchantsModule } from './merchants/merchants.module';
 import { CacheModule } from './cache/cache.module';
+import { WebSocketModule } from './websocket/websocket.module';
+import { AgentModule } from './agent/agent.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { initializeFirebase } from './config/firebase.config';
 
 @Module({
   imports: [
@@ -127,6 +131,9 @@ import { CacheModule } from './cache/cache.module';
     CourierModule,
     BusinessModule,
     MerchantsModule,
+    WebSocketModule,
+    AgentModule,
+    TicketsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -137,4 +144,8 @@ import { CacheModule } from './cache/cache.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  constructor(private config: ConfigService) {
+    initializeFirebase(this.config);
+  }
+}

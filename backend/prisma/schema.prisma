@@ -72,6 +72,76 @@ enum NotificationType {
   informational
 }
 
+enum AgentLevel {
+  TIER1
+  TIER2
+  TIER3
+  SPECIALIST
+  MANAGER
+  SUPER_ADMIN
+}
+
+enum Department {
+  CUSTOMER_SUPPORT
+  MERCHANT_SUPPORT
+  COURIER_SUPPORT
+  GENERAL
+  VIP_SUPPORT
+  FRAUD_PREVENTION
+}
+
+enum Permission {
+  VIEW_TICKETS
+  CREATE_TICKETS
+  ASSIGN_TICKETS
+  CLOSE_TICKETS
+  REOPEN_TICKETS
+  ISSUE_REFUNDS
+  ISSUE_LARGE_REFUNDS
+  ESCALATE_TICKETS
+  VIEW_ANALYTICS
+  MANAGE_AGENTS
+  ACCESS_ADMIN_PANEL
+  EDIT_ORDERS
+  BAN_USERS
+  APPROVE_MERCHANTS
+  MANAGE_PROMOTIONS
+  VIEW_FINANCIAL_DATA
+  EXPORT_DATA
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  WAITING_INTERNAL
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum TicketCategory {
+  ORDER_ISSUE
+  PAYMENT_ISSUE
+  DELIVERY_ISSUE
+  ACCOUNT_ISSUE
+  REFUND_REQUEST
+  TECHNICAL_ISSUE
+  MERCHANT_ISSUE
+  DRIVER_ISSUE
+  GENERAL_INQUIRY
+  COMPLAINT
+  FEEDBACK
+}
+
 enum WithdrawalStatus {
   pending
   confirmed
@@ -83,23 +153,23 @@ enum WithdrawalStatus {
 }
 
 model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique @db.VarChar(255)
-  phone         String?    @unique @db.VarChar(20)
-  passwordHash  String     @map("password_hash") @db.VarChar(255)
-  firstName     String     @map("first_name") @db.VarChar(100)
-  lastName      String     @map("last_name") @db.VarChar(100)
-  avatarUrl     String?    @map("avatar_url")
-  dateOfBirth   DateTime?  @map("date_of_birth") @db.Date
-  role          UserRole   @default(customer)
-  status        UserStatus @default(active)
-  emailVerified Boolean    @default(false) @map("email_verified")
-  phoneVerified Boolean    @default(false) @map("phone_verified")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  lastLogin           DateTime? @map("last_login")
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  accountLockedUntil  DateTime? @map("account_locked_until")
+  id                  String     @id @default(uuid()) @db.Uuid
+  email               String     @unique @db.VarChar(255)
+  phone               String?    @unique @db.VarChar(20)
+  passwordHash        String     @map("password_hash") @db.VarChar(255)
+  firstName           String     @map("first_name") @db.VarChar(100)
+  lastName            String     @map("last_name") @db.VarChar(100)
+  avatarUrl           String?    @map("avatar_url")
+  dateOfBirth         DateTime?  @map("date_of_birth") @db.Date
+  role                UserRole   @default(customer)
+  status              UserStatus @default(active)
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  phoneVerified       Boolean    @default(false) @map("phone_verified")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  lastLogin           DateTime?  @map("last_login")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  accountLockedUntil  DateTime?  @map("account_locked_until")
 
   customerProfile CustomerProfile?
   driverProfile   DriverProfile?
@@ -153,6 +223,19 @@ model User {
   dietaryPreferences String[] @default([]) @map("dietary_preferences")
   allergies          String[] @default([]) @map("allergies")
   customAllergies    String?  @map("custom_allergies") @db.VarChar(500)
+
+  agentLevel      AgentLevel?  @map("agent_level")
+  department      Department?  @map("department")
+  permissions     Permission[] @default([])
+  maxRefundAmount Decimal?     @default(0) @map("max_refund_amount") @db.Decimal(10, 2)
+  fcmTokens       String[]     @default([]) @map("fcm_tokens")
+  deviceInfo      Json[]       @default([]) @map("device_info")
+  agentStatus     String       @default("offline") @map("agent_status") @db.VarChar(20)
+  lastSeen        DateTime     @default(now()) @map("last_seen")
+
+  agentMetrics    AgentMetrics?
+  ticketsAssigned Ticket[]        @relation("AssignedAgent")
+  ticketMessages  TicketMessage[]
 
   @@map("users")
 }
@@ -1969,11 +2052,11 @@ model NotificationTemplate {
   category     String           @db.VarChar(50)
   targetRole   String[]
   isScheduled  Boolean          @default(false) @map("is_scheduled")
-  scheduleTime String?          @db.VarChar(50) @map("schedule_time")
+  scheduleTime String?          @map("schedule_time") @db.VarChar(50)
   isActive     Boolean          @default(true) @map("is_active")
   isDefault    Boolean          @default(false) @map("is_default")
   variant      String?          @db.VarChar(10)
-  variantGroup String?          @db.VarChar(100) @map("variant_group")
+  variantGroup String?          @map("variant_group") @db.VarChar(100)
   sentCount    Int              @default(0) @map("sent_count")
   openCount    Int              @default(0) @map("open_count")
   clickCount   Int              @default(0) @map("click_count")
@@ -2051,21 +2134,116 @@ model PushToken {
 }
 
 model NotificationSettings {
-  id                    String   @id @default(uuid()) @db.Uuid
-  userId                String   @unique @map("user_id") @db.Uuid
-  orderUpdates          Boolean  @default(true) @map("order_updates")
-  deliveryUpdates       Boolean  @default(true) @map("delivery_updates")
-  promotions            Boolean  @default(true)
-  newRestaurants        Boolean  @default(true) @map("new_restaurants")
-  driverAssigned        Boolean  @default(true) @map("driver_assigned")
-  orderDelivered        Boolean  @default(true) @map("order_delivered")
-  paymentConfirmation   Boolean  @default(true) @map("payment_confirmation")
-  marketingEmails       Boolean  @default(false) @map("marketing_emails")
-  smsNotifications      Boolean  @default(false) @map("sms_notifications")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @map("user_id") @db.Uuid
+  orderUpdates        Boolean  @default(true) @map("order_updates")
+  deliveryUpdates     Boolean  @default(true) @map("delivery_updates")
+  promotions          Boolean  @default(true)
+  newRestaurants      Boolean  @default(true) @map("new_restaurants")
+  driverAssigned      Boolean  @default(true) @map("driver_assigned")
+  orderDelivered      Boolean  @default(true) @map("order_delivered")
+  paymentConfirmation Boolean  @default(true) @map("payment_confirmation")
+  marketingEmails     Boolean  @default(false) @map("marketing_emails")
+  smsNotifications    Boolean  @default(false) @map("sms_notifications")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   user User @relation("UserNotificationSettings", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
+}
+
+model AgentMetrics {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+
+  totalTicketsHandled     Int @default(0) @map("total_tickets_handled")
+  ticketsHandledToday     Int @default(0) @map("tickets_handled_today")
+  ticketsHandledThisWeek  Int @default(0) @map("tickets_handled_this_week")
+  ticketsHandledThisMonth Int @default(0) @map("tickets_handled_this_month")
+
+  avgResponseTime        Float @default(0) @map("avg_response_time")
+  avgResolutionTime      Float @default(0) @map("avg_resolution_time")
+  firstContactResolution Float @default(0) @map("first_contact_resolution")
+
+  customerSatisfaction Float @default(0) @map("customer_satisfaction")
+  totalRatings         Int   @default(0) @map("total_ratings")
+  slaCompliance        Float @default(0) @map("sla_compliance")
+
+  activeTickets        Int   @default(0) @map("active_tickets")
+  hoursWorkedToday     Float @default(0) @map("hours_worked_today")
+  hoursWorkedThisWeek  Float @default(0) @map("hours_worked_this_week")
+  hoursWorkedThisMonth Float @default(0) @map("hours_worked_this_month")
+
+  lastTicketAt DateTime? @map("last_ticket_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agent_metrics")
+}
+
+model Ticket {
+  id          String         @id @default(uuid()) @db.Uuid
+  subject     String         @db.VarChar(255)
+  description String         @db.Text
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  category    TicketCategory
+
+  assignedTo     String?   @map("assigned_to") @db.Uuid
+  assignedAgent  User?     @relation("AssignedAgent", fields: [assignedTo], references: [id])
+  assignedAt     DateTime? @map("assigned_at")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  acknowledgedBy String?   @map("acknowledged_by") @db.Uuid
+
+  customerId    String  @map("customer_id") @db.Uuid
+  customerName  String  @map("customer_name") @db.VarChar(255)
+  customerEmail String  @map("customer_email") @db.VarChar(255)
+  customerPhone String? @map("customer_phone") @db.VarChar(20)
+
+  orderId    String? @map("order_id") @db.Uuid
+  merchantId String? @map("merchant_id") @db.Uuid
+  courierId  String? @map("courier_id") @db.Uuid
+
+  slaDeadline DateTime? @map("sla_deadline")
+  slaBreached Boolean   @default(false) @map("sla_breached")
+
+  firstResponseAt DateTime? @map("first_response_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  closedAt        DateTime? @map("closed_at")
+
+  tags     String[] @default([])
+  metadata Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages TicketMessage[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  message    String   @db.Text
+  isInternal Boolean  @default(false) @map("is_internal")
+  read       Boolean  @default(false)
+  timestamp  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User   @relation(fields: [senderId], references: [id])
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([timestamp])
+  @@map("ticket_messages")
 }
