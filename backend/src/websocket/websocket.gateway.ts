@@ -20,7 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
   },
   namespace: '/support',
 })
-export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
