@@ -34,6 +34,7 @@ import BlockchainScreen from '../screens/customer/BlockchainScreen';
 import CategoryBrowseScreen from '../screens/customer/CategoryBrowseScreen';
 import DealsScreen from '../screens/customer/DealsScreen';
 import OnboardingScreen from '../screens/customer/OnboardingScreen';
+import WalletTopUpScreen from '../screens/customer/WalletTopUpScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -124,6 +125,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />
+      <Stack.Screen name="WalletTopUp" component={WalletTopUpScreen} />
     </Stack.Navigator>
   );
 }

@@ -287,6 +287,7 @@ export const ordersAPI = {
   cancel: (orderId: string, reason?: string) => api.post(`/orders/${orderId}/cancel`, { reason }),
   addTip: (orderId: string, amount: number) => api.post(`/orders/${orderId}/tip`, { amount }),
   getReceipt: (orderId: string) => api.get(`/orders/${orderId}/receipt`),
+  payWithWallet: (orderId: string) => api.post('/orders/pay-with-wallet', { orderId }),
 };
 
 // ─── Menu API ───
@@ -331,6 +332,9 @@ export const paymentAPI = {
   topUp: (amount: number) => api.post('/payment/topup', { amount }),
   verifyTopUp: (reference: string) => api.get(`/payment/topup/verify/${reference}`),
   addCard: () => api.post('/payment/cards/add'),
+  // Wallet top-up
+  initializeWalletTopUp: (amount: number) => api.post('/payment/topup', { amount }),
+  verifyWalletTopUp: (reference: string) => api.get(`/payment/topup/verify/${reference}`),
 };
 
 // ─── Wallet API ───

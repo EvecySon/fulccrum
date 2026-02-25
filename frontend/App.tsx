@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppSwitcher from './src/navigation/AppSwitcher';
+import { setupNotificationListeners } from './src/services/pushNotifications';
 
 
 // Set to false to require login before accessing the app
@@ -64,15 +66,27 @@ function RootNavigator() {
 }
 
 export default function App() {
+  const navigationRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    // Setup push notification listeners when navigation is ready
+    if (navigationRef.current) {
+      const cleanup = setupNotificationListeners(navigationRef.current);
+      return cleanup;
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <CartProvider>
-          <NavigationContainer linking={linking}>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </NavigationContainer>
-        </CartProvider>
+        <NotificationProvider>
+          <CartProvider>
+            <NavigationContainer ref={navigationRef} linking={linking}>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NavigationContainer>
+          </CartProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

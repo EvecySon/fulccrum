@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { mockAdminStats } from '../../data/mockData';
 import { adminAPI } from '../../services/api';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ const recentActivity = [
 
 export default function OverviewScreen({ navigation }: any) {
   const [stats, setStats] = useState(mockAdminStats);
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     (async () => {
@@ -50,9 +52,16 @@ export default function OverviewScreen({ navigation }: any) {
           <Text style={styles.greeting}>Admin Dashboard</Text>
           <Text style={styles.subtitle}>Platform overview</Text>
         </View>
-        <TouchableOpacity style={styles.notifBtn}>
+        <TouchableOpacity 
+          style={styles.notifBtn}
+          onPress={() => navigation.navigate('NotificationCenter')}
+        >
           <Ionicons name="notifications" size={22} color={colors.textWhite} />
-          <View style={styles.notifDot} />
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -156,31 +165,58 @@ export default function OverviewScreen({ navigation }: any) {
         {/* Alerts */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Active Alerts</Text>
-          {alerts.map((alert) => (
-            <TouchableOpacity key={alert.id} style={styles.alertCard}>
-              <View style={[styles.alertIcon, {
-                backgroundColor: alert.type === 'error' ? colors.error + '15' : alert.type === 'warning' ? colors.warning + '15' : colors.info + '15'
-              }]}>
-                <Ionicons
-                  name={alert.type === 'error' ? 'alert-circle' : alert.type === 'warning' ? 'warning' : 'information-circle'}
-                  size={20}
-                  color={alert.type === 'error' ? colors.error : alert.type === 'warning' ? colors.warning : colors.info}
-                />
-              </View>
-              <View style={styles.alertInfo}>
-                <Text style={styles.alertTitle}>{alert.title}</Text>
-                <Text style={styles.alertTime}>{alert.time}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity 
+            style={styles.alertCard}
+            onPress={() => navigation.navigate('MerchantApplicationReview')}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: colors.warning + '15' }]}>
+              <Ionicons name="warning" size={20} color={colors.warning} />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>3 merchants pending approval</Text>
+              <Text style={styles.alertTime}>10 min ago</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.alertCard}
+            onPress={() => navigation.navigate('LiveOperationsMap')}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>Payment gateway latency spike</Text>
+              <Text style={styles.alertTime}>25 min ago</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.alertCard}
+            onPress={() => navigation.navigate('AdminSettings')}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: colors.info + '15' }]}>
+              <Ionicons name="information-circle" size={20} color={colors.info} />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>New app version 1.2.0 ready for release</Text>
+              <Text style={styles.alertTime}>1 hr ago</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
         {/* Top Restaurants */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Restaurants</Text>
           {stats.topRestaurants.map((r, index) => (
-            <View key={index} style={styles.topCard}>
+            <TouchableOpacity 
+              key={index} 
+              style={styles.topCard}
+              onPress={() => navigation.navigate('Merchants')}
+            >
               <View style={styles.topRank}>
                 <Text style={styles.topRankText}>#{index + 1}</Text>
               </View>
@@ -192,7 +228,7 @@ export default function OverviewScreen({ navigation }: any) {
                 <Ionicons name="star" size={12} color={colors.warning} />
                 <Text style={styles.topRating}>{r.rating || r.avgTime}{'avgTime' in r ? 'm' : ''}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -264,11 +300,10 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 20, fontWeight: '800', color: colors.textWhite },
   subtitle: { fontSize: 13, color: colors.tealLight, marginTop: 2 },
-  notifBtn: { position: 'relative', padding: 4 },
-  notifDot: {
-    position: 'absolute', top: 2, right: 2, width: 8, height: 8,
-    borderRadius: 4, backgroundColor: colors.error,
-  },
+  notifBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.navy, justifyContent: 'center', alignItems: 'center' },
+  notifDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
+  notifBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.error, borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  notifBadgeText: { fontSize: 11, fontWeight: '700', color: colors.textWhite },
   kpiRow: { flexDirection: 'row', paddingHorizontal: 10, gap: 10, marginTop: 10 },
   kpiCard: {
     flex: 1, backgroundColor: colors.white, borderRadius: 16, padding: 16,

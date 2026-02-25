@@ -121,8 +121,7 @@ export default function PaymentMethodsScreen({ navigation }: any) {
   };
 
   const handleTopUp = () => {
-    setTopUpAmount('');
-    setShowTopUpModal(true);
+    navigation.navigate('WalletTopUp');
   };
 
   const processTopUp = async () => {

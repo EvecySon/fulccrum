@@ -14,6 +14,9 @@ import MoreScreen from '../screens/admin/MoreScreen';
 import PayoutsScreen from '../screens/admin/PayoutsScreen';
 import PromoManagementScreen from '../screens/admin/PromoManagementScreen';
 import SupportTicketsScreen from '../screens/admin/SupportTicketsScreen';
+import TicketDetailScreen from '../screens/admin/TicketDetailScreen';
+import AgentPerformanceScreen from '../screens/admin/AgentPerformanceScreen';
+import NotificationCenterScreen from '../screens/admin/NotificationCenterScreen';
 import ReviewModerationScreen from '../screens/admin/ReviewModerationScreen';
 import DeliveryZonesManagementScreen from '../screens/admin/DeliveryZonesManagementScreen';
 import PushNotificationScreen from '../screens/admin/PushNotificationScreen';
@@ -54,6 +57,17 @@ import CohortAnalysisScreen from '../screens/admin/analytics/CohortAnalysisScree
 
 // Schedule Management
 import ScheduleManagementScreen from '../screens/admin/ScheduleManagementScreen';
+
+// Wallet Management Screens
+import AdminWalletManagementScreen from '../screens/admin/AdminWalletManagementScreen';
+import AdminCreditWalletScreen from '../screens/admin/AdminCreditWalletScreen';
+import AdminWalletApprovalsScreen from '../screens/admin/AdminWalletApprovalsScreen';
+import AdminWalletAuditLogScreen from '../screens/admin/AdminWalletAuditLogScreen';
+
+// Notification Template Screens
+import AdminNotificationTemplatesScreen from '../screens/admin/AdminNotificationTemplatesScreen';
+import AdminTemplateEditorScreen from '../screens/admin/AdminTemplateEditorScreen';
+import AdminTemplateAnalyticsScreen from '../screens/admin/AdminTemplateAnalyticsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -127,6 +141,9 @@ export default function AdminNavigator() {
       <Stack.Screen name="Payouts" component={PayoutsScreen} />
       <Stack.Screen name="PromoManagement" component={PromoManagementScreen} />
       <Stack.Screen name="SupportTickets" component={SupportTicketsScreen} />
+      <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
+      <Stack.Screen name="AgentPerformance" component={AgentPerformanceScreen} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
       <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
       <Stack.Screen name="DeliveryZones" component={DeliveryZonesManagementScreen} />
       <Stack.Screen name="PushNotifications" component={PushNotificationScreen} />
@@ -167,6 +184,17 @@ export default function AdminNavigator() {
 
       {/* Schedule Management */}
       <Stack.Screen name="ScheduleManagement" component={ScheduleManagementScreen} />
+      
+      {/* Wallet Management Screens */}
+      <Stack.Screen name="AdminWalletManagement" component={AdminWalletManagementScreen} />
+      <Stack.Screen name="AdminCreditWallet" component={AdminCreditWalletScreen} />
+      <Stack.Screen name="AdminWalletApprovals" component={AdminWalletApprovalsScreen} />
+      <Stack.Screen name="AdminWalletAuditLog" component={AdminWalletAuditLogScreen} />
+      
+      {/* Notification Template Screens */}
+      <Stack.Screen name="AdminNotificationTemplates" component={AdminNotificationTemplatesScreen} />
+      <Stack.Screen name="AdminTemplateEditor" component={AdminTemplateEditorScreen} />
+      <Stack.Screen name="AdminTemplateAnalytics" component={AdminTemplateAnalyticsScreen} />
     </Stack.Navigator>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { supportAPI } from '../../services/api';
+import ActionSheet from '../../components/ActionSheet';
 
 const mockTickets = [
   { id: '1', subject: 'Missing item from order', user: 'Adaeze O.', avatar: 'https://i.pravatar.cc/100?img=1', role: 'customer', orderId: '#3242', status: 'open', priority: 'high', category: 'order_issue', createdAt: '10 min ago', messages: 3, assignedTo: null },
@@ -25,10 +26,19 @@ const mockTickets = [
 
 const stats = { open: 2, inProgress: 2, resolved: 2, avgResponseTime: '12 min' };
 
+const mockAgents = [
+  { id: '1', name: 'Agent Sarah', avatar: 'https://i.pravatar.cc/100?img=1', status: 'online' },
+  { id: '2', name: 'Agent Mike', avatar: 'https://i.pravatar.cc/100?img=2', status: 'online' },
+  { id: '3', name: 'Agent John', avatar: 'https://i.pravatar.cc/100?img=3', status: 'busy' },
+  { id: '4', name: 'Agent Lisa', avatar: 'https://i.pravatar.cc/100?img=4', status: 'offline' },
+];
+
 export default function SupportTicketsScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
   const [search, setSearch] = useState('');
   const [tickets, setTickets] = useState(mockTickets);
+  const [showAssignSheet, setShowAssignSheet] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -76,7 +86,9 @@ export default function SupportTicketsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Support Tickets</Text>
-        <View style={{ width: 22 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('AgentPerformance')}>
+          <Ionicons name="analytics-outline" size={22} color={colors.navy} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -125,7 +137,11 @@ export default function SupportTicketsScreen({ navigation }: any) {
           const priority = getPriorityStyle(ticket.priority);
           const status = getStatusStyle(ticket.status);
           return (
-            <TouchableOpacity key={ticket.id} style={styles.ticketCard}>
+            <TouchableOpacity 
+              key={ticket.id} 
+              style={styles.ticketCard}
+              onPress={() => navigation.navigate('TicketDetail', { ticket })}
+            >
               <View style={styles.ticketTop}>
                 <Image source={{ uri: ticket.avatar }} style={styles.avatar} />
                 <View style={styles.ticketInfo}>
@@ -156,6 +172,12 @@ export default function SupportTicketsScreen({ navigation }: any) {
                     <Text style={styles.footerText}>{ticket.messages}</Text>
                   </View>
                   <Text style={styles.footerTime}>{ticket.createdAt}</Text>
+                  {ticket.status === 'open' && ticket.priority === 'high' && (
+                    <View style={styles.slaWarning}>
+                      <Ionicons name="warning" size={12} color={colors.error} />
+                      <Text style={styles.slaWarningText}>SLA Risk</Text>
+                    </View>
+                  )}
                   {ticket.assignedTo && (
                     <Text style={styles.assignedText}>{ticket.assignedTo}</Text>
                   )}
@@ -164,11 +186,20 @@ export default function SupportTicketsScreen({ navigation }: any) {
 
               {ticket.status === 'open' && (
                 <View style={styles.ticketActions}>
-                  <TouchableOpacity style={styles.assignBtn}>
+                  <TouchableOpacity 
+                    style={styles.assignBtn}
+                    onPress={() => {
+                      setSelectedTicketId(ticket.id);
+                      setShowAssignSheet(true);
+                    }}
+                  >
                     <Ionicons name="person-add-outline" size={14} color={colors.navy} />
                     <Text style={styles.assignBtnText}>Assign</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.replyTicketBtn}>
+                  <TouchableOpacity 
+                    style={styles.replyTicketBtn}
+                    onPress={() => navigation.navigate('TicketDetail', { ticket })}
+                  >
                     <Ionicons name="chatbubble-outline" size={14} color={colors.textWhite} />
                     <Text style={styles.replyTicketBtnText}>Reply</Text>
                   </TouchableOpacity>
@@ -180,6 +211,32 @@ export default function SupportTicketsScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Agent Assignment Sheet */}
+      <ActionSheet
+        visible={showAssignSheet}
+        title="Assign to Agent"
+        message="Choose an agent to assign this ticket"
+        options={mockAgents.map(agent => ({
+          label: agent.name,
+          icon: agent.status === 'online' ? '🟢' : agent.status === 'busy' ? '🟡' : '⚫',
+          color: colors.textPrimary,
+          onPress: () => {
+            if (selectedTicketId) {
+              setTickets(tickets.map(t => 
+                t.id === selectedTicketId 
+                  ? { ...t, status: 'in_progress', assignedTo: agent.name } 
+                  : t
+              ));
+              showAlert('Success', `Ticket assigned to ${agent.name}`);
+            }
+          },
+        }))}
+        onClose={() => {
+          setShowAssignSheet(false);
+          setSelectedTicketId(null);
+        }}
+      />
     </View>
   );
 }
@@ -221,6 +278,8 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 12, color: colors.textLight },
   footerTime: { fontSize: 12, color: colors.textLight },
   assignedText: { fontSize: 12, color: colors.navy, fontWeight: '600' },
+  slaWarning: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.error + '10', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  slaWarningText: { fontSize: 11, color: colors.error, fontWeight: '600' },
   ticketActions: { flexDirection: 'row', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.borderLight },
   assignBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.navy + '10' },
   assignBtnText: { fontSize: 13, fontWeight: '600', color: colors.navy },

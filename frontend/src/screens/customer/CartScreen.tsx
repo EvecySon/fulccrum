@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { ordersAPI, feesAPI, promosAPI, addressesAPI } from '../../services/api';
+import { ordersAPI, feesAPI, promosAPI, addressesAPI, walletAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
 import { withMock, mockGetAddresses, mockValidatePromo, mockCreateOrder } from '../../services/mockApi';
 import { mockFees } from '../../services/mockData';
+import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 
 export default function CartScreen({ navigation }: any) {
   const { items, restaurant, subtotal, itemCount, updateQuantity, removeItem, clearCart, getItemTotal } = useCart();
@@ -30,7 +31,8 @@ export default function CartScreen({ navigation }: any) {
   const [serviceFee, setServiceFee] = useState(0);
   const [taxAmount, setTaxAmount] = useState(0);
   const [feesLoaded, setFeesLoaded] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card' | 'cash'>('wallet');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card'>('card');
+  const [walletBalance, setWalletBalance] = useState(0);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
@@ -57,18 +59,22 @@ export default function CartScreen({ navigation }: any) {
   const effectiveDeliveryFee = fulfillmentType === 'pickup' ? 0 : deliveryFee;
   const total = subtotal + effectiveDeliveryFee + serviceFee + taxAmount + tip - promoDiscount;
 
-  // Load all addresses
+  // Load all addresses and wallet balance
   useEffect(() => {
     (async () => {
       try {
-        const res = await withMock(
-          () => addressesAPI.getAll(),
-          () => mockGetAddresses()
-        );
-        const addrs = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const [addressRes, walletRes] = await Promise.all([
+          withMock(
+            () => addressesAPI.getAll(),
+            () => mockGetAddresses()
+          ),
+          walletAPI.getBalance().catch(() => ({ balance: 0 }))
+        ]);
+        const addrs = Array.isArray(addressRes?.data) ? addressRes.data : Array.isArray(addressRes) ? addressRes : [];
         setAddresses(addrs);
         const def = addrs.find((a: any) => a.isDefault) || addrs[0];
         if (def) setSelectedAddress(def);
+        if (walletRes?.balance != null) setWalletBalance(Number(walletRes.balance));
       } catch {}
     })();
   }, []);
@@ -207,8 +213,22 @@ export default function CartScreen({ navigation }: any) {
         () => ordersAPI.create(orderData),
         () => mockCreateOrder(orderData)
       );
-      clearCart();
-      navigation.replace('OrderTracking', { orderId: order?.id, order });
+      
+      // If wallet payment, pay immediately
+      if (paymentMethod === 'wallet') {
+        try {
+          await ordersAPI.payWithWallet(order.id);
+          clearCart();
+          navigation.replace('OrderTracking', { orderId: order?.id, order });
+        } catch (walletError: any) {
+          Alert.alert('Payment Failed', walletError?.message || 'Could not process wallet payment. Please try another payment method.');
+          return;
+        }
+      } else {
+        // Card payment - will be handled via Paystack
+        clearCart();
+        navigation.replace('OrderTracking', { orderId: order?.id, order });
+      }
     } catch (e: any) {
       Alert.alert('Order Failed', e?.message || 'Could not place your order. Please try again.');
     }
@@ -395,22 +415,12 @@ export default function CartScreen({ navigation }: any) {
         {/* Payment Method */}
         <View style={styles.paymentSection}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          <View style={styles.paymentRow}>
-            {([
-              { key: 'wallet', icon: 'wallet', label: 'Wallet' },
-              { key: 'card', icon: 'card', label: 'Card' },
-              { key: 'cash', icon: 'cash', label: 'Cash' },
-            ] as const).map(pm => (
-              <TouchableOpacity
-                key={pm.key}
-                style={[styles.paymentOption, paymentMethod === pm.key && styles.paymentOptionActive]}
-                onPress={() => setPaymentMethod(pm.key)}
-              >
-                <Ionicons name={pm.icon as any} size={20} color={paymentMethod === pm.key ? colors.teal : colors.textLight} />
-                <Text style={[styles.paymentOptionText, paymentMethod === pm.key && styles.paymentOptionTextActive]}>{pm.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <PaymentMethodSelector
+            selectedMethod={paymentMethod}
+            onSelectMethod={setPaymentMethod}
+            walletBalance={walletBalance}
+            orderTotal={total}
+          />
         </View>
 
         {/* Promo Code */}
@@ -629,12 +639,12 @@ export default function CartScreen({ navigation }: any) {
                 <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>Payment Method</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Ionicons 
-                    name={paymentMethod === 'wallet' ? 'wallet' : paymentMethod === 'card' ? 'card' : 'cash'} 
+                    name={paymentMethod === 'wallet' ? 'wallet' : 'card'} 
                     size={24} 
                     color={colors.teal} 
                   />
                   <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>
-                    {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'card' ? 'Card' : 'Cash on Delivery'}
+                    {paymentMethod === 'wallet' ? 'Wallet' : 'Card'}
                   </Text>
                 </View>
               </View>
@@ -686,7 +696,7 @@ export default function CartScreen({ navigation }: any) {
                   <ActivityIndicator color={colors.textWhite} />
                 ) : (
                   <Text style={styles.scheduleConfirmText}>
-                    {paymentMethod === 'cash' ? 'Confirm Order' : 'Pay ₦' + Math.max(0, total).toLocaleString()}
+                    Pay ₦{Math.max(0, total).toLocaleString()}
                   </Text>
                 )}
               </TouchableOpacity>

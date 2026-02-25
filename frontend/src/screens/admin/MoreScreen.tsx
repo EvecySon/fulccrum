@@ -20,12 +20,14 @@ const menuSections = [
       { icon: 'trending-up-outline', label: 'Revenue Analytics', desc: 'View revenue & forecasts', screen: 'RevenueAnalytics', color: colors.info },
       { icon: 'return-down-back-outline', label: 'Refund Management', desc: 'Approve/reject refunds', screen: 'RefundManagement', color: colors.warning },
       { icon: 'wallet-outline', label: 'Payouts', desc: 'Pay merchants & couriers', screen: 'Payouts', color: colors.success },
+      { icon: 'wallet', label: 'Wallet Management', desc: 'Credit/debit user wallets', screen: 'AdminWalletManagement', color: colors.teal },
     ],
   },
   {
     title: 'Operations',
     items: [
       { icon: 'map-outline', label: 'Live Operations', desc: 'Real-time order tracking', screen: 'LiveOperationsMap', color: colors.navy },
+      { icon: 'chatbubbles-outline', label: 'Support Tickets', desc: 'Customer, merchant & courier support', screen: 'SupportTickets', color: colors.teal },
       { icon: 'alert-circle-outline', label: 'Incident Management', desc: 'Track & resolve incidents', screen: 'IncidentManagement', color: colors.error },
       { icon: 'time-outline', label: 'SLA Monitoring', desc: 'Monitor service levels', screen: 'SLAMonitoring', color: colors.warning },
       { icon: 'calendar-outline', label: 'Schedule Management', desc: 'Manage courier shifts, zones & slots', screen: 'ScheduleManagement', color: colors.teal },
@@ -57,6 +59,7 @@ const menuSections = [
       { icon: 'megaphone-outline', label: 'Campaign Management', desc: 'Create & launch campaigns', screen: 'CampaignManagement', color: colors.warning },
       { icon: 'pricetag-outline', label: 'Promo Code Manager', desc: 'Manage promo codes', screen: 'PromoCodeManager', color: colors.info },
       { icon: 'notifications-outline', label: 'Push Notifications', desc: 'Send announcements', screen: 'PushNotifications', color: colors.navy },
+      { icon: 'mail', label: 'Notification Templates', desc: 'Manage notification templates', screen: 'AdminNotificationTemplates', color: colors.teal },
     ],
   },
   {

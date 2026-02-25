@@ -45,7 +45,7 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export default function UsersScreen() {
+export default function UsersScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [users, setUsers] = useState(mockUsers);
@@ -139,24 +139,78 @@ export default function UsersScreen() {
             </View>
 
             <View style={styles.userActions}>
-              <TouchableOpacity style={styles.userActionBtn}>
+              <TouchableOpacity 
+                style={styles.userActionBtn}
+                onPress={() => {
+                  if (user.role === 'merchant') {
+                    navigation.navigate('Merchants');
+                  } else if (user.role === 'courier') {
+                    navigation.navigate('CourierManagement');
+                  } else {
+                    showAlert('User Details', `Viewing ${user.name}\n${user.email}\nRole: ${user.role}\nStatus: ${user.status}`);
+                  }
+                }}
+              >
                 <Ionicons name="eye-outline" size={16} color={colors.navy} />
                 <Text style={styles.userActionText}>View</Text>
               </TouchableOpacity>
               {user.status === 'pending' && (
-                <TouchableOpacity style={[styles.userActionBtn, styles.approveBtn]}>
+                <TouchableOpacity 
+                  style={[styles.userActionBtn, styles.approveBtn]}
+                  onPress={() => {
+                    showAlert('Approve User', `Approve ${user.name}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Approve', 
+                        onPress: () => {
+                          setUsers(users.map(u => u.id === user.id ? { ...u, status: 'active' } : u));
+                          showAlert('Success', `${user.name} has been approved`);
+                        }
+                      }
+                    ]);
+                  }}
+                >
                   <Ionicons name="checkmark" size={16} color={colors.textWhite} />
                   <Text style={styles.approveBtnText}>Approve</Text>
                 </TouchableOpacity>
               )}
               {user.status === 'active' && (
-                <TouchableOpacity style={[styles.userActionBtn, styles.suspendBtn]}>
+                <TouchableOpacity 
+                  style={[styles.userActionBtn, styles.suspendBtn]}
+                  onPress={() => {
+                    showAlert('Suspend User', `Suspend ${user.name}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Suspend', 
+                        style: 'destructive',
+                        onPress: () => {
+                          setUsers(users.map(u => u.id === user.id ? { ...u, status: 'suspended' } : u));
+                          showAlert('Success', `${user.name} has been suspended`);
+                        }
+                      }
+                    ]);
+                  }}
+                >
                   <Ionicons name="ban-outline" size={16} color={colors.error} />
                   <Text style={styles.suspendBtnText}>Suspend</Text>
                 </TouchableOpacity>
               )}
               {user.status === 'suspended' && (
-                <TouchableOpacity style={[styles.userActionBtn, styles.reactivateBtn]}>
+                <TouchableOpacity 
+                  style={[styles.userActionBtn, styles.reactivateBtn]}
+                  onPress={() => {
+                    showAlert('Reactivate User', `Reactivate ${user.name}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Reactivate', 
+                        onPress: () => {
+                          setUsers(users.map(u => u.id === user.id ? { ...u, status: 'active' } : u));
+                          showAlert('Success', `${user.name} has been reactivated`);
+                        }
+                      }
+                    ]);
+                  }}
+                >
                   <Ionicons name="refresh" size={16} color={colors.success} />
                   <Text style={styles.reactivateBtnText}>Reactivate</Text>
                 </TouchableOpacity>

@@ -68,7 +68,11 @@ export default function FinanceScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Finance & Revenue</Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            showAlert('Export Report', 'Financial report exported successfully');
+          }}
+        >
           <Ionicons name="download-outline" size={22} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
@@ -196,14 +200,24 @@ export default function FinanceScreen({ navigation }: any) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                showAlert('Export Transactions', 'Transaction history exported successfully');
+              }}
+            >
               <Text style={styles.seeAll}>Export</Text>
             </TouchableOpacity>
           </View>
           {transactions.map((tx) => {
             const icon = getTxIcon(tx.type);
             return (
-              <View key={tx.id} style={styles.txCard}>
+              <TouchableOpacity 
+                key={tx.id} 
+                style={styles.txCard}
+                onPress={() => {
+                  showAlert('Transaction Details', `${tx.desc}\n\nAmount: ${tx.amount > 0 ? '+' : ''}₦${Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}\nType: ${tx.type}\nDate: ${tx.date}`);
+                }}
+              >
                 <View style={[styles.txIcon, { backgroundColor: icon.color + '15' }]}>
                   <Ionicons name={icon.name as any} size={18} color={icon.color} />
                 </View>
@@ -214,7 +228,7 @@ export default function FinanceScreen({ navigation }: any) {
                 <Text style={[styles.txAmount, { color: tx.amount > 0 ? colors.success : colors.textPrimary }]}>
                   {tx.amount > 0 ? '+' : ''}{tx.amount < 0 ? '-' : ''}₦{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>

@@ -49,7 +49,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function OrdersOpsScreen() {
+export default function OrdersOpsScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [orders, setOrders] = useState(mockOrders);
 
@@ -79,7 +79,12 @@ export default function OrdersOpsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Orders & Operations</Text>
-        <TouchableOpacity style={styles.refreshBtn}>
+        <TouchableOpacity 
+          style={styles.refreshBtn}
+          onPress={() => {
+            showAlert('Refreshing', 'Orders refreshed');
+          }}
+        >
           <Ionicons name="refresh" size={20} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
@@ -174,16 +179,50 @@ export default function OrdersOpsScreen() {
                 <Text style={styles.orderTotal}>₦{order.total.toFixed(2)}</Text>
                 <Text style={styles.orderItems}>{order.items} items</Text>
                 <View style={styles.orderActions}>
-                  <TouchableOpacity style={styles.orderActionBtn}>
+                  <TouchableOpacity 
+                    style={styles.orderActionBtn}
+                    onPress={() => {
+                      showAlert('Order Details', `Order ${order.id}\n\nCustomer: ${order.customer}\nRestaurant: ${order.restaurant}\nCourier: ${order.courier || 'Unassigned'}\nStatus: ${getStatusLabel(order.status)}\nTotal: ₦${order.total.toFixed(2)}\nItems: ${order.items}`);
+                    }}
+                  >
                     <Ionicons name="eye-outline" size={16} color={colors.navy} />
                   </TouchableOpacity>
                   {order.status === 'new' && !order.courier && (
-                    <TouchableOpacity style={[styles.orderActionBtn, styles.assignBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.orderActionBtn, styles.assignBtn]}
+                      onPress={() => {
+                        showAlert('Assign Courier', `Assign courier to order ${order.id}?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Assign', 
+                            onPress: () => {
+                              setOrders(orders.map(o => o.id === order.id ? { ...o, courier: 'Auto-assigned', status: 'preparing' } : o));
+                              showAlert('Success', `Courier assigned to order ${order.id}`);
+                            }
+                          }
+                        ]);
+                      }}
+                    >
                       <Ionicons name="person-add-outline" size={16} color={colors.textWhite} />
                     </TouchableOpacity>
                   )}
                   {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                    <TouchableOpacity style={[styles.orderActionBtn, styles.cancelBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.orderActionBtn, styles.cancelBtn]}
+                      onPress={() => {
+                        showAlert('Cancel Order', `Cancel order ${order.id}?`, [
+                          { text: 'No', style: 'cancel' },
+                          { 
+                            text: 'Cancel Order', 
+                            style: 'destructive',
+                            onPress: () => {
+                              setOrders(orders.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
+                              showAlert('Success', `Order ${order.id} has been cancelled`);
+                            }
+                          }
+                        ]);
+                      }}
+                    >
                       <Ionicons name="close" size={16} color={colors.error} />
                     </TouchableOpacity>
                   )}

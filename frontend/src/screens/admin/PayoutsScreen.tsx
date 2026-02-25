@@ -71,7 +71,11 @@ export default function PayoutsScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payouts</Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            showAlert('Export Payouts', 'Payout report exported successfully');
+          }}
+        >
           <Ionicons name="download-outline" size={22} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
@@ -128,7 +132,22 @@ export default function PayoutsScreen({ navigation }: any) {
                 <Text style={styles.selectAllText}>Select All Pending</Text>
               </TouchableOpacity>
               {selectedIds.filter(id => id.startsWith('m')).length > 0 && (
-                <TouchableOpacity style={styles.paySelectedBtn}>
+                <TouchableOpacity 
+                  style={styles.paySelectedBtn}
+                  onPress={() => {
+                    const count = selectedIds.filter(id => id.startsWith('m')).length;
+                    showAlert('Process Payouts', `Process ${count} merchant payout${count > 1 ? 's' : ''}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Process', 
+                        onPress: () => {
+                          setSelectedIds([]);
+                          showAlert('Success', `${count} payout${count > 1 ? 's' : ''} processed successfully`);
+                        }
+                      }
+                    ]);
+                  }}
+                >
                   <Ionicons name="send" size={14} color={colors.textWhite} />
                   <Text style={styles.paySelectedText}>
                     Pay {selectedIds.filter(id => id.startsWith('m')).length} Selected
@@ -175,18 +194,49 @@ export default function PayoutsScreen({ navigation }: any) {
                 </View>
 
                 <View style={styles.payoutActions}>
-                  <TouchableOpacity style={styles.payoutActionBtn}>
+                  <TouchableOpacity 
+                    style={styles.payoutActionBtn}
+                    onPress={() => {
+                      showAlert('Payout Details', `${payout.name}\n\nOwner: ${payout.owner}\nPeriod: ${payout.period}\nOrders: ${payout.orders}\nAmount: ₦${payout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}\nMethod: ${payout.method}\nStatus: ${payout.status}`);
+                    }}
+                  >
                     <Ionicons name="eye-outline" size={16} color={colors.navy} />
                     <Text style={styles.payoutActionText}>Details</Text>
                   </TouchableOpacity>
                   {payout.status === 'pending' && (
-                    <TouchableOpacity style={[styles.payoutActionBtn, styles.payNowBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.payoutActionBtn, styles.payNowBtn]}
+                      onPress={() => {
+                        showAlert('Process Payout', `Pay ${payout.name} ₦${payout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Pay Now', 
+                            onPress: () => {
+                              showAlert('Success', `Payment of ₦${payout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} sent to ${payout.name}`);
+                            }
+                          }
+                        ]);
+                      }}
+                    >
                       <Ionicons name="send" size={14} color={colors.textWhite} />
                       <Text style={styles.payNowText}>Pay Now</Text>
                     </TouchableOpacity>
                   )}
                   {payout.status === 'on_hold' && (
-                    <TouchableOpacity style={[styles.payoutActionBtn, styles.releaseBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.payoutActionBtn, styles.releaseBtn]}
+                      onPress={() => {
+                        showAlert('Release Hold', `Release hold on ${payout.name}?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Release', 
+                            onPress: () => {
+                              showAlert('Success', `Hold released for ${payout.name}`);
+                            }
+                          }
+                        ]);
+                      }}
+                    >
                       <Ionicons name="lock-open" size={14} color={colors.warning} />
                       <Text style={styles.releaseBtnText}>Release</Text>
                     </TouchableOpacity>
@@ -213,7 +263,22 @@ export default function PayoutsScreen({ navigation }: any) {
                 <Text style={styles.selectAllText}>Select All Pending</Text>
               </TouchableOpacity>
               {selectedIds.filter(id => id.startsWith('c')).length > 0 && (
-                <TouchableOpacity style={styles.paySelectedBtn}>
+                <TouchableOpacity 
+                  style={styles.paySelectedBtn}
+                  onPress={() => {
+                    const count = selectedIds.filter(id => id.startsWith('c')).length;
+                    showAlert('Process Payouts', `Process ${count} courier payout${count > 1 ? 's' : ''}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Process', 
+                        onPress: () => {
+                          setSelectedIds([]);
+                          showAlert('Success', `${count} payout${count > 1 ? 's' : ''} processed successfully`);
+                        }
+                      }
+                    ]);
+                  }}
+                >
                   <Ionicons name="send" size={14} color={colors.textWhite} />
                   <Text style={styles.paySelectedText}>
                     Pay {selectedIds.filter(id => id.startsWith('c')).length} Selected
@@ -280,11 +345,30 @@ export default function PayoutsScreen({ navigation }: any) {
 
                 {payout.status === 'pending' && (
                   <View style={styles.payoutActions}>
-                    <TouchableOpacity style={styles.payoutActionBtn}>
+                    <TouchableOpacity 
+                      style={styles.payoutActionBtn}
+                      onPress={() => {
+                        showAlert('Courier Payout Details', `${payout.name}\n\nPeriod: ${payout.period}\nDeliveries: ${payout.deliveries}\nHours: ${payout.hours}h\nBase Pay: ₦${payout.amount.toFixed(2)}\nTips: ₦${payout.tips.toFixed(2)}\nTotal: ₦${(payout.amount + payout.tips).toFixed(2)}\nMethod: ${payout.method}`);
+                      }}
+                    >
                       <Ionicons name="eye-outline" size={16} color={colors.navy} />
                       <Text style={styles.payoutActionText}>Details</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.payoutActionBtn, styles.payNowBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.payoutActionBtn, styles.payNowBtn]}
+                      onPress={() => {
+                        const total = payout.amount + payout.tips;
+                        showAlert('Process Payout', `Pay ${payout.name} ₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Pay Now', 
+                            onPress: () => {
+                              showAlert('Success', `Payment of ₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })} sent to ${payout.name}`);
+                            }
+                          }
+                        ]);
+                      }}
+                    >
                       <Ionicons name="send" size={14} color={colors.textWhite} />
                       <Text style={styles.payNowText}>Pay Now</Text>
                     </TouchableOpacity>
@@ -332,7 +416,21 @@ export default function PayoutsScreen({ navigation }: any) {
         {/* Batch Actions */}
         <View style={styles.batchCard}>
           <Text style={styles.batchTitle}>Batch Actions</Text>
-          <TouchableOpacity style={styles.batchBtn}>
+          <TouchableOpacity 
+            style={styles.batchBtn}
+            onPress={() => {
+              const count = merchantPayouts.filter(p => p.status === 'pending').length;
+              showAlert('Batch Process', `Process all ${count} merchant payouts (₦${totalMerchantPending.toLocaleString(undefined, { minimumFractionDigits: 2 })})?`, [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Process All', 
+                  onPress: () => {
+                    showAlert('Success', `${count} merchant payouts processed successfully`);
+                  }
+                }
+              ]);
+            }}
+          >
             <View style={[styles.batchIcon, { backgroundColor: colors.teal + '15' }]}>
               <Ionicons name="send" size={18} color={colors.teal} />
             </View>
@@ -343,7 +441,21 @@ export default function PayoutsScreen({ navigation }: any) {
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
           <View style={styles.batchDivider} />
-          <TouchableOpacity style={styles.batchBtn}>
+          <TouchableOpacity 
+            style={styles.batchBtn}
+            onPress={() => {
+              const count = courierPayouts.filter(p => p.status === 'pending').length;
+              showAlert('Batch Process', `Process all ${count} courier payouts (₦${totalCourierPending.toLocaleString(undefined, { minimumFractionDigits: 2 })})?`, [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Process All', 
+                  onPress: () => {
+                    showAlert('Success', `${count} courier payouts processed successfully`);
+                  }
+                }
+              ]);
+            }}
+          >
             <View style={[styles.batchIcon, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="send" size={18} color={colors.warning} />
             </View>
@@ -354,7 +466,12 @@ export default function PayoutsScreen({ navigation }: any) {
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
           <View style={styles.batchDivider} />
-          <TouchableOpacity style={styles.batchBtn}>
+          <TouchableOpacity 
+            style={styles.batchBtn}
+            onPress={() => {
+              showAlert('Schedule Payouts', 'Recurring payout scheduling feature coming soon!');
+            }}
+          >
             <View style={[styles.batchIcon, { backgroundColor: colors.navy + '15' }]}>
               <Ionicons name="calendar" size={18} color={colors.navy} />
             </View>
