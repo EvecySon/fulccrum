@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import notificationService from '../services/notificationService';
 import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
+import { getAccessToken } from '../services/api';
 import * as Notifications from 'expo-notifications';
 
 interface Notification {
@@ -65,7 +66,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     );
 
     // Connect to WebSocket
-    const authToken = ''; // TODO: Get from auth context
+    const authToken = getAccessToken() || '';
     websocketService.connect(user!.id, authToken);
 
     // Listen for ticket assignments

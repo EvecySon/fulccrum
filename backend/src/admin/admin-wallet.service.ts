@@ -155,7 +155,7 @@ export class AdminWalletService {
       throw new NotFoundException('Wallet not found');
     }
 
-    if (wallet.balance < dto.amount) {
+    if (Number(wallet.balance) < dto.amount) {
       throw new BadRequestException('Insufficient wallet balance');
     }
 

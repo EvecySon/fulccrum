@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentService } from '../agent/agent.service';
-import { WebSocketGateway } from '../websocket/websocket.gateway';
+import { SupportWebSocketGateway } from '../websocket/websocket.gateway';
 
 @Injectable()
 export class TicketsService {
   constructor(
     private prisma: PrismaService,
     private agentService: AgentService,
-    private websocketGateway: WebSocketGateway,
+    private websocketGateway: SupportWebSocketGateway,
   ) {}
 
   async createTicket(data: {

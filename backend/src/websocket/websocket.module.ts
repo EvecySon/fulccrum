@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { WebSocketGateway } from './websocket.gateway';
+import { SupportWebSocketGateway } from './websocket.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -16,7 +16,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       }),
     }),
   ],
-  providers: [WebSocketGateway],
-  exports: [WebSocketGateway],
+  providers: [SupportWebSocketGateway],
+  exports: [SupportWebSocketGateway],
 })
 export class WebSocketModule {}
