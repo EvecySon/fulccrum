@@ -14,13 +14,13 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 @WebSocketGateway({
+  path: '/support',
   cors: {
     origin: process.env.FRONTEND_URL || '*',
     credentials: true,
   },
-  namespace: '/support',
 })
-export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SupportWebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 

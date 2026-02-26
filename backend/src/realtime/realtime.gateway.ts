@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
-  path: '/socket.io',
+  path: '/realtime',
   cors: {
     origin: '*',
   },

@@ -18,6 +18,14 @@ export function initializeFirebase(config: ConfigService) {
       return null;
     }
 
+    // Reuse existing app if already initialized
+    const existingApps = admin.apps;
+    if (existingApps && existingApps.length > 0) {
+      firebaseApp = existingApps[0];
+      console.log('[FIREBASE] Reusing existing Firebase app');
+      return firebaseApp;
+    }
+
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
@@ -29,7 +37,7 @@ export function initializeFirebase(config: ConfigService) {
     console.log('[FIREBASE] Firebase Admin SDK initialized successfully');
     return firebaseApp;
   } catch (error) {
-    console.error('[FIREBASE] Failed to initialize Firebase:', error);
+    console.error('[FIREBASE] Initialization error:', error.message);
     return null;
   }
 }

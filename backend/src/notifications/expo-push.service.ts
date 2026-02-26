@@ -158,7 +158,7 @@ export class ExpoPushService {
       const result = await this.sendToUser(userId, {
         title,
         body,
-        data: { templateId, ...template.data },
+        data: { templateId, ...(template.data as object || {}) },
         priority: 'high',
       });
 
@@ -169,7 +169,7 @@ export class ExpoPushService {
           userId,
           title,
           body,
-          data: { variables, ...template.data },
+          data: { variables, ...(template.data as object || {}) },
           status: result.success ? 'sent' : 'failed',
           platform: 'expo',
         },

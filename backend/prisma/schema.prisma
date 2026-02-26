@@ -2048,6 +2048,7 @@ model NotificationTemplate {
   description  String?          @db.Text
   title        String           @db.VarChar(200)
   body         String           @db.Text
+  data         Json?
   type         NotificationType
   category     String           @db.VarChar(50)
   targetRole   String[]

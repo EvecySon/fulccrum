@@ -14,20 +14,23 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         // Use Redis in production if REDIS_URL is set
         if (redisUrl) {
           try {
+            // @ts-ignore - optional dependency, only used when REDIS_URL is set
             const { redisStore } = await import('cache-manager-ioredis-yet');
+            const store = await redisStore({
+              url: redisUrl,
+              ttl: 300, // 5 minutes default
+            });
             return {
-              store: await redisStore({
-                url: redisUrl,
-                ttl: 300, // 5 minutes default
-              }),
-            };
+              store,
+              ttl: 300,
+            } as any;
           } catch (error) {
             console.warn('Redis connection failed, falling back to in-memory cache:', error.message);
             // Fall back to in-memory cache
             return {
               ttl: 300,
               max: 100,
-            };
+            } as any;
           }
         }
 
@@ -35,7 +38,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         return {
           ttl: 300, // 5 minutes
           max: 100, // Maximum number of items in cache
-        };
+        } as any;
       },
     }),
   ],

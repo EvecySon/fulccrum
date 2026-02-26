@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.18.3';
+const DEV_IP = '192.168.0.104';
 
 const getBaseUrl = () => {
   // In production, use your production API URL

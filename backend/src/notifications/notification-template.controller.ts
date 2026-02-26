@@ -9,7 +9,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { NotificationTemplateService, CreateTemplateDto, UpdateTemplateDto } from './notification-template.service';
+import { NotificationTemplateService } from './notification-template.service';
+import type { CreateTemplateDto, UpdateTemplateDto } from './notification-template.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';

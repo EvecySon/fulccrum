@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaystackService } from './paystack.service';
+import { WalletService } from '../wallet/wallet.service';
 import { IdempotencyService } from '../common/services/idempotency.service';
 import axios from 'axios';
 
@@ -14,6 +15,8 @@ export class PaymentService {
     private prisma: PrismaService,
     private config: ConfigService,
     private paystackService: PaystackService,
+    @Inject(forwardRef(() => WalletService))
+    private walletService: WalletService,
     private idempotencyService: IdempotencyService,
   ) {
     this.paystackSecretKey = this.config.get('PAYSTACK_SECRET_KEY') || 'sk_test_xxx';
@@ -141,10 +144,7 @@ export class PaymentService {
         const merchantEarnings = Number(order.subtotal) - platformFee;
 
         // Credit merchant wallet immediately
-        const WalletService = (await import('../wallet/wallet.service')).WalletService;
-        const walletService = new WalletService(this.prisma, this.paystackService);
-        
-        await walletService.creditWallet(
+        await this.walletService.creditWallet(
           order.businessId,
           merchantEarnings,
           'order_payment',

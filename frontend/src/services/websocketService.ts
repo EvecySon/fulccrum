@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { getApiBaseUrl } from './api';
 
 interface TicketUpdate {
   type: 'ticket_assigned' | 'ticket_updated' | 'new_message' | 'status_changed';
@@ -19,10 +20,11 @@ class WebSocketService {
    * Call this when agent logs in
    */
   connect(agentId: string, token: string) {
-    // TODO: Replace with your actual WebSocket server URL
-    const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+    // Use the same base URL as the REST API (handles localhost vs network IP automatically)
+    const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || getApiBaseUrl();
 
     this.socket = io(SOCKET_URL, {
+      path: '/support',
       auth: {
         token,
         agentId,
