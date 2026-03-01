@@ -33,4 +33,9 @@ export class AgentController {
   async getMetrics(@Request() req: any) {
     return this.agentService.getAgentMetrics(req.user.sub);
   }
+
+  @Get('list')
+  async listAgents() {
+    return this.agentService.listAvailableAgents();
+  }
 }

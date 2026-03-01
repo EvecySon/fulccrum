@@ -55,9 +55,8 @@ export default function SupportTicketsScreen({ navigation }: any) {
   // Load available agents (users with admin role)
   const loadAgents = async () => {
     try {
-      // TODO: Create an endpoint to get available agents
-      // For now, we'll use a placeholder
-      setAgents([]);
+      const agentsList = await agentAPI.getAgentList();
+      setAgents(agentsList || []);
     } catch (error) {
       console.error('Error loading agents:', error);
     }

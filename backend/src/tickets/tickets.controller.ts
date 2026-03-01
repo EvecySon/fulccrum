@@ -47,6 +47,21 @@ export class TicketsController {
     return this.ticketsService.updateTicketStatus(ticketId, status);
   }
 
+  @Put(':ticketId/priority')
+  async updatePriority(@Param('ticketId') ticketId: string, @Body() body: any) {
+    const { priority } = body;
+    return this.ticketsService.updateTicketPriority(ticketId, priority);
+  }
+
+  @Post(':ticketId/refund')
+  async processRefund(
+    @Request() req: any,
+    @Param('ticketId') ticketId: string,
+    @Body() body: any,
+  ) {
+    return this.ticketsService.processRefund(ticketId, req.user.sub, body);
+  }
+
   @Get()
   async getTickets(@Query() query: any) {
     return this.ticketsService.getTickets(query);

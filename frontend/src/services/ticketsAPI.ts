@@ -137,4 +137,27 @@ export const ticketsAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  // Update ticket priority
+  updatePriority: async (ticketId: string, priority: string) => {
+    return apiRequest<Ticket>(`/tickets/${ticketId}/priority`, {
+      method: 'PUT',
+      body: JSON.stringify({ priority }),
+    });
+  },
+
+  // Process refund
+  processRefund: async (ticketId: string, refundData: {
+    amount: number;
+    type: 'full' | 'partial';
+    destination: 'wallet' | 'original_payment';
+    chargedTo: 'merchant' | 'platform' | 'courier';
+    reason: string;
+    orderId?: string;
+  }) => {
+    return apiRequest(`/tickets/${ticketId}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(refundData),
+    });
+  },
 };

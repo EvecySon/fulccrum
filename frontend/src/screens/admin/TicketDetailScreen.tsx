@@ -37,6 +37,7 @@ export default function TicketDetailScreen({ route, navigation }: any) {
   const [sending, setSending] = useState(false);
   const [showCannedResponses, setShowCannedResponses] = useState(false);
   const [showStatusSheet, setShowStatusSheet] = useState(false);
+  const [showPrioritySheet, setShowPrioritySheet] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const loadTicket = async () => {
@@ -112,6 +113,20 @@ export default function TicketDetailScreen({ route, navigation }: any) {
     } catch (error: any) {
       console.error('Error updating status:', error);
       showAlert('Error', error?.message || 'Failed to update status');
+    }
+  };
+
+  const changePriority = async (newPriority: string) => {
+    if (!ticket) return;
+
+    try {
+      await ticketsAPI.updatePriority(ticketId, newPriority);
+      showAlert('Success', `Priority changed to ${newPriority}`);
+      setShowPrioritySheet(false);
+      loadTicket();
+    } catch (error: any) {
+      console.error('Error updating priority:', error);
+      showAlert('Error', error?.message || 'Failed to update priority');
     }
   };
 
@@ -202,11 +217,15 @@ export default function TicketDetailScreen({ route, navigation }: any) {
           <Ionicons name="chevron-down" size={12} color={getStatusColor(ticket.status)} />
         </TouchableOpacity>
 
-        <View style={[styles.metaChip, { backgroundColor: getPriorityColor(ticket.priority) + '15' }]}>
+        <TouchableOpacity 
+          style={[styles.metaChip, { backgroundColor: getPriorityColor(ticket.priority) + '15' }]}
+          onPress={() => setShowPrioritySheet(true)}
+        >
           <Text style={[styles.metaChipText, { color: getPriorityColor(ticket.priority) }]}>
             {ticket.priority}
           </Text>
-        </View>
+          <Ionicons name="chevron-down" size={12} color={getPriorityColor(ticket.priority)} />
+        </TouchableOpacity>
 
         {ticket.assignedAgent && (
           <View style={styles.assignedChip}>
@@ -378,6 +397,40 @@ export default function TicketDetailScreen({ route, navigation }: any) {
           },
         ]}
         onClose={() => setShowStatusSheet(false)}
+      />
+
+      {/* Priority Action Sheet */}
+      <ActionSheet
+        visible={showPrioritySheet}
+        title="Change Priority"
+        message="Choose new priority level for this ticket"
+        options={[
+          {
+            label: 'Low Priority',
+            icon: '🟢',
+            color: colors.info,
+            onPress: () => changePriority('LOW'),
+          },
+          {
+            label: 'Medium Priority',
+            icon: '🟡',
+            color: colors.warning,
+            onPress: () => changePriority('MEDIUM'),
+          },
+          {
+            label: 'High Priority',
+            icon: '🔴',
+            color: colors.error,
+            onPress: () => changePriority('HIGH'),
+          },
+          {
+            label: 'Urgent Priority',
+            icon: '🚨',
+            color: colors.error,
+            onPress: () => changePriority('URGENT'),
+          },
+        ]}
+        onClose={() => setShowPrioritySheet(false)}
       />
     </KeyboardAvoidingView>
   );

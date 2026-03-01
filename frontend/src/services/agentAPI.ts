@@ -27,6 +27,18 @@ export interface UpdateAgentStatusDto {
   status: 'online' | 'offline' | 'busy' | 'break';
 }
 
+export interface Agent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl?: string;
+  agentStatus?: string;
+  agentLevel?: string;
+  department?: string;
+  lastSeen?: string;
+}
+
 export const agentAPI = {
   // Register FCM token for push notifications
   updateFCMToken: async (data: UpdateFCMTokenDto) => {
@@ -59,5 +71,10 @@ export const agentAPI = {
   // Get agent performance metrics
   getMetrics: async () => {
     return apiRequest<AgentMetrics>('/agent/metrics');
+  },
+
+  // Get list of available agents
+  getAgentList: async () => {
+    return apiRequest<Agent[]>('/agent/list');
   },
 };

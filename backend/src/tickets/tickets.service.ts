@@ -230,6 +230,20 @@ export class TicketsService {
     return ticket;
   }
 
+  async updateTicketPriority(ticketId: string, priority: string) {
+    const ticket = await this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        priority: priority as any,
+        slaDeadline: this.calculateSLADeadline(priority),
+      },
+    });
+
+    console.log(`[TICKETS] Updated priority for ticket #${ticketId} to ${priority}`);
+
+    return ticket;
+  }
+
   async getTickets(filters?: {
     status?: string;
     priority?: string;
@@ -298,6 +312,55 @@ export class TicketsService {
     }
 
     return ticket;
+  }
+
+  async processRefund(ticketId: string, agentId: string, refundData: {
+    amount: number;
+    type: 'full' | 'partial';
+    destination: 'wallet' | 'original_payment';
+    chargedTo: 'merchant' | 'platform' | 'courier';
+    reason: string;
+    orderId?: string;
+  }) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    if (!refundData.orderId && !ticket.orderId) {
+      throw new BadRequestException('Order ID is required for refund processing');
+    }
+
+    // Create refund record
+    const refund = await this.prisma.refund.create({
+      data: {
+        orderId: refundData.orderId || ticket.orderId!,
+        amount: refundData.amount,
+        type: refundData.type,
+        reason: refundData.reason,
+        requestedBy: agentId,
+        status: 'pending',
+      },
+    });
+
+    // Add system message to ticket
+    await this.sendMessage(
+      ticketId,
+      agentId,
+      `Refund of ₦${refundData.amount} initiated\nType: ${refundData.type}\nDestination: ${refundData.destination}\nCharged to: ${refundData.chargedTo}\nReason: ${refundData.reason}`,
+      true,
+    );
+
+    console.log(`[TICKETS] Refund processed for ticket #${ticketId}: ₦${refundData.amount}`);
+
+    return {
+      success: true,
+      refund,
+      message: 'Refund initiated successfully',
+    };
   }
 
   private calculateSLADeadline(priority: string): Date {

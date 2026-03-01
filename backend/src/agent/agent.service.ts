@@ -126,6 +126,30 @@ export class AgentService {
     return metrics;
   }
 
+  async listAvailableAgents() {
+    const agents = await this.prisma.user.findMany({
+      where: {
+        role: 'admin',
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatarUrl: true,
+        agentStatus: true,
+        agentLevel: true,
+        department: true,
+        lastSeen: true,
+      },
+      orderBy: {
+        firstName: 'asc',
+      },
+    });
+
+    return agents;
+  }
+
   async sendPushNotification(
     agentId: string,
     notification: {

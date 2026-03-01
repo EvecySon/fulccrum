@@ -148,6 +148,9 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
+// Export apiRequest for use in other services
+export const apiRequest = request;
+
 // HTTP methods
 export const api = {
   get: <T = any>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
