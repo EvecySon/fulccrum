@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import notificationService from '../services/notificationService';
 import websocketService from '../services/websocketService';
+import { agentAPI } from '../services/agentAPI';
 import { useAuth } from './AuthContext';
 import { getAccessToken } from '../services/api';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 interface Notification {
   id: string;
@@ -51,9 +54,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Get push token and send to backend
     const token = await notificationService.initialize(user!.id);
     if (token) {
-      // TODO: Send token to backend
-      console.log('Push token:', token);
-      // await adminAPI.updatePushToken(token);
+      try {
+        const deviceId = Device.modelName || 'unknown-device';
+        const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
+        
+        await agentAPI.updateFCMToken({
+          fcmToken: token,
+          deviceId,
+          platform,
+        });
+        console.log('FCM token registered successfully');
+      } catch (error) {
+        console.error('Failed to register FCM token:', error);
+      }
     }
 
     // Configure notification channels

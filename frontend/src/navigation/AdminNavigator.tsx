@@ -15,6 +15,7 @@ import PayoutsScreen from '../screens/admin/PayoutsScreen';
 import PromoManagementScreen from '../screens/admin/PromoManagementScreen';
 import SupportTicketsScreen from '../screens/admin/SupportTicketsScreen';
 import TicketDetailScreen from '../screens/admin/TicketDetailScreen';
+import CreateTicketScreen from '../screens/admin/CreateTicketScreen';
 import AgentPerformanceScreen from '../screens/admin/AgentPerformanceScreen';
 import NotificationCenterScreen from '../screens/admin/NotificationCenterScreen';
 import ReviewModerationScreen from '../screens/admin/ReviewModerationScreen';
@@ -142,6 +143,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="PromoManagement" component={PromoManagementScreen} />
       <Stack.Screen name="SupportTickets" component={SupportTicketsScreen} />
       <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
+      <Stack.Screen name="CreateTicket" component={CreateTicketScreen} />
       <Stack.Screen name="AgentPerformance" component={AgentPerformanceScreen} />
       <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
       <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
