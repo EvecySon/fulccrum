@@ -603,10 +603,11 @@ model MenuItem {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  category   MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  inventory  Inventory?
-  modifiers  ItemModifierLink[]
-  orderItems OrderItem[]
+  category     MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  inventory    Inventory?
+  modifiers    ItemModifierLink[]
+  orderItems   OrderItem[]
+  supplyChain  SupplyChainEntry[]
 
   @@index([businessId])
   @@index([categoryId])
@@ -2247,4 +2248,44 @@ model TicketMessage {
   @@index([senderId])
   @@index([timestamp])
   @@map("ticket_messages")
+}
+
+// ─── Food Supply Chain Traceability ────────────────────────────────────────
+
+model SupplyChainEntry {
+  id         String   @id @default(uuid()) @db.Uuid
+  menuItemId String   @map("menu_item_id") @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+
+  // Hash-chain fields (blockchain-inspired immutability)
+  blockIndex   Int    @map("block_index")
+  previousHash String @map("previous_hash") @db.VarChar(128)
+  currentHash  String @map("current_hash") @db.VarChar(128)
+
+  // Supply chain event data
+  stage       String @db.VarChar(50) // sourced, processed, stored, prepared, dispatched, delivered
+  location    String @db.VarChar(255)
+  handler     String @db.VarChar(255) // e.g. "Farm ABC", "Cold Storage Ltd", "Chef John"
+  description String @db.Text
+  temperature String? @db.VarChar(20) // for cold-chain tracking
+  batchNumber String? @map("batch_number") @db.VarChar(100)
+
+  // Verification
+  verified    Boolean  @default(false)
+  verifiedBy  String?  @map("verified_by") @db.Uuid
+  verifiedAt  DateTime? @map("verified_at")
+  certificate String?  @db.VarChar(255) // certificate/license reference
+
+  // Metadata
+  metadata  Json     @default("{}")
+  timestamp DateTime @default(now())
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@index([businessId])
+  @@index([stage])
+  @@index([timestamp])
+  @@unique([menuItemId, blockIndex])
+  @@map("supply_chain_entries")
 }

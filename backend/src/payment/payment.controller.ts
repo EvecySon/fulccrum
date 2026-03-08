@@ -3,6 +3,8 @@ import { PaymentService } from './payment.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { SaveCardDto } from './dto/save-card.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NonceGuard } from '../common/guards/nonce.guard';
+import { RequireNonce } from '../common/decorators/require-nonce.decorator';
 
 @Controller('payment')
 @UseGuards(JwtAuthGuard)
@@ -10,6 +12,8 @@ export class PaymentController {
   constructor(private paymentService: PaymentService) {}
 
   @Post('initialize')
+  @UseGuards(NonceGuard)
+  @RequireNonce('payment')
   async initializePayment(
     @Request() req: any,
     @Body() dto: InitializePaymentDto,
@@ -51,6 +55,8 @@ export class PaymentController {
   }
 
   @Post('cards')
+  @UseGuards(NonceGuard)
+  @RequireNonce('card-save')
   async saveCard(@Request() req: any, @Body() dto: SaveCardDto) {
     return this.paymentService.saveCard(
       req.user.sub,
@@ -79,6 +85,8 @@ export class PaymentController {
   }
 
   @Post('topup')
+  @UseGuards(NonceGuard)
+  @RequireNonce('payment')
   async initializeTopUp(@Request() req: any, @Body('amount') amount: number) {
     return this.paymentService.initializeTopUp(req.user.sub, amount);
   }

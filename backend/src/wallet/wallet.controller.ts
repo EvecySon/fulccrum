@@ -4,6 +4,8 @@ import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ConfirmWithdrawalDto } from './dto/confirm-withdrawal.dto';
 import { AddBankAccountDto } from './dto/add-bank-account.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NonceGuard } from '../common/guards/nonce.guard';
+import { RequireNonce } from '../common/decorators/require-nonce.decorator';
 
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
@@ -16,6 +18,8 @@ export class WalletController {
   }
 
   @Post('withdraw/request')
+  @UseGuards(NonceGuard)
+  @RequireNonce('withdraw')
   async requestWithdrawal(
     @Request() req: any,
     @Body() dto: RequestWithdrawalDto,
@@ -48,6 +52,8 @@ export class WalletController {
   }
 
   @Post('bank-accounts')
+  @UseGuards(NonceGuard)
+  @RequireNonce('bank-account')
   async addBankAccount(@Request() req: any, @Body() dto: AddBankAccountDto) {
     return this.walletService.addBankAccount(
       req.user.sub,
