@@ -1,18 +1,26 @@
 import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-const MOCK_CONFIGS = [
+const MOCK_CONFIGS_REMOVED = [
   { id: '1', name: 'Standard Delivery', orderType: 'food_delivery', maxPrepTime: 20, maxDeliveryTime: 30, maxTotalTime: 50 },
   { id: '2', name: 'Express Delivery', orderType: 'express', maxPrepTime: 10, maxDeliveryTime: 15, maxTotalTime: 25 },
   { id: '3', name: 'Grocery Delivery', orderType: 'grocery', maxPrepTime: 15, maxDeliveryTime: 45, maxTotalTime: 60 },
   { id: '4', name: 'Scheduled Delivery', orderType: 'scheduled', maxPrepTime: 30, maxDeliveryTime: 30, maxTotalTime: 60 },
 ];
 
-const MOCK_BREACHES = [
+const MOCK_BREACHES_REMOVED = [
   {
     id: '1', type: 'delivery_time_exceeded',
     order: { orderNumber: 'ORD-2026-4801' },
@@ -46,14 +54,37 @@ const MOCK_BREACHES = [
 ];
 
 export default function SLAMonitoringScreen({ navigation }: any) {
-  const [breaches, setBreaches] = useState<any[]>(MOCK_BREACHES);
-  const [configs, setConfigs] = useState<any[]>(MOCK_CONFIGS);
-  const [loading, setLoading] = useState(false);
+  const [breaches, setBreaches] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [breachesRes, configsRes] = await Promise.all([
+        operationsAPI.getSLABreaches('all', '1'),
+        operationsAPI.getSLAConfigs()
+      ]);
+      if (breachesRes?.data) setBreaches(breachesRes.data);
+      else if (Array.isArray(breachesRes)) setBreaches(breachesRes);
+      if (configsRes?.data) setConfigs(configsRes.data);
+      else if (Array.isArray(configsRes)) setConfigs(configsRes);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load SLA data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+    await loadData();
+    setRefreshing(false);
   };
 
   if (loading) {

@@ -7,32 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { adminAPI, analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
-
-const mockMonthlyRevenue = [
-  { month: 'Sep', amount: 32000 },
-  { month: 'Oct', amount: 38000 },
-  { month: 'Nov', amount: 41000 },
-  { month: 'Dec', amount: 52000 },
-  { month: 'Jan', amount: 45000 },
-  { month: 'Feb', amount: 48000 },
-];
-
-const mockTransactions = [
-  { id: '1', type: 'commission', desc: 'Burger House commission', amount: 245.80, date: 'Today, 3:00 PM' },
-  { id: '2', type: 'payout', desc: 'Courier payouts batch', amount: -1850.00, date: 'Today, 2:00 PM' },
-  { id: '3', type: 'commission', desc: 'Sushi Palace commission', amount: 312.50, date: 'Today, 1:30 PM' },
-  { id: '4', type: 'refund', desc: 'Refund - Order #3198', amount: -24.50, date: 'Today, 12:00 PM' },
-  { id: '5', type: 'subscription', desc: 'Premium merchant fee', amount: 99.00, date: 'Yesterday' },
-  { id: '6', type: 'payout', desc: 'Merchant payouts batch', amount: -8420.00, date: 'Yesterday' },
-  { id: '7', type: 'commission', desc: 'Thai Garden commission', amount: 178.30, date: 'Yesterday' },
-];
 
 const getTxIcon = (type: string) => {
   switch (type) {
@@ -46,23 +28,79 @@ const getTxIcon = (type: string) => {
 
 export default function FinanceScreen({ navigation }: any) {
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('month');
-  const [monthlyRevenue, setMonthlyRevenue] = useState(mockMonthlyRevenue);
-  const [transactions, setTransactions] = useState(mockTransactions);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({
+    totalRevenue: 0,
+    commissions: 0,
+    deliveryFees: 0,
+    subscriptions: 0,
+    avgOrderValue: 0,
+    avgCommission: 0,
+    refunds: 0,
+    profitMargin: 0,
+    merchantPayouts: { amount: 0, count: 0 },
+    courierPayouts: { amount: 0, count: 0 },
+    refundsPending: { amount: 0, count: 0 }
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [revRes, txRes] = await Promise.all([
-          analyticsAPI.revenue(180).catch(() => null),
-          adminAPI.getPendingWithdrawals().catch(() => null),
-        ]);
-        if (revRes?.length) setMonthlyRevenue(revRes);
-        if (txRes?.data?.length) setTransactions(txRes.data);
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadFinanceData();
   }, []);
 
-  const maxRevenue = Math.max(...monthlyRevenue.map(m => m.amount));
+  const loadFinanceData = async () => {
+    try {
+      setLoading(true);
+      const [revRes, txRes, metricsRes] = await Promise.all([
+        analyticsAPI.revenue(180).catch(() => []),
+        adminAPI.getPendingWithdrawals().catch(() => ({ data: [] })),
+        adminAPI.getMetrics().catch(() => null),
+      ]);
+      
+      if (revRes?.length) setMonthlyRevenue(revRes);
+      if (txRes?.data?.length) setTransactions(txRes.data);
+      
+      // Calculate stats from API data or use defaults
+      if (metricsRes) {
+        setStats({
+          totalRevenue: metricsRes.totalRevenue || metricsRes.monthlyRevenue || 0,
+          commissions: metricsRes.commissions || 0,
+          deliveryFees: metricsRes.deliveryFees || 0,
+          subscriptions: metricsRes.subscriptions || 0,
+          avgOrderValue: metricsRes.avgOrderValue || 0,
+          avgCommission: metricsRes.avgCommission || 0,
+          refunds: metricsRes.refunds || 0,
+          profitMargin: metricsRes.profitMargin || 0,
+          merchantPayouts: metricsRes.merchantPayouts || { amount: 0, count: 0 },
+          courierPayouts: metricsRes.courierPayouts || { amount: 0, count: 0 },
+          refundsPending: metricsRes.refundsPending || { amount: 0, count: 0 }
+        });
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load finance data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadFinanceData();
+    setRefreshing(false);
+  };
+
+  const maxRevenue = monthlyRevenue.length > 0 ? Math.max(...monthlyRevenue.map(m => m.amount)) : 1;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading finance data...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -97,10 +135,16 @@ export default function FinanceScreen({ navigation }: any) {
         <View style={styles.revenueCard}>
           <View style={styles.revenueMain}>
             <Text style={styles.revenueLabel}>Total Revenue</Text>
-            <Text style={styles.revenueValue}>₦13.8M</Text>
+            <Text style={styles.revenueValue}>
+              ₦{stats.totalRevenue >= 1000000 
+                ? `${(stats.totalRevenue / 1000000).toFixed(1)}M` 
+                : stats.totalRevenue >= 1000 
+                  ? `${(stats.totalRevenue / 1000).toFixed(0)}K`
+                  : stats.totalRevenue.toLocaleString()}
+            </Text>
             <View style={styles.revenueTrend}>
               <Ionicons name="trending-up" size={14} color={colors.success} />
-              <Text style={styles.revenueTrendText}>+8.3% vs last month</Text>
+              <Text style={styles.revenueTrendText}>Current period</Text>
             </View>
           </View>
         </View>
@@ -110,20 +154,44 @@ export default function FinanceScreen({ navigation }: any) {
           <View style={styles.breakdownCard}>
             <View style={[styles.breakdownDot, { backgroundColor: colors.teal }]} />
             <Text style={styles.breakdownLabel}>Commissions</Text>
-            <Text style={styles.breakdownValue}>₦9.6M</Text>
-            <Text style={styles.breakdownPct}>70%</Text>
+            <Text style={styles.breakdownValue}>
+              ₦{stats.commissions >= 1000000 
+                ? `${(stats.commissions / 1000000).toFixed(1)}M` 
+                : stats.commissions >= 1000 
+                  ? `${(stats.commissions / 1000).toFixed(0)}K`
+                  : stats.commissions.toLocaleString()}
+            </Text>
+            <Text style={styles.breakdownPct}>
+              {stats.totalRevenue > 0 ? Math.round((stats.commissions / stats.totalRevenue) * 100) : 0}%
+            </Text>
           </View>
           <View style={styles.breakdownCard}>
             <View style={[styles.breakdownDot, { backgroundColor: colors.navy }]} />
             <Text style={styles.breakdownLabel}>Delivery Fees</Text>
-            <Text style={styles.breakdownValue}>₦2.8M</Text>
-            <Text style={styles.breakdownPct}>20%</Text>
+            <Text style={styles.breakdownValue}>
+              ₦{stats.deliveryFees >= 1000000 
+                ? `${(stats.deliveryFees / 1000000).toFixed(1)}M` 
+                : stats.deliveryFees >= 1000 
+                  ? `${(stats.deliveryFees / 1000).toFixed(0)}K`
+                  : stats.deliveryFees.toLocaleString()}
+            </Text>
+            <Text style={styles.breakdownPct}>
+              {stats.totalRevenue > 0 ? Math.round((stats.deliveryFees / stats.totalRevenue) * 100) : 0}%
+            </Text>
           </View>
           <View style={styles.breakdownCard}>
             <View style={[styles.breakdownDot, { backgroundColor: colors.warning }]} />
             <Text style={styles.breakdownLabel}>Subscriptions</Text>
-            <Text style={styles.breakdownValue}>₦1.4M</Text>
-            <Text style={styles.breakdownPct}>10%</Text>
+            <Text style={styles.breakdownValue}>
+              ₦{stats.subscriptions >= 1000000 
+                ? `${(stats.subscriptions / 1000000).toFixed(1)}M` 
+                : stats.subscriptions >= 1000 
+                  ? `${(stats.subscriptions / 1000).toFixed(0)}K`
+                  : stats.subscriptions.toLocaleString()}
+            </Text>
+            <Text style={styles.breakdownPct}>
+              {stats.totalRevenue > 0 ? Math.round((stats.subscriptions / stats.totalRevenue) * 100) : 0}%
+            </Text>
           </View>
         </View>
 
@@ -153,22 +221,22 @@ export default function FinanceScreen({ navigation }: any) {
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Ionicons name="wallet" size={20} color={colors.teal} />
-            <Text style={styles.kpiValue}>₦11,550</Text>
+            <Text style={styles.kpiValue}>₦{stats.avgOrderValue.toLocaleString()}</Text>
             <Text style={styles.kpiLabel}>Avg Order Value</Text>
           </View>
           <View style={styles.kpiCard}>
             <Ionicons name="card" size={20} color={colors.navy} />
-            <Text style={styles.kpiValue}>₦1,155</Text>
+            <Text style={styles.kpiValue}>₦{stats.avgCommission.toLocaleString()}</Text>
             <Text style={styles.kpiLabel}>Avg Commission</Text>
           </View>
           <View style={styles.kpiCard}>
             <Ionicons name="refresh" size={20} color={colors.error} />
-            <Text style={styles.kpiValue}>₦372,000</Text>
+            <Text style={styles.kpiValue}>₦{stats.refunds.toLocaleString()}</Text>
             <Text style={styles.kpiLabel}>Refunds</Text>
           </View>
           <View style={styles.kpiCard}>
             <Ionicons name="trending-up" size={20} color={colors.success} />
-            <Text style={styles.kpiValue}>72%</Text>
+            <Text style={styles.kpiValue}>{stats.profitMargin}%</Text>
             <Text style={styles.kpiLabel}>Profit Margin</Text>
           </View>
         </View>
@@ -182,9 +250,9 @@ export default function FinanceScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           {[
-            { label: 'Merchant Payouts', amount: 12450, count: 28 },
-            { label: 'Courier Payouts', amount: 8920, count: 64 },
-            { label: 'Refunds Pending', amount: 340, count: 5 },
+            { label: 'Merchant Payouts', amount: stats.merchantPayouts.amount, count: stats.merchantPayouts.count },
+            { label: 'Courier Payouts', amount: stats.courierPayouts.amount, count: stats.courierPayouts.count },
+            { label: 'Refunds Pending', amount: stats.refundsPending.amount, count: stats.refundsPending.count },
           ].map((payout, index) => (
             <View key={index} style={styles.payoutRow}>
               <View style={styles.payoutInfo}>
@@ -241,6 +309,8 @@ export default function FinanceScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.navy,

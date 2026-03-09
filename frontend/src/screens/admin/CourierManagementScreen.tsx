@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,101 +8,13 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
-const MOCK_COURIERS: any[] = [
-  {
-    id: 'c-1', status: 'active',
-    firstName: 'Chinedu', lastName: 'Okoro', email: 'chinedu@fulccrum.ng', phone: '+234 812 111 2222',
-    vehicleType: 'motorcycle', licensePlate: 'LAG-234-AB', zone: 'Lekki / VI',
-    rating: 4.9, deliveries: 512, earnings: 345000, joined: '2025-08-20T00:00:00Z',
-    documents: [
-      { id: 'cd-1', type: 'drivers_license', name: "Driver's License", status: 'verified' },
-      { id: 'cd-2', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'verified' },
-      { id: 'cd-3', type: 'insurance', name: 'Vehicle Insurance', status: 'verified' },
-      { id: 'cd-4', type: 'national_id', name: 'National ID (NIN)', status: 'verified' },
-      { id: 'cd-5', type: 'guarantor_form', name: 'Guarantor Form', status: 'verified' },
-    ],
-  },
-  {
-    id: 'c-2', status: 'active',
-    firstName: 'Fatima', lastName: 'Bello', email: 'fatima@fulccrum.ng', phone: '+234 803 222 3333',
-    vehicleType: 'motorcycle', licensePlate: 'LAG-567-CD', zone: 'Ikeja / Surulere',
-    rating: 4.7, deliveries: 298, earnings: 198000, joined: '2025-11-01T00:00:00Z',
-    documents: [
-      { id: 'cd-6', type: 'drivers_license', name: "Driver's License", status: 'verified' },
-      { id: 'cd-7', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'verified' },
-      { id: 'cd-8', type: 'insurance', name: 'Vehicle Insurance', status: 'verified' },
-      { id: 'cd-9', type: 'national_id', name: 'National ID (NIN)', status: 'verified' },
-      { id: 'cd-10', type: 'guarantor_form', name: 'Guarantor Form', status: 'verified' },
-    ],
-  },
-  {
-    id: 'c-3', status: 'active',
-    firstName: 'Tunde', lastName: 'Adeyemi', email: 'tunde@fulccrum.ng', phone: '+234 705 333 4444',
-    vehicleType: 'bicycle', licensePlate: 'N/A', zone: 'Victoria Island',
-    rating: 4.5, deliveries: 87, earnings: 42000, joined: '2025-12-15T00:00:00Z',
-    documents: [
-      { id: 'cd-11', type: 'national_id', name: 'National ID (NIN)', status: 'verified' },
-      { id: 'cd-12', type: 'guarantor_form', name: 'Guarantor Form', status: 'verified' },
-    ],
-  },
-  {
-    id: 'c-4', status: 'pending',
-    firstName: 'Ibrahim', lastName: 'Musa', email: 'ibrahim@fulccrum.ng', phone: '+234 806 444 5555',
-    vehicleType: 'motorcycle', licensePlate: 'LAG-890-EF', zone: 'Ajah / Sangotedo',
-    rating: 0, deliveries: 0, earnings: 0, joined: '2026-02-08T00:00:00Z',
-    documents: [
-      { id: 'cd-13', type: 'drivers_license', name: "Driver's License", status: 'uploaded' },
-      { id: 'cd-14', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'uploaded' },
-      { id: 'cd-15', type: 'insurance', name: 'Vehicle Insurance', status: 'uploaded' },
-      { id: 'cd-16', type: 'national_id', name: 'National ID (NIN)', status: 'uploaded' },
-      { id: 'cd-17', type: 'guarantor_form', name: 'Guarantor Form', status: 'missing' },
-    ],
-  },
-  {
-    id: 'c-5', status: 'pending',
-    firstName: 'Blessing', lastName: 'Okonkwo', email: 'blessing@fulccrum.ng', phone: '+234 810 555 6666',
-    vehicleType: 'car', licensePlate: 'LAG-112-GH', zone: 'Ikoyi / Lekki',
-    rating: 0, deliveries: 0, earnings: 0, joined: '2026-02-10T00:00:00Z',
-    documents: [
-      { id: 'cd-18', type: 'drivers_license', name: "Driver's License", status: 'uploaded' },
-      { id: 'cd-19', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'uploaded' },
-      { id: 'cd-20', type: 'insurance', name: 'Vehicle Insurance', status: 'uploaded' },
-      { id: 'cd-21', type: 'national_id', name: 'National ID (NIN)', status: 'uploaded' },
-      { id: 'cd-22', type: 'guarantor_form', name: 'Guarantor Form', status: 'uploaded' },
-    ],
-  },
-  {
-    id: 'c-6', status: 'pending',
-    firstName: 'Oluwaseun', lastName: 'Afolabi', email: 'seun@fulccrum.ng', phone: '+234 701 666 7777',
-    vehicleType: 'motorcycle', licensePlate: 'OG-345-IJ', zone: 'Ikeja / Agege',
-    rating: 0, deliveries: 0, earnings: 0, joined: '2026-02-11T00:00:00Z',
-    documents: [
-      { id: 'cd-23', type: 'drivers_license', name: "Driver's License", status: 'uploaded' },
-      { id: 'cd-24', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'missing' },
-      { id: 'cd-25', type: 'insurance', name: 'Vehicle Insurance', status: 'missing' },
-      { id: 'cd-26', type: 'national_id', name: 'National ID (NIN)', status: 'uploaded' },
-      { id: 'cd-27', type: 'guarantor_form', name: 'Guarantor Form', status: 'missing' },
-    ],
-  },
-  {
-    id: 'c-7', status: 'suspended',
-    firstName: 'Dayo', lastName: 'Ogunbiyi', email: 'dayo@fulccrum.ng', phone: '+234 802 777 8888',
-    vehicleType: 'motorcycle', licensePlate: 'LAG-678-KL', zone: 'Surulere / Yaba',
-    rating: 2.8, deliveries: 45, earnings: 28000, joined: '2025-12-01T00:00:00Z',
-    suspensionReason: 'Multiple customer complaints about late deliveries and rude behavior. 3 incidents in 7 days.',
-    documents: [
-      { id: 'cd-28', type: 'drivers_license', name: "Driver's License", status: 'verified' },
-      { id: 'cd-29', type: 'vehicle_registration', name: 'Vehicle Registration', status: 'verified' },
-      { id: 'cd-30', type: 'insurance', name: 'Vehicle Insurance', status: 'expired' },
-      { id: 'cd-31', type: 'national_id', name: 'National ID (NIN)', status: 'verified' },
-      { id: 'cd-32', type: 'guarantor_form', name: 'Guarantor Form', status: 'verified' },
-    ],
-  },
-];
 
 const vehicleIcons: Record<string, string> = {
   bicycle: 'bicycle',
@@ -131,19 +43,56 @@ const getDocStatusColor = (s: string) => {
 };
 
 export default function CourierManagementScreen({ navigation }: any) {
-  const [couriers, setCouriers] = useState<any[]>(MOCK_COURIERS);
+  const [couriers, setCouriers] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedCourier, setSelectedCourier] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadCouriers();
+  }, []);
+
+  const loadCouriers = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getCouriers();
+      if (res?.data) {
+        setCouriers(res.data);
+      } else if (Array.isArray(res)) {
+        setCouriers(res);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load couriers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCouriers();
+    setRefreshing(false);
+  };
 
   const filtered = couriers.filter(c => {
-    const matchSearch = `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === 'all' || c.status === filter;
     return matchSearch && matchFilter;
   });
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading couriers...</Text>
+      </View>
+    );
+  }
 
   const openDetail = (c: any) => { setSelectedCourier(c); setShowDetail(true); };
 
@@ -181,7 +130,7 @@ export default function CourierManagementScreen({ navigation }: any) {
   };
 
   const verifyDoc = (docId: string) => {
-    if (!selectedCourier) return;
+    if (!selectedCourier || !selectedCourier.documents) return;
     const updated = { ...selectedCourier, documents: selectedCourier.documents.map((d: any) => d.id === docId ? { ...d, status: 'verified' } : d) };
     setSelectedCourier(updated);
     setCouriers(prev => prev.map(c => c.id === selectedCourier.id ? updated : c));
@@ -214,7 +163,7 @@ export default function CourierManagementScreen({ navigation }: any) {
           <Text style={styles.statLabel}>Suspended</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: colors.teal }]}>{couriers.reduce((s, c) => s + c.deliveries, 0)}</Text>
+          <Text style={[styles.statValue, { color: colors.teal }]}>{couriers.reduce((s, c) => s + (c.deliveries || 0), 0)}</Text>
           <Text style={styles.statLabel}>Deliveries</Text>
         </View>
       </View>
@@ -234,7 +183,13 @@ export default function CourierManagementScreen({ navigation }: any) {
         ))}
       </View>
 
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.list} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {filtered.map(courier => (
           <TouchableOpacity key={courier.id} style={styles.courierCard} onPress={() => openDetail(courier)}>
             <View style={styles.courierTop}>
@@ -254,13 +209,13 @@ export default function CourierManagementScreen({ navigation }: any) {
 
             {courier.status === 'active' && (
               <View style={styles.courierStats}>
-                <View style={styles.courierStat}><Ionicons name="star" size={12} color={colors.warning} /><Text style={styles.courierStatText}>{courier.rating}</Text></View>
-                <View style={styles.courierStat}><Ionicons name="bicycle" size={12} color={colors.textLight} /><Text style={styles.courierStatText}>{courier.deliveries} trips</Text></View>
-                <View style={styles.courierStat}><Ionicons name="cash-outline" size={12} color={colors.textLight} /><Text style={styles.courierStatText}>₦{courier.earnings.toLocaleString()}</Text></View>
+                <View style={styles.courierStat}><Ionicons name="star" size={12} color={colors.warning} /><Text style={styles.courierStatText}>{courier.rating || 0}</Text></View>
+                <View style={styles.courierStat}><Ionicons name="bicycle" size={12} color={colors.textLight} /><Text style={styles.courierStatText}>{courier.deliveries || 0} trips</Text></View>
+                <View style={styles.courierStat}><Ionicons name="cash-outline" size={12} color={colors.textLight} /><Text style={styles.courierStatText}>₦{(courier.earnings || 0).toLocaleString()}</Text></View>
               </View>
             )}
 
-            {courier.status === 'pending' && (
+            {courier.status === 'pending' && courier.documents && (
               <View style={styles.pendingInfo}>
                 <Ionicons name="document-outline" size={14} color={colors.warning} />
                 <Text style={styles.pendingText}>{courier.documents.filter((d: any) => d.status === 'uploaded' || d.status === 'verified').length}/{courier.documents.length} documents submitted</Text>
@@ -305,6 +260,12 @@ export default function CourierManagementScreen({ navigation }: any) {
                   </View>
                 )}
 
+                {(!selectedCourier.documents || selectedCourier.documents.length === 0) && (
+                  <View style={styles.infoCard}>
+                    <Text style={styles.infoValue}>No documents uploaded yet</Text>
+                  </View>
+                )}
+
                 <Text style={styles.sectionTitle}>Personal Information</Text>
                 <View style={styles.infoCard}>
                   <View style={styles.infoRow}><Text style={styles.infoLabel}>Name</Text><Text style={styles.infoValue}>{selectedCourier.firstName} {selectedCourier.lastName}</Text></View>
@@ -321,26 +282,30 @@ export default function CourierManagementScreen({ navigation }: any) {
                     <View style={styles.perfRow}>
                       <View style={styles.perfCard}><Text style={styles.perfValue}>★ {selectedCourier.rating}</Text><Text style={styles.perfLabel}>Rating</Text></View>
                       <View style={styles.perfCard}><Text style={styles.perfValue}>{selectedCourier.deliveries}</Text><Text style={styles.perfLabel}>Deliveries</Text></View>
-                      <View style={styles.perfCard}><Text style={styles.perfValue}>₦{(selectedCourier.earnings / 1000).toFixed(0)}K</Text><Text style={styles.perfLabel}>Earnings</Text></View>
+                      <View style={styles.perfCard}><Text style={styles.perfValue}>₦{((selectedCourier.earnings || 0) / 1000).toFixed(0)}K</Text><Text style={styles.perfLabel}>Earnings</Text></View>
                     </View>
                   </>
                 )}
 
-                <Text style={styles.sectionTitle}>Documents ({selectedCourier.documents.filter((d: any) => d.status === 'verified').length}/{selectedCourier.documents.length} verified)</Text>
-                {selectedCourier.documents.map((doc: any) => (
-                  <View key={doc.id} style={styles.docRow}>
-                    <View style={[styles.docDot, { backgroundColor: getDocStatusColor(doc.status) }]} />
-                    <Text style={styles.docName}>{doc.name}</Text>
-                    <View style={[styles.docBadge, { backgroundColor: getDocStatusColor(doc.status) + '15' }]}>
-                      <Text style={[styles.docBadgeText, { color: getDocStatusColor(doc.status) }]}>{doc.status}</Text>
-                    </View>
-                    {doc.status === 'uploaded' && selectedCourier.status === 'pending' && (
-                      <TouchableOpacity style={styles.verifyBtn} onPress={() => verifyDoc(doc.id)}>
-                        <Text style={styles.verifyBtnText}>Verify</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
+                {selectedCourier.documents && selectedCourier.documents.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Documents ({selectedCourier.documents.filter((d: any) => d.status === 'verified').length}/{selectedCourier.documents.length} verified)</Text>
+                    {selectedCourier.documents.map((doc: any) => (
+                      <View key={doc.id} style={styles.docRow}>
+                        <View style={[styles.docDot, { backgroundColor: getDocStatusColor(doc.status) }]} />
+                        <Text style={styles.docName}>{doc.name}</Text>
+                        <View style={[styles.docBadge, { backgroundColor: getDocStatusColor(doc.status) + '15' }]}>
+                          <Text style={[styles.docBadgeText, { color: getDocStatusColor(doc.status) }]}>{doc.status}</Text>
+                        </View>
+                        {doc.status === 'uploaded' && selectedCourier.status === 'pending' && (
+                          <TouchableOpacity style={styles.verifyBtn} onPress={() => verifyDoc(doc.id)}>
+                            <Text style={styles.verifyBtnText}>Verify</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                  </>
+                )}
 
                 {/* Actions */}
                 {selectedCourier.status === 'pending' && (
@@ -396,6 +361,8 @@ export default function CourierManagementScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.white,

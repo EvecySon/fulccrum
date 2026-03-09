@@ -27,6 +27,7 @@ import BankAccountsScreen from '../screens/merchant/BankAccountsScreen';
 import MerchantNotificationsScreen from '../screens/merchant/NotificationsScreen';
 import CateringScreen from '../screens/merchant/CateringScreen';
 import SupplyChainScreen from '../screens/merchant/SupplyChainScreen';
+import AddSupplyChainEntryScreen from '../screens/merchant/AddSupplyChainEntryScreen';
 import MarketplaceScreen from '../screens/merchant/MarketplaceScreen';
 import OrderChatScreen from '../screens/shared/ChatScreen';
 import CallScreen from '../screens/shared/CallScreen';
@@ -116,6 +117,7 @@ export default function MerchantNavigator() {
       <Stack.Screen name="Notifications" component={MerchantNotificationsScreen} />
       <Stack.Screen name="Catering" component={CateringScreen} />
       <Stack.Screen name="SupplyChain" component={SupplyChainScreen} />
+      <Stack.Screen name="AddSupplyChainEntry" component={AddSupplyChainEntryScreen} />
       <Stack.Screen name="Marketplace" component={MarketplaceScreen} />
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />

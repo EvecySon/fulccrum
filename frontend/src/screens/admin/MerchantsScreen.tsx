@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,80 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-
-const mockMerchants = [
-  { id: '1', name: 'Chicken Republic - Lekki', owner: 'Adewale Johnson', email: 'adewale@chickenrep.ng', status: 'active', rating: 4.7, orders: 1842, revenue: 2450000, commission: 8, joined: 'Sep 15, 2025', category: 'Fast Food' },
-  { id: '2', name: 'The Place - Victoria Island', owner: 'Funke Adeyemi', email: 'funke@theplace.ng', status: 'active', rating: 4.5, orders: 1230, revenue: 1890000, commission: 8, joined: 'Oct 1, 2025', category: 'Nigerian' },
-  { id: '3', name: 'Mama Put Kitchen - Surulere', owner: 'Ngozi Okafor', email: 'ngozi@mamaput.ng', status: 'active', rating: 4.8, orders: 956, revenue: 780000, commission: 10, joined: 'Nov 20, 2025', category: 'Local Cuisine' },
-  { id: '4', name: 'Dominos Pizza - Ikeja', owner: 'Chidi Nnamdi', email: 'chidi@dominos.ng', status: 'active', rating: 4.3, orders: 2100, revenue: 3200000, commission: 7, joined: 'Aug 5, 2025', category: 'Pizza' },
-  { id: '5', name: 'Seoul Kitchen - Lekki Phase 2', owner: 'Jin Kim', email: 'jin@seoulkitchen.ng', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 10, joined: 'Feb 8, 2026', category: 'Korean' },
-  { id: '6', name: 'Kilimanjaro - Ajah', owner: 'Yusuf Mohammed', email: 'yusuf@kilimanjaro.ng', status: 'pending', rating: 0, orders: 0, revenue: 0, commission: 10, joined: 'Feb 10, 2026', category: 'Fast Food' },
-  { id: '7', name: 'Buka Hut - Ikoyi', owner: 'Bola Akinwale', email: 'bola@bukahut.ng', status: 'suspended', rating: 3.1, orders: 312, revenue: 245000, commission: 10, joined: 'Dec 1, 2025', category: 'Local Cuisine' },
-  { id: '8', name: 'Tantalizers - Festac', owner: 'Emeka Obi', email: 'emeka@tantalizers.ng', status: 'suspended', rating: 3.4, orders: 187, revenue: 156000, commission: 10, joined: 'Jan 5, 2026', category: 'Fast Food' },
-  { id: '9', name: 'KFC - Surulere', owner: 'Amara Eze', email: 'amara@kfc.ng', status: 'active', rating: 4.4, orders: 1567, revenue: 2100000, commission: 7, joined: 'Jul 20, 2025', category: 'Fast Food' },
-  { id: '10', name: 'Sweet Sensation - Ikeja', owner: 'Tunde Bakare', email: 'tunde@sweetsensation.ng', status: 'active', rating: 4.6, orders: 890, revenue: 1120000, commission: 8, joined: 'Oct 10, 2025', category: 'Bakery & Fast Food' },
-];
+import { adminAPI } from '../../services/api';
 
 const filters = ['All', 'Active', 'Pending', 'Suspended'];
 
 export default function MerchantsScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [merchants, setMerchants] = useState(mockMerchants);
+  const [merchants, setMerchants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedMerchant, setSelectedMerchant] = useState<any>(null);
+
+  useEffect(() => {
+    loadMerchants();
+  }, []);
+
+  const loadMerchants = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getMerchants();
+      if (res?.data) {
+        setMerchants(res.data);
+      } else if (Array.isArray(res)) {
+        setMerchants(res);
+      } else {
+        setMerchants([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load merchants:', e);
+      setMerchants([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadMerchants();
+    setRefreshing(false);
+  };
 
   const filtered = merchants.filter((m) => {
-    const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.owner.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = activeFilter === 'All' || m.status === activeFilter.toLowerCase();
+    const matchesSearch = m.businessName?.toLowerCase().includes(search.toLowerCase()) || 
+                         m.user?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
+                         m.user?.email?.toLowerCase().includes(search.toLowerCase());
+    
+    // Map filter labels to actual verificationStatus values
+    let matchesFilter = true;
+    if (activeFilter === 'Active') {
+      matchesFilter = m.verificationStatus === 'verified' || m.verificationStatus === 'active';
+    } else if (activeFilter === 'Pending') {
+      matchesFilter = m.verificationStatus === 'pending';
+    } else if (activeFilter === 'Suspended') {
+      matchesFilter = m.verificationStatus === 'suspended' || m.verificationStatus === 'rejected';
+    }
+    
     return matchesSearch && matchesFilter;
   });
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading merchants...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -49,23 +94,29 @@ export default function MerchantsScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.success }]}>{merchants.filter(m => m.status === 'active').length}</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>{merchants.filter(m => m.verificationStatus === 'verified' || m.verificationStatus === 'active').length}</Text>
             <Text style={styles.statLabel}>Active</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.warning }]}>{merchants.filter(m => m.status === 'pending').length}</Text>
+            <Text style={[styles.statValue, { color: colors.warning }]}>{merchants.filter(m => m.verificationStatus === 'pending').length}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.error }]}>{merchants.filter(m => m.status === 'suspended').length}</Text>
+            <Text style={[styles.statValue, { color: colors.error }]}>{merchants.filter(m => m.verificationStatus === 'suspended' || m.verificationStatus === 'rejected').length}</Text>
             <Text style={styles.statLabel}>Suspended</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.teal }]}>₦{(merchants.reduce((s, m) => s + m.revenue, 0) / 1000).toFixed(0)}K</Text>
+            <Text style={[styles.statValue, { color: colors.teal }]}>₦0K</Text>
             <Text style={styles.statLabel}>Revenue</Text>
           </View>
         </View>
@@ -107,54 +158,66 @@ export default function MerchantsScreen({ navigation }: any) {
                 </View>
                 <View style={styles.merchantInfo}>
                   <View style={styles.merchantNameRow}>
-                    <Text style={styles.merchantName}>{merchant.name}</Text>
+                    <Text style={styles.merchantName}>{merchant.businessName}</Text>
                     <View style={[styles.statusBadge, {
-                      backgroundColor: merchant.status === 'active' ? colors.success + '15' :
-                        merchant.status === 'pending' ? colors.warning + '15' : colors.error + '15'
+                      backgroundColor: (merchant.verificationStatus === 'verified' || merchant.verificationStatus === 'active') ? colors.success + '15' :
+                        merchant.verificationStatus === 'pending' ? colors.warning + '15' : colors.error + '15'
                     }]}>
                       <Text style={[styles.statusText, {
-                        color: merchant.status === 'active' ? colors.success :
-                          merchant.status === 'pending' ? colors.warning : colors.error
-                      }]}>{merchant.status}</Text>
+                        color: (merchant.verificationStatus === 'verified' || merchant.verificationStatus === 'active') ? colors.success :
+                          merchant.verificationStatus === 'pending' ? colors.warning : colors.error
+                      }]}>{merchant.verificationStatus}</Text>
                     </View>
                   </View>
-                  <Text style={styles.merchantOwner}>{merchant.owner} · {merchant.category}</Text>
+                  <Text style={styles.merchantOwner}>{merchant.user?.firstName} {merchant.user?.lastName} · {merchant.businessType}</Text>
                 </View>
               </View>
 
-              {merchant.status === 'active' && (
+              {(merchant.verificationStatus === 'verified' || merchant.verificationStatus === 'active') && (
                 <View style={styles.merchantStats}>
                   <View style={styles.merchantStat}>
                     <Ionicons name="star" size={12} color={colors.warning} />
-                    <Text style={styles.merchantStatText}>{merchant.rating}</Text>
+                    <Text style={styles.merchantStatText}>{parseFloat(merchant.rating || 0).toFixed(1)}</Text>
                   </View>
                   <View style={styles.merchantStat}>
-                    <Ionicons name="receipt-outline" size={12} color={colors.textLight} />
-                    <Text style={styles.merchantStatText}>{merchant.orders} orders</Text>
+                    <Ionicons name="location-outline" size={12} color={colors.textLight} />
+                    <Text style={styles.merchantStatText}>{merchant.city || 'N/A'}</Text>
                   </View>
                   <View style={styles.merchantStat}>
-                    <Ionicons name="cash-outline" size={12} color={colors.textLight} />
-                    <Text style={styles.merchantStatText}>₦{merchant.revenue.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.merchantStat}>
-                    <Ionicons name="pricetag-outline" size={12} color={colors.textLight} />
-                    <Text style={styles.merchantStatText}>{merchant.commission}%</Text>
+                    <Ionicons name="call-outline" size={12} color={colors.textLight} />
+                    <Text style={styles.merchantStatText}>{merchant.phone || merchant.user?.phone || 'N/A'}</Text>
                   </View>
                 </View>
               )}
 
               <View style={styles.merchantActions}>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => showAlert('Merchant Details', `${merchant.name}\nOwner: ${merchant.owner}\nEmail: ${merchant.email}\nJoined: ${merchant.joined}`)}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => { setSelectedMerchant(merchant); setShowDetail(true); }}>
                   <Ionicons name="eye-outline" size={16} color={colors.navy} />
                   <Text style={styles.actionBtnText}>View</Text>
                 </TouchableOpacity>
-                {merchant.status === 'pending' && (
+                {merchant.verificationStatus === 'pending' && (
                   <>
-                    <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => { setMerchants(prev => prev.map(m => m.id === merchant.id ? { ...m, status: 'active' } : m)); showAlert('Success', `${merchant.name} approved`); }}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={async () => { 
+                      try {
+                        await adminAPI.approveMerchant(merchant.userId);
+                        setMerchants(prev => prev.map(m => m.userId === merchant.userId ? { ...m, verificationStatus: 'verified' } : m)); 
+                        showAlert('Success', `${merchant.businessName} approved`);
+                      } catch (e: any) {
+                        showAlert('Error', e?.message || 'Failed to approve merchant');
+                      }
+                    }}>
                       <Ionicons name="checkmark" size={16} color={colors.textWhite} />
                       <Text style={styles.approveBtnText}>Approve</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={() => { setMerchants(prev => prev.filter(m => m.id !== merchant.id)); showAlert('Done', `${merchant.name} rejected and removed`); }}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={async () => { 
+                      try {
+                        await adminAPI.rejectMerchant(merchant.userId);
+                        setMerchants(prev => prev.filter(m => m.userId !== merchant.userId)); 
+                        showAlert('Done', `${merchant.businessName} rejected and removed`);
+                      } catch (e: any) {
+                        showAlert('Error', e?.message || 'Failed to reject merchant');
+                      }
+                    }}>
                       <Ionicons name="close" size={16} color={colors.error} />
                       <Text style={styles.rejectBtnText}>Reject</Text>
                     </TouchableOpacity>
@@ -179,12 +242,153 @@ export default function MerchantsScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Merchant Detail Modal */}
+      <Modal visible={showDetail} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Merchant Details</Text>
+              <TouchableOpacity onPress={() => setShowDetail(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedMerchant && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={[styles.statusBanner, { 
+                  backgroundColor: (selectedMerchant.verificationStatus === 'verified' || selectedMerchant.verificationStatus === 'active') ? colors.success + '15' :
+                    selectedMerchant.verificationStatus === 'pending' ? colors.warning + '15' : colors.error + '15'
+                }]}>
+                  <Ionicons name="storefront" size={20} color={
+                    (selectedMerchant.verificationStatus === 'verified' || selectedMerchant.verificationStatus === 'active') ? colors.success :
+                    selectedMerchant.verificationStatus === 'pending' ? colors.warning : colors.error
+                  } />
+                  <Text style={[styles.statusBannerText, { 
+                    color: (selectedMerchant.verificationStatus === 'verified' || selectedMerchant.verificationStatus === 'active') ? colors.success :
+                      selectedMerchant.verificationStatus === 'pending' ? colors.warning : colors.error
+                  }]}>
+                    {selectedMerchant.verificationStatus === 'verified' || selectedMerchant.verificationStatus === 'active' ? 'Verified Merchant' : 
+                     selectedMerchant.verificationStatus === 'pending' ? 'Pending Approval' : 'Rejected/Suspended'}
+                  </Text>
+                </View>
+
+                <Text style={styles.sectionTitle}>Business Information</Text>
+                <View style={styles.infoCard}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Business Name</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.businessName}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Business Type</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.businessType}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Owner</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.user?.firstName} {selectedMerchant.user?.lastName}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.user?.email || selectedMerchant.email}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Phone</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.phone || selectedMerchant.user?.phone || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Address</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.address || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>City</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.city || 'N/A'}</Text>
+                  </View>
+                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.infoLabel}>State</Text>
+                    <Text style={styles.infoValue}>{selectedMerchant.state || 'N/A'}</Text>
+                  </View>
+                </View>
+
+                {(selectedMerchant.verificationStatus === 'verified' || selectedMerchant.verificationStatus === 'active') && (
+                  <>
+                    <Text style={styles.sectionTitle}>Performance</Text>
+                    <View style={styles.perfRow}>
+                      <View style={styles.perfCard}>
+                        <Text style={styles.perfValue}>★ {parseFloat(selectedMerchant.rating || 0).toFixed(1)}</Text>
+                        <Text style={styles.perfLabel}>Rating</Text>
+                      </View>
+                      <View style={styles.perfCard}>
+                        <Text style={styles.perfValue}>{selectedMerchant.deliveryRadius || 5}km</Text>
+                        <Text style={styles.perfLabel}>Radius</Text>
+                      </View>
+                      <View style={styles.perfCard}>
+                        <Text style={styles.perfValue}>{selectedMerchant.isOpen ? 'Open' : 'Closed'}</Text>
+                        <Text style={styles.perfLabel}>Status</Text>
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {selectedMerchant.description && (
+                  <>
+                    <Text style={styles.sectionTitle}>Description</Text>
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoValue}>{selectedMerchant.description}</Text>
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.modalActions}>
+                  {selectedMerchant.verificationStatus === 'pending' && (
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity 
+                        style={[styles.modalActionBtn, { backgroundColor: colors.error }]} 
+                        onPress={async () => {
+                          try {
+                            await adminAPI.rejectMerchant(selectedMerchant.userId);
+                            setMerchants(prev => prev.filter(m => m.userId !== selectedMerchant.userId));
+                            setShowDetail(false);
+                            showAlert('Done', `${selectedMerchant.businessName} rejected`);
+                          } catch (e: any) {
+                            showAlert('Error', e?.message || 'Failed to reject merchant');
+                          }
+                        }}
+                      >
+                        <Text style={styles.modalActionBtnText}>Reject</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.modalActionBtn, { backgroundColor: colors.success }]} 
+                        onPress={async () => {
+                          try {
+                            await adminAPI.approveMerchant(selectedMerchant.userId);
+                            setMerchants(prev => prev.map(m => m.userId === selectedMerchant.userId ? { ...m, verificationStatus: 'verified' } : m));
+                            setShowDetail(false);
+                            showAlert('Success', `${selectedMerchant.businessName} approved`);
+                          } catch (e: any) {
+                            showAlert('Error', e?.message || 'Failed to approve merchant');
+                          }
+                        }}
+                      >
+                        <Text style={styles.modalActionBtnText}>Approve</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.white,
@@ -249,4 +453,118 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 13, fontWeight: '600', color: colors.teal },
   reactivateBtn: { backgroundColor: colors.success + '10' },
   reactivateBtnText: { fontSize: 13, fontWeight: '600', color: colors.success },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 16,
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 12,
+  },
+  statusBannerText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  infoCard: {
+    backgroundColor: colors.lightGray,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    padding: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  perfRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 20,
+  },
+  perfCard: {
+    flex: 1,
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  perfValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  perfLabel: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginTop: 4,
+  },
+  modalActions: {
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalActionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalActionBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textWhite,
+  },
 });

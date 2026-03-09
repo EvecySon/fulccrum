@@ -1,10 +1,11 @@
 import { showAlert } from '../../../utils/alert';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
+import { adminAPI } from '../../../services/api';
 
-const MOCK_QUEUE = [
+const MOCK_QUEUE_REMOVED = [
   {
     id: '1', type: 'menu_item', status: 'pending',
     resourceData: { name: 'Spicy Suya Platter', description: 'Grilled beef skewers with yaji spice, served with sliced onions, tomatoes, and pepper sauce. Image flagged for review.' },
@@ -58,9 +59,36 @@ const MOCK_QUEUE = [
 ];
 
 export default function ContentModerationScreen({ navigation }: any) {
-  const [queue, setQueue] = useState<any[]>(MOCK_QUEUE);
-  const [loading, setLoading] = useState(false);
+  const [queue, setQueue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('pending');
+
+  useEffect(() => {
+    loadQueue();
+  }, []);
+
+  const loadQueue = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getContentModerationQueue();
+      if (res?.data) {
+        setQueue(res.data);
+      } else if (Array.isArray(res)) {
+        setQueue(res);
+      }
+    } catch (e: any) {
+      console.error('Failed to load moderation queue:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadQueue();
+    setRefreshing(false);
+  };
 
   const filteredQueue = filter === 'all' ? queue : queue.filter(item => item.status === filter);
 
@@ -78,6 +106,15 @@ export default function ContentModerationScreen({ navigation }: any) {
       showAlert('Success', 'Content rejected');
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading moderation queue...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -102,7 +139,12 @@ export default function ContentModerationScreen({ navigation }: any) {
         ))}
       </View>
 
-      <ScrollView style={styles.queueList}>
+      <ScrollView 
+        style={styles.queueList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {filteredQueue.map((item) => {
           const statusColor = item.status === 'approved' ? colors.success : item.status === 'rejected' ? colors.error : colors.warning;
           return (
@@ -188,6 +230,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
   },
   header: {
     flexDirection: 'row',

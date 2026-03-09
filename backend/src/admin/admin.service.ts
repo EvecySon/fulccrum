@@ -284,6 +284,32 @@ export class AdminService {
     return { message: approved ? 'Courier approved' : 'Courier rejected', courierId, notes };
   }
 
+  async getAllMerchants(userRole: string, page = 1, limit = 50) {
+    this.verifyAdmin(userRole);
+
+    const skip = (page - 1) * limit;
+    const [merchants, total] = await Promise.all([
+      this.prisma.businessProfile.findMany({
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.businessProfile.count(),
+    ]);
+
+    return { data: merchants, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
   async getPendingMerchants(userRole: string, page = 1, limit = 50) {
     this.verifyAdmin(userRole);
 
@@ -451,6 +477,50 @@ export class AdminService {
     this.verifyAdmin(userRole);
     const documents = await this.documentsService.getUserDocuments(courierId);
     return { data: documents, courierId };
+  }
+
+  async getSupportAgents(userRole: string) {
+    this.verifyAdmin(userRole);
+    const agents = await this.prisma.user.findMany({
+      where: {
+        role: 'admin',
+        status: { in: ['active', 'inactive'] },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatarUrl: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { data: agents };
+  }
+
+  async getMerchantCompliance(userRole: string, filter?: string) {
+    this.verifyAdmin(userRole);
+    const where: any = {};
+    if (filter && filter !== 'all') {
+      where.verificationStatus = filter;
+    }
+    const merchants = await this.prisma.businessProfile.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { data: merchants };
   }
 
   async verifyDocument(userRole: string, userId: string, docId: string) {

@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+// Import nonce service for protected endpoints
+let nonceServiceInstance: any = null;
+const getNonceService = async () => {
+  if (!nonceServiceInstance) {
+    const { nonceService } = await import('./nonceService');
+    nonceServiceInstance = nonceService;
+  }
+  return nonceServiceInstance;
+};
+
 // Automatically detect the correct base URL based on platform
 const DEV_IP = '192.168.0.104';
 
@@ -56,6 +66,14 @@ export const clearTokens = async () => {
   accessToken = null;
   await AsyncStorage.removeItem('accessToken');
   await AsyncStorage.removeItem('refreshToken');
+  
+  // Clear nonces on logout
+  try {
+    const nonceService = await getNonceService();
+    nonceService.clearAll();
+  } catch (error) {
+    console.error('[API] Failed to clear nonces:', error);
+  }
 };
 
 // Generic fetch wrapper with timeout
@@ -70,6 +88,27 @@ async function request<T = any>(
 
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  // Add nonce for protected endpoints
+  const protectedEndpoints = [
+    { path: '/payment/initialize', action: 'payment' },
+    { path: '/wallet/withdraw/request', action: 'withdraw' },
+    { path: '/wallet/bank-accounts', action: 'bank-account' },
+    { path: '/payment/cards', action: 'card-save' },
+  ];
+
+  const isProtected = protectedEndpoints.find(ep => endpoint.includes(ep.path));
+  if (isProtected && options.method === 'POST' && !headers['X-Nonce']) {
+    try {
+      const nonceService = await getNonceService();
+      const nonce = await nonceService.getNonce(isProtected.action);
+      headers['X-Nonce'] = nonce;
+      console.log(`[API] Added nonce for ${isProtected.action}`);
+    } catch (error) {
+      console.error('[API] Failed to get nonce:', error);
+      // Continue without nonce - backend will reject if required
+    }
   }
 
   // Add 10 second timeout
@@ -451,6 +490,7 @@ export const adminAPI = {
   rejectWithdrawal: (id: string, reason: string) => api.post(`/admin/withdrawals/${id}/reject`, { reason }),
   getActivity: (limit = 20) => api.get(`/admin/activity?limit=${limit}`),
   // Merchant management
+  getMerchants: (page = 1, limit = 50) => api.get(`/admin/merchants?page=${page}&limit=${limit}`),
   getPendingMerchants: (page = 1) => api.get(`/admin/merchants/pending?page=${page}`),
   approveMerchant: (merchantId: string) => api.patch(`/admin/merchants/${merchantId}/approve`),
   rejectMerchant: (merchantId: string, reason?: string) => api.patch(`/admin/merchants/${merchantId}/reject`, { reason }),
@@ -476,6 +516,24 @@ export const adminAPI = {
   createAdmin: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) =>
     api.post('/admin/admins', data),
   removeAdmin: (userId: string) => api.delete(`/admin/admins/${userId}`),
+  // Support agents
+  getAgents: () => api.get('/admin/support/agents'),
+  // Content moderation
+  getContentModerationQueue: (filter?: string) => api.get(`/admin/content/moderation${filter ? `?filter=${filter}` : ''}`),
+  approveContent: (itemId: string) => api.patch(`/admin/content/moderation/${itemId}/approve`),
+  rejectContent: (itemId: string, reason: string) => api.patch(`/admin/content/moderation/${itemId}/reject`, { reason }),
+  // Merchant compliance
+  getMerchantCompliance: (filter?: string) => api.get(`/admin/merchants/compliance${filter ? `?filter=${filter}` : ''}`),
+  updateComplianceStatus: (businessId: string, status: string, notes?: string) => 
+    api.patch(`/admin/merchants/compliance/${businessId}`, { status, notes }),
+  // Roles management
+  getRoles: () => api.get('/admin/rbac/roles'),
+  createRole: (data: any) => api.post('/admin/rbac/roles', data),
+  updateRole: (roleId: string, data: any) => api.patch(`/admin/rbac/roles/${roleId}`, data),
+  deleteRole: (roleId: string) => api.delete(`/admin/rbac/roles/${roleId}`),
+  // Platform settings
+  getPlatformSettings: () => api.get('/admin/settings'),
+  updatePlatformSettings: (data: any) => api.patch('/admin/settings', data),
   // Schedule management
   getScheduleSlots: (zone?: string) => api.get(`/admin/schedule/slots${zone ? `?zone=${zone}` : ''}`),
   upsertScheduleSlot: (data: any) => api.post('/admin/schedule/slots', data),
@@ -741,9 +799,26 @@ export const socialAPI = {
   leaveGroupOrder: (id: string) => api.delete(`/social/group-orders/${id}/leave`),
 };
 
+// ─── Nonce API ───
+export const nonceAPI = {
+  getNonce: (action: string) => api.get(`/nonce/${action}`),
+};
+
 // ─── Blockchain API ───
 export const blockchainAPI = {
   getSupplyChain: (itemId: string) => api.get(`/blockchain/supply-chain/${itemId}`),
+  addSupplyChainEntry: (data: {
+    itemId: string;
+    stage: string;
+    location: string;
+    handler: string;
+    description: string;
+    temperature?: string;
+    batchNumber?: string;
+  }) => api.post('/blockchain/supply-chain', data),
+  verifySupplyChainEntry: (entryId: string) => api.post(`/blockchain/supply-chain/${entryId}/verify`),
+  verifyChainIntegrity: (itemId: string) => api.get(`/blockchain/supply-chain/${itemId}/integrity`),
+  getBusinessSupplyChains: () => api.get('/blockchain/supply-chains/business'),
   initCryptoPayment: (orderId: string, cryptoType: string) =>
     api.post('/blockchain/crypto-payment', { orderId, cryptoType }),
   getNFTRewards: () => api.get('/blockchain/nft-rewards'),

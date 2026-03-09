@@ -24,7 +24,18 @@ export class NotificationTemplateController {
 
   @Post()
   async createTemplate(@Body() dto: CreateTemplateDto, @CurrentUser() user: any) {
-    return this.templateService.createTemplate(dto, user.id);
+    console.log('=== CREATE TEMPLATE REQUEST ===');
+    console.log('User ID:', user?.id);
+    console.log('DTO:', JSON.stringify(dto, null, 2));
+    
+    try {
+      const result = await this.templateService.createTemplate(dto, user.id);
+      console.log('Template created successfully:', result?.id);
+      return result;
+    } catch (error) {
+      console.error('Error creating template:', error);
+      throw error;
+    }
   }
 
   @Get()

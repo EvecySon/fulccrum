@@ -1,11 +1,11 @@
 import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-const MOCK_DATA = {
+const MOCK_DATA_REMOVED = {
   activeOrders: 24,
   activeDrivers: 18,
   openIncidents: 3,
@@ -44,13 +44,30 @@ const MOCK_DATA = {
 };
 
 export default function LiveOperationsMapScreen({ navigation }: any) {
-  const [data, setData] = useState<any>(MOCK_DATA);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const res = await operationsAPI.getLiveMap();
+      if (res) setData(res);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load operations data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+    await loadData();
+    setRefreshing(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -64,10 +81,11 @@ export default function LiveOperationsMapScreen({ navigation }: any) {
     }
   };
 
-  if (loading) {
+  if (loading || !data) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading live operations...</Text>
       </View>
     );
   }
@@ -177,6 +195,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
   },
   header: { 
     flexDirection: 'row', 

@@ -1,11 +1,11 @@
 import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { rbacAPI } from '../../../services/api';
 
-const MOCK_LOGS = [
+const MOCK_LOGS_REMOVED = [
   {
     id: '1', action: 'created_user', resource: 'User',
     admin: { user: { firstName: 'Adebayo', lastName: 'Ogunlesi' }, role: { displayName: 'Super Admin' } },
@@ -57,9 +57,40 @@ const MOCK_LOGS = [
 ];
 
 export default function AuditLogsScreen({ navigation }: any) {
-  const [logs, setLogs] = useState<any[]>(MOCK_LOGS);
-  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  const loadLogs = async () => {
+    try {
+      setLoading(true);
+      const filters = filter !== 'all' ? { action: filter } : undefined;
+      const res = await rbacAPI.getAuditLogs(filters);
+      if (res?.data) {
+        setLogs(Array.isArray(res.data) ? res.data : []);
+      } else if (Array.isArray(res)) {
+        setLogs(res);
+      } else {
+        setLogs([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load audit logs:', e);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadLogs();
+    setRefreshing(false);
+  };
 
   const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.action.includes(filter));
 
@@ -76,8 +107,9 @@ export default function AuditLogsScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading audit logs...</Text>
       </View>
     );
   }
@@ -108,36 +140,47 @@ export default function AuditLogsScreen({ navigation }: any) {
         ))}
       </View>
 
-      <ScrollView style={styles.logsList}>
-        {filteredLogs.map((log) => (
+      <ScrollView 
+        style={styles.logsList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
+        {filteredLogs.map((log) => {
+          // Safely extract admin info
+          const adminName = log.admin?.user 
+            ? `${log.admin.user.firstName || ''} ${log.admin.user.lastName || ''}`.trim()
+            : log.adminName || log.performedBy || 'Unknown Admin';
+          const adminRole = log.admin?.role?.displayName || log.role || 'N/A';
+          const logDate = log.createdAt ? new Date(log.createdAt).toLocaleString() : 'N/A';
+          
+          return (
           <View key={log.id} style={styles.logCard}>
             <View style={styles.logHeader}>
-              <View style={[styles.actionBadge, { backgroundColor: getActionColor(log.action) + '20' }]}>
-                <Text style={[styles.actionText, { color: getActionColor(log.action) }]}>
-                  {log.action.replace(/_/g, ' ')}
+              <View style={[styles.actionBadge, { backgroundColor: getActionColor(log.action || '') + '20' }]}>
+                <Text style={[styles.actionText, { color: getActionColor(log.action || '') }]}>
+                  {(log.action || 'unknown').replace(/_/g, ' ')}
                 </Text>
               </View>
-              <Text style={styles.logTime}>{new Date(log.createdAt).toLocaleString()}</Text>
+              <Text style={styles.logTime}>{logDate}</Text>
             </View>
 
             <View style={styles.logDetails}>
               <View style={styles.logDetail}>
                 <Text style={styles.logDetailLabel}>Admin:</Text>
-                <Text style={styles.logDetailValue}>
-                  {log.admin.user.firstName} {log.admin.user.lastName}
-                </Text>
+                <Text style={styles.logDetailValue}>{adminName}</Text>
               </View>
               <View style={styles.logDetail}>
                 <Text style={styles.logDetailLabel}>Role:</Text>
-                <Text style={styles.logDetailValue}>{log.admin.role.displayName}</Text>
+                <Text style={styles.logDetailValue}>{adminRole}</Text>
               </View>
               <View style={styles.logDetail}>
                 <Text style={styles.logDetailLabel}>Resource:</Text>
-                <Text style={styles.logDetailValue}>{log.resource}</Text>
+                <Text style={styles.logDetailValue}>{log.resource || 'N/A'}</Text>
               </View>
               <View style={styles.logDetail}>
                 <Text style={styles.logDetailLabel}>IP Address:</Text>
-                <Text style={styles.logDetailValue}>{log.ipAddress}</Text>
+                <Text style={styles.logDetailValue}>{log.ipAddress || 'N/A'}</Text>
               </View>
             </View>
 
@@ -148,7 +191,8 @@ export default function AuditLogsScreen({ navigation }: any) {
               </View>
             )}
           </View>
-        ))}
+          );
+        })}
 
         {filteredLogs.length === 0 && (
           <View style={styles.emptyState}>
@@ -169,6 +213,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
   },
   header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },

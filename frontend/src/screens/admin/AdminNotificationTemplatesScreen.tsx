@@ -16,10 +16,12 @@ export default function AdminNotificationTemplatesScreen({ navigation }: any) {
   const loadTemplates = async () => {
     try {
       const data = await notificationTemplatesAPI.getTemplates();
-      setTemplates(data);
-    } catch (error) {
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch (error: any) {
       console.error('Error loading templates:', error);
-      Alert.alert('Error', 'Failed to load notification templates');
+      setTemplates([]); // Ensure templates is always an array
+      const errorMsg = error?.response?.data?.message || error?.message || 'Failed to load notification templates';
+      Alert.alert('Error', errorMsg);
     } finally {
       setLoading(false);
       setRefreshing(false);

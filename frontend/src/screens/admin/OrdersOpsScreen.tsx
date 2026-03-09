@@ -7,7 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -16,16 +17,6 @@ import { adminAPI } from '../../services/api';
 const { width } = Dimensions.get('window');
 
 const statusFilters = ['All', 'New', 'Preparing', 'In Transit', 'Delivered', 'Cancelled'];
-
-const mockOrders = [
-  { id: '#3252', customer: 'John S.', restaurant: 'Burger House', courier: 'Mike J.', total: 29.49, status: 'in_transit', time: '3 min ago', items: 3 },
-  { id: '#3251', customer: 'Anna D.', restaurant: 'Sushi Palace', courier: 'Sarah L.', total: 45.98, status: 'preparing', time: '8 min ago', items: 4 },
-  { id: '#3250', customer: 'David W.', restaurant: 'Pizza Roma', courier: null, total: 18.99, status: 'new', time: '2 min ago', items: 2 },
-  { id: '#3249', customer: 'Emily R.', restaurant: 'Thai Garden', courier: 'Tom W.', total: 32.50, status: 'delivered', time: '15 min ago', items: 3 },
-  { id: '#3248', customer: 'Mike L.', restaurant: 'Taco Fiesta', courier: null, total: 12.99, status: 'cancelled', time: '20 min ago', items: 1 },
-  { id: '#3247', customer: 'Sarah K.', restaurant: 'Urban Spoon', courier: 'Lisa W.', total: 68.00, status: 'in_transit', time: '12 min ago', items: 5 },
-  { id: '#3246', customer: 'Tom B.', restaurant: 'Burger House', courier: 'Mike J.', total: 22.50, status: 'delivered', time: '25 min ago', items: 2 },
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -51,16 +42,52 @@ const getStatusLabel = (status: string) => {
 
 export default function OrdersOpsScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = useState('All');
-  const [orders, setOrders] = useState(mockOrders);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [metrics, setMetrics] = useState({
+    avgDeliveryTime: 0,
+    successRate: 0,
+    activeIssues: 0,
+  });
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminAPI.getOrders();
-        if (res?.data?.length) setOrders(res.data);
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadOrders();
   }, []);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const [ordersRes, metricsRes] = await Promise.all([
+        adminAPI.getOrders().catch(() => null),
+        adminAPI.getMetrics().catch(() => null),
+      ]);
+      
+      if (ordersRes?.data) {
+        setOrders(ordersRes.data);
+      } else if (Array.isArray(ordersRes)) {
+        setOrders(ordersRes);
+      }
+      
+      if (metricsRes) {
+        setMetrics({
+          avgDeliveryTime: metricsRes.avgDeliveryTime || 0,
+          successRate: metricsRes.successRate || 0,
+          activeIssues: metricsRes.activeIssues || 0,
+        });
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
 
   const filteredOrders = orders.filter((o) => {
     if (activeFilter === 'All') return true;
@@ -75,21 +102,34 @@ export default function OrdersOpsScreen({ navigation }: any) {
     cancelled: orders.filter(o => o.status === 'cancelled').length,
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading orders...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Orders & Operations</Text>
         <TouchableOpacity 
           style={styles.refreshBtn}
-          onPress={() => {
-            showAlert('Refreshing', 'Orders refreshed');
-          }}
+          onPress={onRefresh}
         >
           <Ionicons name="refresh" size={20} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Pipeline */}
         <View style={styles.pipeline}>
           {[
@@ -113,17 +153,17 @@ export default function OrdersOpsScreen({ navigation }: any) {
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Ionicons name="time-outline" size={18} color={colors.warning} />
-            <Text style={styles.metricValue}>24m</Text>
+            <Text style={styles.metricValue}>{metrics.avgDeliveryTime}m</Text>
             <Text style={styles.metricLabel}>Avg Delivery</Text>
           </View>
           <View style={styles.metricCard}>
             <Ionicons name="checkmark-done" size={18} color={colors.success} />
-            <Text style={styles.metricValue}>96.2%</Text>
+            <Text style={styles.metricValue}>{metrics.successRate.toFixed(1)}%</Text>
             <Text style={styles.metricLabel}>Success Rate</Text>
           </View>
           <View style={styles.metricCard}>
             <Ionicons name="alert-circle" size={18} color={colors.error} />
-            <Text style={styles.metricValue}>3</Text>
+            <Text style={styles.metricValue}>{metrics.activeIssues}</Text>
             <Text style={styles.metricLabel}>Issues</Text>
           </View>
         </View>
@@ -250,6 +290,8 @@ export default function OrdersOpsScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.navy,

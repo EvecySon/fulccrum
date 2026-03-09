@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,22 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-
-const mockUsers = [
-  { id: '1', name: 'Adebayo Ogunlesi', email: 'adebayo@fulccrum.ng', role: 'customer', status: 'active', orders: 87, joined: 'Sep 10, 2025', spent: 124500 },
-  { id: '2', name: 'Kemi Adekunle', email: 'kemi@fulccrum.ng', role: 'customer', status: 'active', orders: 45, joined: 'Oct 5, 2025', spent: 67800 },
-  { id: '3', name: 'Chinedu Okoro', email: 'chinedu@fulccrum.ng', role: 'courier', status: 'active', deliveries: 512, joined: 'Aug 20, 2025', rating: 4.9 },
-  { id: '4', name: 'Fatima Bello', email: 'fatima@fulccrum.ng', role: 'courier', status: 'active', deliveries: 298, joined: 'Nov 1, 2025', rating: 4.7 },
-  { id: '5', name: 'Adewale Johnson', email: 'adewale@chickenrep.ng', role: 'merchant', status: 'active', restaurant: 'Chicken Republic - Lekki', joined: 'Sep 15, 2025', revenue: 2450000 },
-  { id: '6', name: 'Ngozi Okafor', email: 'ngozi@mamaput.ng', role: 'merchant', status: 'active', restaurant: 'Mama Put Kitchen', joined: 'Nov 20, 2025', revenue: 780000 },
-  { id: '7', name: 'Tolu Ajayi', email: 'tolu@fulccrum.ng', role: 'customer', status: 'suspended', orders: 3, joined: 'Jan 20, 2026', spent: 4500 },
-  { id: '8', name: 'Ibrahim Musa', email: 'ibrahim@fulccrum.ng', role: 'courier', status: 'pending', deliveries: 0, joined: 'Feb 8, 2026', rating: 0 },
-  { id: '9', name: 'Jin Kim', email: 'jin@seoulkitchen.ng', role: 'merchant', status: 'pending', restaurant: 'Seoul Kitchen', joined: 'Feb 8, 2026', revenue: 0 },
-  { id: '10', name: 'Amina Yusuf', email: 'amina@fulccrum.ng', role: 'admin', status: 'active', joined: 'Jul 1, 2025' },
-];
+import { adminAPI } from '../../services/api';
 
 const roleFilters = ['All', 'Customers', 'Couriers', 'Merchants', 'Admins'];
 
@@ -48,17 +38,58 @@ const getStatusColor = (status: string) => {
 export default function UsersScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getUsers();
+      if (res?.data) {
+        setUsers(Array.isArray(res.data) ? res.data : []);
+      } else if (Array.isArray(res)) {
+        setUsers(res);
+      } else {
+        setUsers([]);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load users');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUsers();
+    setRefreshing(false);
+  };
 
   const filteredUsers = users.filter((u) => {
-    const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = activeFilter === 'All' ||
       (activeFilter === 'Customers' && u.role === 'customer') ||
-      (activeFilter === 'Couriers' && u.role === 'courier') ||
-      (activeFilter === 'Merchants' && u.role === 'merchant') ||
+      (activeFilter === 'Couriers' && u.role === 'driver') ||
+      (activeFilter === 'Merchants' && u.role === 'business_owner') ||
       (activeFilter === 'Admins' && u.role === 'admin');
     return matchesSearch && matchesFilter;
   });
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading users...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -113,41 +144,46 @@ export default function UsersScreen({ navigation }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {filteredUsers.map((user) => (
+        {filteredUsers.map((user) => {
+          const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+          const userInitial = userName.charAt(0).toUpperCase();
+          const joinedDate = user.joined || user.createdAt ? new Date(user.joined || user.createdAt).toLocaleDateString() : 'N/A';
+          
+          return (
           <TouchableOpacity key={user.id} style={styles.userCard}>
             <View style={styles.userTop}>
               <View style={styles.userAvatar}>
-                <Text style={styles.avatarText}>{user.name.charAt(0)}</Text>
+                <Text style={styles.avatarText}>{userInitial}</Text>
               </View>
               <View style={styles.userInfo}>
                 <View style={styles.userNameRow}>
-                  <Text style={styles.userName}>{user.name}</Text>
+                  <Text style={styles.userName}>{userName}</Text>
                   <View style={[styles.roleBadge, { backgroundColor: getRoleColor(user.role) + '15' }]}>
-                    <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>{user.role}</Text>
+                    <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>{user.role || 'user'}</Text>
                   </View>
                 </View>
-                <Text style={styles.userEmail}>{user.email}</Text>
+                <Text style={styles.userEmail}>{user.email || 'No email'}</Text>
               </View>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(user.status) }]} />
+              <View style={[styles.statusDot, { backgroundColor: getStatusColor(user.status || 'active') }]} />
             </View>
 
             <View style={styles.userMeta}>
-              <Text style={styles.userMetaText}>Joined {user.joined}</Text>
-              {user.role === 'customer' && <Text style={styles.userMetaText}>{user.orders} orders · ₦{user.spent}</Text>}
-              {user.role === 'courier' && <Text style={styles.userMetaText}>{user.deliveries} deliveries · ★{user.rating}</Text>}
-              {user.role === 'merchant' && <Text style={styles.userMetaText}>{user.restaurant} · ₦{user.revenue?.toLocaleString()}</Text>}
+              <Text style={styles.userMetaText}>Joined {joinedDate}</Text>
+              {user.role === 'customer' && user.orders && <Text style={styles.userMetaText}>{user.orders} orders · ₦{user.spent || 0}</Text>}
+              {user.role === 'driver' && user.deliveries && <Text style={styles.userMetaText}>{user.deliveries} deliveries · ★{user.rating || 0}</Text>}
+              {user.role === 'business_owner' && user.restaurant && <Text style={styles.userMetaText}>{user.restaurant} · ₦{user.revenue?.toLocaleString() || 0}</Text>}
             </View>
 
             <View style={styles.userActions}>
               <TouchableOpacity 
                 style={styles.userActionBtn}
                 onPress={() => {
-                  if (user.role === 'merchant') {
+                  if (user.role === 'business_owner') {
                     navigation.navigate('Merchants');
-                  } else if (user.role === 'courier') {
+                  } else if (user.role === 'driver') {
                     navigation.navigate('CourierManagement');
                   } else {
-                    showAlert('User Details', `Viewing ${user.name}\n${user.email}\nRole: ${user.role}\nStatus: ${user.status}`);
+                    showAlert('User Details', `Viewing ${userName}\n${user.email}\nRole: ${user.role}\nStatus: ${user.status || 'active'}`);
                   }
                 }}
               >
@@ -158,13 +194,13 @@ export default function UsersScreen({ navigation }: any) {
                 <TouchableOpacity 
                   style={[styles.userActionBtn, styles.approveBtn]}
                   onPress={() => {
-                    showAlert('Approve User', `Approve ${user.name}?`, [
+                    showAlert('Approve User', `Approve ${userName}?`, [
                       { text: 'Cancel', style: 'cancel' },
                       { 
                         text: 'Approve', 
                         onPress: () => {
                           setUsers(users.map(u => u.id === user.id ? { ...u, status: 'active' } : u));
-                          showAlert('Success', `${user.name} has been approved`);
+                          showAlert('Success', `${userName} has been approved`);
                         }
                       }
                     ]);
@@ -178,14 +214,14 @@ export default function UsersScreen({ navigation }: any) {
                 <TouchableOpacity 
                   style={[styles.userActionBtn, styles.suspendBtn]}
                   onPress={() => {
-                    showAlert('Suspend User', `Suspend ${user.name}?`, [
+                    showAlert('Suspend User', `Suspend ${userName}?`, [
                       { text: 'Cancel', style: 'cancel' },
                       { 
                         text: 'Suspend', 
                         style: 'destructive',
                         onPress: () => {
                           setUsers(users.map(u => u.id === user.id ? { ...u, status: 'suspended' } : u));
-                          showAlert('Success', `${user.name} has been suspended`);
+                          showAlert('Success', `${userName} has been suspended`);
                         }
                       }
                     ]);
@@ -199,13 +235,13 @@ export default function UsersScreen({ navigation }: any) {
                 <TouchableOpacity 
                   style={[styles.userActionBtn, styles.reactivateBtn]}
                   onPress={() => {
-                    showAlert('Reactivate User', `Reactivate ${user.name}?`, [
+                    showAlert('Reactivate User', `Reactivate ${userName}?`, [
                       { text: 'Cancel', style: 'cancel' },
                       { 
                         text: 'Reactivate', 
                         onPress: () => {
                           setUsers(users.map(u => u.id === user.id ? { ...u, status: 'active' } : u));
-                          showAlert('Success', `${user.name} has been reactivated`);
+                          showAlert('Success', `${userName} has been reactivated`);
                         }
                       }
                     ]);
@@ -217,7 +253,8 @@ export default function UsersScreen({ navigation }: any) {
               )}
             </View>
           </TouchableOpacity>
-        ))}
+          );
+        })}
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -226,6 +263,8 @@ export default function UsersScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.white,

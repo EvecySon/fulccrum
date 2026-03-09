@@ -7,43 +7,66 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { mockAdminStats } from '../../data/mockData';
 import { adminAPI } from '../../services/api';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 const { width } = Dimensions.get('window');
 
-const alerts = [
-  { id: '1', type: 'warning', title: '3 merchants pending approval', time: '10 min ago' },
-  { id: '2', type: 'error', title: 'Payment gateway latency spike', time: '25 min ago' },
-  { id: '3', type: 'info', title: 'New app version 1.2.0 ready for release', time: '1 hr ago' },
-];
-
-const recentActivity = [
-  { id: '1', action: 'New merchant registered', detail: 'Seoul Kitchen', time: '5 min ago', icon: 'storefront', color: colors.teal },
-  { id: '2', action: 'Courier flagged', detail: 'Driver #482 - late deliveries', time: '12 min ago', icon: 'flag', color: colors.warning },
-  { id: '3', action: 'Refund processed', detail: 'Order #3198 - ₦7,350', time: '18 min ago', icon: 'card', color: colors.error },
-  { id: '4', action: 'Promo campaign started', detail: 'WEEKEND20 - 20% off', time: '30 min ago', icon: 'megaphone', color: colors.navy },
-  { id: '5', action: 'User complaint resolved', detail: 'Ticket #8821', time: '45 min ago', icon: 'checkmark-circle', color: colors.success },
-];
-
 export default function OverviewScreen({ navigation }: any) {
-  const [stats, setStats] = useState(mockAdminStats);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const { unreadCount } = useNotifications();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminAPI.getMetrics();
-        if (res) setStats(prev => ({ ...prev, ...res }));
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadDashboardData();
   }, []);
-  const maxOrders = Math.max(...stats.dailyOrders.map(d => d.orders));
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getMetrics();
+      if (res) {
+        // Provide default values for missing properties
+        const statsWithDefaults = {
+          totalOrders: res.totalOrders || 0,
+          monthlyRevenue: res.monthlyRevenue || 0,
+          customersOnline: res.customersOnline || 0,
+          totalMerchants: res.totalMerchants || 0,
+          activeCouriers: res.activeCouriers || 0,
+          openKitchens: res.openKitchens || 0,
+          avgDeliveryTime: res.avgDeliveryTime || 0,
+          dailyOrders: res.dailyOrders || [],
+          // Growth percentages from API
+          ordersGrowth: res.ordersGrowth || 0,
+          revenueGrowth: res.revenueGrowth || 0,
+          usersGrowth: res.usersGrowth || 0,
+          merchantsGrowth: res.merchantsGrowth || 0,
+          // Peak time from API
+          peakTime: res.peakTime || null,
+          ...res
+        };
+        setStats(statsWithDefaults);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  if (loading || !stats) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
+
+  const maxOrders = stats.dailyOrders?.length > 0 ? Math.max(...stats.dailyOrders.map((d: any) => d.orders)) : 1;
 
   return (
     <View style={styles.container}>
@@ -74,10 +97,12 @@ export default function OverviewScreen({ navigation }: any) {
             </View>
             <Text style={styles.kpiValue}>{stats.totalOrders.toLocaleString()}</Text>
             <Text style={styles.kpiLabel}>Total Orders</Text>
-            <View style={styles.kpiTrend}>
-              <Ionicons name="trending-up" size={12} color={colors.success} />
-              <Text style={styles.kpiTrendText}>+12.5%</Text>
-            </View>
+            {stats.ordersGrowth !== 0 && (
+              <View style={styles.kpiTrend}>
+                <Ionicons name={stats.ordersGrowth > 0 ? "trending-up" : "trending-down"} size={12} color={stats.ordersGrowth > 0 ? colors.success : colors.error} />
+                <Text style={styles.kpiTrendText}>{stats.ordersGrowth > 0 ? '+' : ''}{stats.ordersGrowth.toFixed(1)}%</Text>
+              </View>
+            )}
           </View>
           <View style={styles.kpiCard}>
             <View style={[styles.kpiIcon, { backgroundColor: colors.navy + '15' }]}>
@@ -85,10 +110,12 @@ export default function OverviewScreen({ navigation }: any) {
             </View>
             <Text style={styles.kpiValue}>₦{(stats.monthlyRevenue / 1000).toFixed(1)}K</Text>
             <Text style={styles.kpiLabel}>Monthly Revenue</Text>
-            <View style={styles.kpiTrend}>
-              <Ionicons name="trending-up" size={12} color={colors.success} />
-              <Text style={styles.kpiTrendText}>+8.3%</Text>
-            </View>
+            {stats.revenueGrowth !== 0 && (
+              <View style={styles.kpiTrend}>
+                <Ionicons name={stats.revenueGrowth > 0 ? "trending-up" : "trending-down"} size={12} color={stats.revenueGrowth > 0 ? colors.success : colors.error} />
+                <Text style={styles.kpiTrendText}>{stats.revenueGrowth > 0 ? '+' : ''}{stats.revenueGrowth.toFixed(1)}%</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -99,10 +126,12 @@ export default function OverviewScreen({ navigation }: any) {
             </View>
             <Text style={styles.kpiValue}>{(stats.customersOnline / 1000).toFixed(0)}K</Text>
             <Text style={styles.kpiLabel}>Active Users</Text>
-            <View style={styles.kpiTrend}>
-              <Ionicons name="trending-up" size={12} color={colors.success} />
-              <Text style={styles.kpiTrendText}>+5.1%</Text>
-            </View>
+            {stats.usersGrowth !== 0 && (
+              <View style={styles.kpiTrend}>
+                <Ionicons name={stats.usersGrowth > 0 ? "trending-up" : "trending-down"} size={12} color={stats.usersGrowth > 0 ? colors.success : colors.error} />
+                <Text style={styles.kpiTrendText}>{stats.usersGrowth > 0 ? '+' : ''}{stats.usersGrowth.toFixed(1)}%</Text>
+              </View>
+            )}
           </View>
           <View style={styles.kpiCard}>
             <View style={[styles.kpiIcon, { backgroundColor: colors.error + '15' }]}>
@@ -110,10 +139,12 @@ export default function OverviewScreen({ navigation }: any) {
             </View>
             <Text style={styles.kpiValue}>{stats.totalMerchants}</Text>
             <Text style={styles.kpiLabel}>Merchants</Text>
-            <View style={styles.kpiTrend}>
-              <Ionicons name="trending-up" size={12} color={colors.success} />
-              <Text style={styles.kpiTrendText}>+3.2%</Text>
-            </View>
+            {stats.merchantsGrowth !== 0 && (
+              <View style={styles.kpiTrend}>
+                <Ionicons name={stats.merchantsGrowth > 0 ? "trending-up" : "trending-down"} size={12} color={stats.merchantsGrowth > 0 ? colors.success : colors.error} />
+                <Text style={styles.kpiTrendText}>{stats.merchantsGrowth > 0 ? '+' : ''}{stats.merchantsGrowth.toFixed(1)}%</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -142,10 +173,10 @@ export default function OverviewScreen({ navigation }: any) {
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Orders Today</Text>
-            <Text style={styles.chartSubtitle}>Peak at 6PM</Text>
+            {stats.peakTime && <Text style={styles.chartSubtitle}>Peak at {stats.peakTime}</Text>}
           </View>
           <View style={styles.chartContainer}>
-            {stats.dailyOrders.map((item, index) => (
+            {stats.dailyOrders?.map((item: any, index: number) => (
               <View key={index} style={styles.chartBarWrapper}>
                 <View style={styles.chartBarBg}>
                   <View
@@ -162,56 +193,37 @@ export default function OverviewScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active Alerts</Text>
-          <TouchableOpacity 
-            style={styles.alertCard}
-            onPress={() => navigation.navigate('MerchantApplicationReview')}
-          >
-            <View style={[styles.alertIcon, { backgroundColor: colors.warning + '15' }]}>
-              <Ionicons name="warning" size={20} color={colors.warning} />
-            </View>
-            <View style={styles.alertInfo}>
-              <Text style={styles.alertTitle}>3 merchants pending approval</Text>
-              <Text style={styles.alertTime}>10 min ago</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.alertCard}
-            onPress={() => navigation.navigate('LiveOperationsMap')}
-          >
-            <View style={[styles.alertIcon, { backgroundColor: colors.error + '15' }]}>
-              <Ionicons name="alert-circle" size={20} color={colors.error} />
-            </View>
-            <View style={styles.alertInfo}>
-              <Text style={styles.alertTitle}>Payment gateway latency spike</Text>
-              <Text style={styles.alertTime}>25 min ago</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.alertCard}
-            onPress={() => navigation.navigate('AdminSettings')}
-          >
-            <View style={[styles.alertIcon, { backgroundColor: colors.info + '15' }]}>
-              <Ionicons name="information-circle" size={20} color={colors.info} />
-            </View>
-            <View style={styles.alertInfo}>
-              <Text style={styles.alertTitle}>New app version 1.2.0 ready for release</Text>
-              <Text style={styles.alertTime}>1 hr ago</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-          </TouchableOpacity>
-        </View>
+        {/* Alerts - From Backend */}
+        {stats.alerts && stats.alerts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Active Alerts</Text>
+            {stats.alerts.map((alert: any) => (
+              <TouchableOpacity 
+                key={alert.id}
+                style={styles.alertCard}
+                onPress={() => {
+                  if (alert.type === 'merchant_pending') navigation.navigate('MerchantApplicationReview');
+                  else if (alert.type === 'system') navigation.navigate('LiveOperationsMap');
+                }}
+              >
+                <View style={[styles.alertIcon, { backgroundColor: (alert.severity === 'high' ? colors.error : alert.severity === 'medium' ? colors.warning : colors.info) + '15' }]}>
+                  <Ionicons name={alert.severity === 'high' ? 'alert-circle' : alert.severity === 'medium' ? 'warning' : 'information-circle'} size={20} color={alert.severity === 'high' ? colors.error : alert.severity === 'medium' ? colors.warning : colors.info} />
+                </View>
+                <View style={styles.alertInfo}>
+                  <Text style={styles.alertTitle}>{alert.title}</Text>
+                  <Text style={styles.alertTime}>{alert.time}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Top Restaurants */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Restaurants</Text>
-          {stats.topRestaurants.map((r, index) => (
+        {stats.topRestaurants && stats.topRestaurants.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Top Restaurants</Text>
+            {stats.topRestaurants.map((r: any, index: number) => (
             <TouchableOpacity 
               key={index} 
               style={styles.topCard}
@@ -229,30 +241,33 @@ export default function OverviewScreen({ navigation }: any) {
                 <Text style={styles.topRating}>{r.rating || r.avgTime}{'avgTime' in r ? 'm' : ''}</Text>
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>View All</Text>
-            </TouchableOpacity>
+            ))}
           </View>
-          {recentActivity.map((activity) => (
-            <View key={activity.id} style={styles.activityCard}>
-              <View style={[styles.activityIcon, { backgroundColor: activity.color + '15' }]}>
-                <Ionicons name={activity.icon as any} size={18} color={activity.color} />
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityAction}>{activity.action}</Text>
-                <Text style={styles.activityDetail}>{activity.detail}</Text>
-              </View>
-              <Text style={styles.activityTime}>{activity.time}</Text>
+        )}
+
+        {/* Recent Activity - From Backend */}
+        {stats.recentActivity && stats.recentActivity.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('AuditLogs')}>
+                <Text style={styles.seeAll}>View All</Text>
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
+            {stats.recentActivity.map((activity: any) => (
+              <View key={activity.id} style={styles.activityCard}>
+                <View style={[styles.activityIcon, { backgroundColor: (activity.color || colors.teal) + '15' }]}>
+                  <Ionicons name={(activity.icon || 'information-circle') as any} size={18} color={activity.color || colors.teal} />
+                </View>
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityAction}>{activity.action}</Text>
+                  <Text style={styles.activityDetail}>{activity.detail}</Text>
+                </View>
+                <Text style={styles.activityTime}>{activity.time}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Registration */}
         <View style={styles.section}>
@@ -270,7 +285,7 @@ export default function OverviewScreen({ navigation }: any) {
               </View>
               <Text style={styles.actionLabel}>{'Add\nCourier'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Merchants')}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('ApprovePending')}>
               <View style={[styles.actionIcon, { backgroundColor: colors.warning + '15' }]}>
                 <Ionicons name="checkmark-done" size={24} color={colors.warning} />
               </View>
@@ -293,6 +308,8 @@ export default function OverviewScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 20,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.navy,

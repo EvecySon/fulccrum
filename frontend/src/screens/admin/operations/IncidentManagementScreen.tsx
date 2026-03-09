@@ -1,11 +1,21 @@
 import { showAlert } from '../../../utils/alert';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
 import { operationsAPI } from '../../../services/api';
 
-const MOCK_INCIDENTS = [
+const MOCK_INCIDENTS_REMOVED = [
   {
     id: '1', severity: 'critical', status: 'open', type: 'payment_failure',
     description: 'Multiple customers reporting failed payments via Paystack gateway. 12 orders affected in the last 30 minutes.',
@@ -49,8 +59,35 @@ const MOCK_INCIDENTS = [
 ];
 
 export default function IncidentManagementScreen({ navigation }: any) {
-  const [incidents, setIncidents] = useState<any[]>(MOCK_INCIDENTS);
-  const [loading, setLoading] = useState(false);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadIncidents();
+  }, []);
+
+  const loadIncidents = async () => {
+    try {
+      setLoading(true);
+      const res = await operationsAPI.getIncidents();
+      if (res?.data) {
+        setIncidents(res.data);
+      } else if (Array.isArray(res)) {
+        setIncidents(res);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load incidents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadIncidents();
+    setRefreshing(false);
+  };
   const [filter, setFilter] = useState('all');
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -85,8 +122,9 @@ export default function IncidentManagementScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading incidents...</Text>
       </View>
     );
   }
@@ -100,6 +138,12 @@ export default function IncidentManagementScreen({ navigation }: any) {
         <Text style={styles.title}>Incident Management</Text>
       </View>
 
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
       <View style={styles.filterContainer}>
         {['all', 'open', 'investigating', 'resolved'].map((status) => (
           <TouchableOpacity
@@ -113,6 +157,7 @@ export default function IncidentManagementScreen({ navigation }: any) {
           </TouchableOpacity>
         ))}
       </View>
+      </ScrollView>
 
       <ScrollView style={styles.incidentsList}>
         {filteredIncidents.map((incident) => (
@@ -228,6 +273,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: { 
     flexDirection: 'row', 

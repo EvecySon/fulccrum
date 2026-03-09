@@ -10,14 +10,20 @@ import {
   Pressable,
   Modal,
   Animated,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { adminAPI } from '../../services/api';
+import { showAlert } from '../../utils/alert';
 
 const webConfirm = (msg: string) => Platform.OS === 'web' ? window.confirm(msg) : false;
 
 export default function AdminSettingsScreen({ navigation }: any) {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [newUserRegistration, setNewUserRegistration] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
@@ -27,18 +33,85 @@ export default function AdminSettingsScreen({ navigation }: any) {
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState('');
   const toastOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Editable config values - must be declared before useEffect
+  const [commissionRate, setCommissionRate] = useState('10');
+  const [deliveryFee, setDeliveryFee] = useState('500');
+  const [maxRadius, setMaxRadius] = useState('10');
+  const [orderTimeout, setOrderTimeout] = useState('5');
+  
+  // System stats from API
+  const [systemStats, setSystemStats] = useState({
+    uptime: '0%',
+    avgResponse: '0ms',
+    version: 'v0.0.0'
+  });
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const [settingsRes, metricsRes] = await Promise.all([
+        adminAPI.getPlatformSettings().catch(() => null),
+        adminAPI.getMetrics().catch(() => null)
+      ]);
+      
+      if (settingsRes?.data || settingsRes) {
+        const settings = settingsRes.data || settingsRes;
+        setMaintenanceMode(settings.maintenanceMode ?? false);
+        setNewUserRegistration(settings.newUserRegistration ?? true);
+        setEmailNotifs(settings.emailNotifications ?? true);
+        setSlackNotifs(settings.slackNotifications ?? true);
+        setAutoApprove(settings.autoApproveMerchants ?? false);
+        setTwoFactor(settings.twoFactorAuth ?? true);
+        setCommissionRate(String(settings.defaultCommissionRate ?? 10));
+        setDeliveryFee(String(settings.baseDeliveryFee ?? 500));
+        setMaxRadius(String(settings.maxDeliveryRadius ?? 10));
+        setOrderTimeout(String(settings.orderTimeout ?? 5));
+        
+        // Load integrations from settings
+        if (settings.integrations && Array.isArray(settings.integrations)) {
+          setIntegrations(settings.integrations);
+        } else {
+          // Default integrations if not in API
+          setIntegrations([
+            { name: 'Stripe', desc: 'Payment processing', connected: settings.stripeEnabled ?? false, icon: 'card' },
+            { name: 'Twilio', desc: 'SMS & notifications', connected: settings.twilioEnabled ?? false, icon: 'chatbubble' },
+            { name: 'Google Maps', desc: 'Navigation & geocoding', connected: settings.googleMapsEnabled ?? false, icon: 'map' },
+            { name: 'Firebase', desc: 'Push notifications', connected: settings.firebaseEnabled ?? false, icon: 'notifications' },
+            { name: 'Segment', desc: 'Analytics', connected: settings.segmentEnabled ?? false, icon: 'analytics' },
+          ]);
+        }
+      }
+      
+      if (metricsRes) {
+        setSystemStats({
+          uptime: metricsRes.uptime || '0%',
+          avgResponse: metricsRes.avgResponseTime || '0ms',
+          version: metricsRes.version || 'v1.0.0'
+        });
+      }
+    } catch (e: any) {
+      console.error('Failed to load settings:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadSettings();
+    setRefreshing(false);
+  };
 
   const showToast = (msg: string) => {
     setToast(msg);
     toastOpacity.setValue(1);
     Animated.timing(toastOpacity, { toValue: 0, duration: 500, delay: 1800, useNativeDriver: true }).start(() => setToast(''));
   };
-
-  // Editable config values
-  const [commissionRate, setCommissionRate] = useState('10');
-  const [deliveryFee, setDeliveryFee] = useState('500');
-  const [maxRadius, setMaxRadius] = useState('10');
-  const [orderTimeout, setOrderTimeout] = useState('5');
 
   // Edit modal
   const [editModal, setEditModal] = useState<{ visible: boolean; label: string; value: string; unit: string; onSave: (v: string) => void }>({
@@ -51,27 +124,39 @@ export default function AdminSettingsScreen({ navigation }: any) {
   const [exportStarted, setExportStarted] = useState(false);
   const [purgeStarted, setPurgeStarted] = useState(false);
 
-  // Integration statuses (toggleable)
-  const [integrations, setIntegrations] = useState([
-    { name: 'Stripe', desc: 'Payment processing', connected: true, icon: 'card' },
-    { name: 'Twilio', desc: 'SMS & notifications', connected: true, icon: 'chatbubble' },
-    { name: 'Google Maps', desc: 'Navigation & geocoding', connected: true, icon: 'map' },
-    { name: 'Firebase', desc: 'Push notifications', connected: true, icon: 'notifications' },
-    { name: 'Segment', desc: 'Analytics', connected: false, icon: 'analytics' },
-  ]);
+  // Integration statuses from API
+  const [integrations, setIntegrations] = useState<any[]>([]);
 
   const openEditModal = (label: string, value: string, unit: string, onSave: (v: string) => void) => {
     setEditValue(value);
     setEditModal({ visible: true, label, value, unit, onSave });
   };
 
-  const handleSaveConfig = () => {
-    setSaved(true);
-    showToast('Settings saved successfully!');
-    setTimeout(() => setSaved(false), 2000);
+  const handleSaveConfig = async () => {
+    try {
+      setSaved(true);
+      const settingsData = {
+        maintenanceMode,
+        newUserRegistration,
+        emailNotifications: emailNotifs,
+        slackNotifications: slackNotifs,
+        autoApproveMerchants: autoApprove,
+        twoFactorAuth: twoFactor,
+        defaultCommissionRate: parseFloat(commissionRate),
+        baseDeliveryFee: parseFloat(deliveryFee),
+        maxDeliveryRadius: parseFloat(maxRadius),
+        orderTimeout: parseFloat(orderTimeout),
+      };
+      await adminAPI.updatePlatformSettings(settingsData);
+      showToast('Settings saved successfully!');
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to save settings');
+      setSaved(false);
+    }
   };
 
-  const handleToggle = (name: string, setter: (v: boolean) => void, current: boolean) => {
+  const handleToggle = async (name: string, setter: (v: boolean) => void, current: boolean) => {
     const newVal = !current;
     setter(newVal);
     if (name === 'Maintenance Mode' && newVal) {
@@ -81,14 +166,55 @@ export default function AdminSettingsScreen({ navigation }: any) {
       }
     }
     showToast(`${name}: ${newVal ? 'Enabled' : 'Disabled'}`);
+    
+    // Auto-save on toggle
+    try {
+      const settingsData = {
+        maintenanceMode: name === 'Maintenance Mode' ? newVal : maintenanceMode,
+        newUserRegistration: name === 'New User Registration' ? newVal : newUserRegistration,
+        emailNotifications: name === 'Email Notifications' ? newVal : emailNotifs,
+        slackNotifications: name === 'Slack Alerts' ? newVal : slackNotifs,
+        autoApproveMerchants: name === 'Auto-Approve Merchants' ? newVal : autoApprove,
+        twoFactorAuth: name === '2FA Required' ? newVal : twoFactor,
+        defaultCommissionRate: parseFloat(commissionRate),
+        baseDeliveryFee: parseFloat(deliveryFee),
+        maxDeliveryRadius: parseFloat(maxRadius),
+        orderTimeout: parseFloat(orderTimeout),
+      };
+      await adminAPI.updatePlatformSettings(settingsData);
+    } catch (e: any) {
+      console.error('Failed to save setting:', e);
+    }
   };
 
-  const handleIntegrationToggle = (index: number) => {
+  const handleIntegrationToggle = async (index: number) => {
     const item = integrations[index];
     const action = item.connected ? 'Disconnect' : 'Connect';
     if (webConfirm(`${action} ${item.name}?\nThis will ${item.connected ? 'disable' : 'enable'} the ${item.desc.toLowerCase()} integration.`)) {
-      setIntegrations(prev => prev.map((it, i) => i === index ? { ...it, connected: !it.connected } : it));
+      const newConnected = !item.connected;
+      setIntegrations(prev => prev.map((it, i) => i === index ? { ...it, connected: newConnected } : it));
       showToast(`${item.name} ${item.connected ? 'disconnected' : 'connected'} successfully`);
+      
+      // Persist to backend
+      try {
+        const integrationKey = `${item.name.toLowerCase().replace(/\s+/g, '')}Enabled`;
+        const settingsData = {
+          maintenanceMode,
+          newUserRegistration,
+          emailNotifications: emailNotifs,
+          slackNotifications: slackNotifs,
+          autoApproveMerchants: autoApprove,
+          twoFactorAuth: twoFactor,
+          defaultCommissionRate: parseFloat(commissionRate),
+          baseDeliveryFee: parseFloat(deliveryFee),
+          maxDeliveryRadius: parseFloat(maxRadius),
+          orderTimeout: parseFloat(orderTimeout),
+          [integrationKey]: newConnected,
+        };
+        await adminAPI.updatePlatformSettings(settingsData);
+      } catch (e: any) {
+        console.error('Failed to save integration setting:', e);
+      }
     }
   };
 
@@ -127,6 +253,15 @@ export default function AdminSettingsScreen({ navigation }: any) {
     </Pressable>
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading settings...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -139,7 +274,13 @@ export default function AdminSettingsScreen({ navigation }: any) {
         </Btn>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* System Status */}
         <View style={styles.statusCard}>
           <View style={styles.statusRow}>
@@ -161,17 +302,17 @@ export default function AdminSettingsScreen({ navigation }: any) {
           </View>
           <View style={styles.uptimeRow}>
             <View style={styles.uptimeItem}>
-              <Text style={styles.uptimeValue}>99.9%</Text>
+              <Text style={styles.uptimeValue}>{systemStats.uptime}</Text>
               <Text style={styles.uptimeLabel}>Uptime</Text>
             </View>
             <View style={styles.uptimeDivider} />
             <View style={styles.uptimeItem}>
-              <Text style={styles.uptimeValue}>45ms</Text>
+              <Text style={styles.uptimeValue}>{systemStats.avgResponse}</Text>
               <Text style={styles.uptimeLabel}>Avg Response</Text>
             </View>
             <View style={styles.uptimeDivider} />
             <View style={styles.uptimeItem}>
-              <Text style={styles.uptimeValue}>v1.0.0</Text>
+              <Text style={styles.uptimeValue}>{systemStats.version}</Text>
               <Text style={styles.uptimeLabel}>Version</Text>
             </View>
           </View>
@@ -398,7 +539,7 @@ export default function AdminSettingsScreen({ navigation }: any) {
           </Btn>
         </View>
 
-        <Text style={styles.versionText}>Fulccrum Admin v1.0.0 · Build 2026.02.06</Text>
+        <Text style={styles.versionText}>Fulccrum Admin {systemStats.version}</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -422,10 +563,29 @@ export default function AdminSettingsScreen({ navigation }: any) {
               <Btn onPress={() => setEditModal(m => ({ ...m, visible: false }))} style={styles.modalCancelBtn}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </Btn>
-              <Btn onPress={() => {
+              <Btn onPress={async () => {
                 editModal.onSave(editValue);
                 setEditModal(m => ({ ...m, visible: false }));
                 showToast(`${editModal.label} updated to ${editModal.unit === '₦' ? '₦' : ''}${editValue}${editModal.unit !== '₦' ? ' ' + editModal.unit : ''}`);
+                
+                // Auto-save to backend
+                try {
+                  const settingsData = {
+                    maintenanceMode,
+                    newUserRegistration,
+                    emailNotifications: emailNotifs,
+                    slackNotifications: slackNotifs,
+                    autoApproveMerchants: autoApprove,
+                    twoFactorAuth: twoFactor,
+                    defaultCommissionRate: editModal.label === 'Default Commission Rate' ? parseFloat(editValue) : parseFloat(commissionRate),
+                    baseDeliveryFee: editModal.label === 'Base Delivery Fee' ? parseFloat(editValue) : parseFloat(deliveryFee),
+                    maxDeliveryRadius: editModal.label === 'Max Delivery Radius' ? parseFloat(editValue) : parseFloat(maxRadius),
+                    orderTimeout: editModal.label === 'Order Timeout' ? parseFloat(editValue) : parseFloat(orderTimeout),
+                  };
+                  await adminAPI.updatePlatformSettings(settingsData);
+                } catch (e: any) {
+                  console.error('Failed to save setting:', e);
+                }
               }} style={styles.modalSaveBtn}>
                 <Text style={styles.modalSaveText}>Save</Text>
               </Btn>
@@ -446,6 +606,15 @@ export default function AdminSettingsScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
+  },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.navy,

@@ -28,9 +28,18 @@ export default function PromoCodeManagerScreen({ navigation }: any) {
     try {
       setLoading(true);
       const response = await marketingAPI.getPromoCodes();
-      setPromoCodes(response.data.data || []);
+      console.log('Promo codes response:', response);
+      console.log('Response data:', response.data);
+      
+      // Handle different response structures
+      const codes = response.data?.data || response.data?.codes || response.data || [];
+      console.log('Extracted promo codes:', codes);
+      setPromoCodes(Array.isArray(codes) ? codes : []);
     } catch (error: any) {
+      console.error('Load promo codes error:', error);
+      console.error('Error response:', error?.response?.data);
       showAlert('Error', error.response?.data?.message || 'Failed to load promo codes');
+      setPromoCodes([]); // Ensure it's always an array
     } finally {
       setLoading(false);
     }
@@ -43,7 +52,9 @@ export default function PromoCodeManagerScreen({ navigation }: any) {
     }
 
     try {
-      await marketingAPI.createPromoCode({
+      console.log('Creating promo code with data:', formData);
+      
+      const payload = {
         code: formData.code.toUpperCase(),
         type: formData.type,
         value: parseFloat(formData.value),
@@ -51,10 +62,16 @@ export default function PromoCodeManagerScreen({ navigation }: any) {
         maxDiscount: formData.maxDiscount ? parseFloat(formData.maxDiscount) : null,
         usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
         perUserLimit: 1,
-        validFrom: new Date(formData.validFrom),
-        validUntil: new Date(formData.validUntil),
+        validFrom: new Date(formData.validFrom).toISOString(),
+        validUntil: new Date(formData.validUntil).toISOString(),
         applicableTo: {},
-      });
+      };
+      
+      console.log('Payload to send:', payload);
+      
+      const result = await marketingAPI.createPromoCode(payload);
+      console.log('Promo code created:', result);
+      
       showAlert('Success', 'Promo code created successfully');
       setShowCreateModal(false);
       setFormData({
@@ -69,7 +86,10 @@ export default function PromoCodeManagerScreen({ navigation }: any) {
       });
       loadPromoCodes();
     } catch (error: any) {
-      showAlert('Error', error.response?.data?.message || 'Failed to create promo code');
+      console.error('Promo code creation error:', error);
+      console.error('Error response:', error?.response?.data);
+      const errorMsg = error?.response?.data?.message || error?.message || 'Failed to create promo code';
+      showAlert('Error', errorMsg);
     }
   };
 

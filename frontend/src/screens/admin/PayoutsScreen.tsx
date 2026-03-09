@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -15,45 +17,47 @@ import { adminAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-const merchantPayouts = [
-  { id: '1', name: 'Burger House', owner: 'Mike Chen', amount: 3250.00, orders: 42, period: 'Feb 1-7', status: 'pending', method: 'Bank Transfer' },
-  { id: '2', name: 'Pizza Roma', owner: 'Marco Rossi', amount: 2180.50, orders: 31, period: 'Feb 1-7', status: 'pending', method: 'Bank Transfer' },
-  { id: '3', name: 'Thai Garden', owner: 'Siri Patel', amount: 1540.00, orders: 22, period: 'Feb 1-7', status: 'pending', method: 'Bank Transfer' },
-  { id: '4', name: 'The Urban Spoon', owner: 'James Wright', amount: 5420.80, orders: 58, period: 'Feb 1-7', status: 'pending', method: 'Bank Transfer' },
-  { id: '5', name: 'Taco Fiesta', owner: 'Carlos Diaz', amount: 890.00, orders: 15, period: 'Feb 1-7', status: 'on_hold', method: 'Bank Transfer' },
-];
-
-const courierPayouts = [
-  { id: '1', name: 'Mike Johnson', deliveries: 48, hours: 32, amount: 1245.60, tips: 186.50, period: 'Feb 1-7', status: 'pending', method: 'Instant' },
-  { id: '2', name: 'Sarah Lee', deliveries: 62, hours: 38, amount: 1580.20, tips: 245.00, period: 'Feb 1-7', status: 'pending', method: 'Bank Transfer' },
-  { id: '3', name: 'Tom Wilson', deliveries: 35, hours: 24, amount: 890.00, tips: 120.00, period: 'Feb 1-7', status: 'pending', method: 'Instant' },
-  { id: '4', name: 'Lisa Wang', deliveries: 55, hours: 36, amount: 1420.80, tips: 210.00, period: 'Feb 1-7', status: 'processing', method: 'Bank Transfer' },
-  { id: '5', name: 'David Brown', deliveries: 28, hours: 18, amount: 720.00, tips: 95.00, period: 'Feb 1-7', status: 'paid', method: 'Instant' },
-];
-
-const recentPayments = [
-  { id: '1', recipient: 'Burger House', type: 'merchant', amount: 2890.00, date: 'Feb 1, 2026', status: 'completed', ref: 'PAY-2026-0201' },
-  { id: '2', recipient: 'Mike Johnson', type: 'courier', amount: 1120.40, date: 'Feb 1, 2026', status: 'completed', ref: 'PAY-2026-0202' },
-  { id: '3', recipient: 'Pizza Roma', type: 'merchant', amount: 1950.00, date: 'Jan 31, 2026', status: 'completed', ref: 'PAY-2026-0198' },
-  { id: '4', recipient: 'Sarah Lee', type: 'courier', amount: 1380.60, date: 'Jan 31, 2026', status: 'completed', ref: 'PAY-2026-0199' },
-  { id: '5', recipient: 'Taco Fiesta', type: 'merchant', amount: 650.00, date: 'Jan 31, 2026', status: 'failed', ref: 'PAY-2026-0195' },
-];
-
 export default function PayoutsScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'merchants' | 'couriers' | 'history'>('merchants');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [merchantPayouts, setMerchantPayouts] = useState<any[]>([]);
+  const [courierPayouts, setCourierPayouts] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminAPI.getPendingWithdrawals();
-        // When backend returns real data, update state here
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadPayouts();
   }, []);
 
+  const loadPayouts = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getPendingWithdrawals();
+      if (res?.data) {
+        setMerchantPayouts(res.data.merchantPayouts || []);
+        setCourierPayouts(res.data.courierPayouts || []);
+        setRecentPayments(res.data.recentPayments || []);
+      } else if (res) {
+        setMerchantPayouts(res.merchantPayouts || []);
+        setCourierPayouts(res.courierPayouts || []);
+        setRecentPayments(res.recentPayments || []);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load payouts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPayouts();
+    setRefreshing(false);
+  };
+
   const totalMerchantPending = merchantPayouts.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
-  const totalCourierPending = courierPayouts.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount + p.tips, 0);
+  const totalCourierPending = courierPayouts.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0) + (p.tips || 0), 0);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -63,6 +67,15 @@ export default function PayoutsScreen({ navigation }: any) {
     const allSelected = ids.every(id => selectedIds.includes(id));
     setSelectedIds(allSelected ? selectedIds.filter(id => !ids.includes(id)) : [...new Set([...selectedIds, ...ids])]);
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading payouts...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -80,7 +93,13 @@ export default function PayoutsScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Summary Cards */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
@@ -588,4 +607,13 @@ const styles = StyleSheet.create({
   batchLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   batchDesc: { fontSize: 12, color: colors.textLight, marginTop: 1 },
   batchDivider: { height: 1, backgroundColor: colors.borderLight },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
+  },
 });

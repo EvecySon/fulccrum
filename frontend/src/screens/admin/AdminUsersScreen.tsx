@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 const AVAILABLE_ROLES = [
   { id: 'super_admin', displayName: 'Super Admin' },
@@ -22,22 +24,12 @@ const AVAILABLE_ROLES = [
   { id: 'support_agent', displayName: 'Support Agent' },
 ];
 
-const MOCK_ADMINS = [
-  { id: '1', email: 'admin@fulccrum.com', firstName: 'Adebayo', lastName: 'Ogunlesi', roleId: 'super_admin', roleName: 'Super Admin', status: 'active', createdAt: '2025-11-01T10:00:00Z', lastLogin: new Date(Date.now() - 30 * 60000).toISOString() },
-  { id: '2', email: 'kemi.ade@fulccrum.com', firstName: 'Kemi', lastName: 'Adekunle', roleId: 'super_admin', roleName: 'Super Admin', status: 'active', createdAt: '2025-12-15T08:00:00Z', lastLogin: new Date(Date.now() - 3 * 3600000).toISOString() },
-  { id: '3', email: 'chioma.n@fulccrum.com', firstName: 'Chioma', lastName: 'Nwankwo', roleId: 'finance_manager', roleName: 'Finance Manager', status: 'active', createdAt: '2026-01-05T09:00:00Z', lastLogin: new Date(Date.now() - 1 * 3600000).toISOString() },
-  { id: '4', email: 'emeka.o@fulccrum.com', firstName: 'Emeka', lastName: 'Okafor', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-10T14:00:00Z', lastLogin: new Date(Date.now() - 45 * 60000).toISOString() },
-  { id: '5', email: 'tunde.f@fulccrum.com', firstName: 'Tunde', lastName: 'Fashola', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-12T11:00:00Z', lastLogin: new Date(Date.now() - 5 * 3600000).toISOString() },
-  { id: '6', email: 'bola.a@fulccrum.com', firstName: 'Bola', lastName: 'Akinwale', roleId: 'operations_lead', roleName: 'Operations Lead', status: 'active', createdAt: '2026-01-20T16:00:00Z', lastLogin: null },
-  { id: '7', email: 'ngozi.e@fulccrum.com', firstName: 'Ngozi', lastName: 'Eze', roleId: 'content_moderator', roleName: 'Content Moderator', status: 'active', createdAt: '2026-02-01T10:00:00Z', lastLogin: new Date(Date.now() - 2 * 3600000).toISOString() },
-  { id: '8', email: 'yusuf.m@fulccrum.com', firstName: 'Yusuf', lastName: 'Mohammed', roleId: 'support_agent', roleName: 'Support Agent', status: 'active', createdAt: '2026-02-05T09:00:00Z', lastLogin: new Date(Date.now() - 20 * 60000).toISOString() },
-  { id: '9', email: 'amina.b@fulccrum.com', firstName: 'Amina', lastName: 'Bello', roleId: 'support_agent', roleName: 'Support Agent', status: 'active', createdAt: '2026-02-08T13:00:00Z', lastLogin: new Date(Date.now() - 8 * 3600000).toISOString() },
-];
 
 export default function AdminUsersScreen({ navigation }: any) {
   const currentUserId = '1';
-  const [admins, setAdmins] = useState<any[]>(MOCK_ADMINS);
-  const [loading, setLoading] = useState(false);
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<any>(null);
@@ -50,6 +42,32 @@ export default function AdminUsersScreen({ navigation }: any) {
     phone: '',
     roleId: 'support_agent',
   });
+
+  useEffect(() => {
+    loadAdmins();
+  }, []);
+
+  const loadAdmins = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getAdmins();
+      if (res?.data) {
+        setAdmins(res.data);
+      } else if (Array.isArray(res)) {
+        setAdmins(res);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load admins');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAdmins();
+    setRefreshing(false);
+  };
 
   const handleCreate = () => {
     if (!form.email || !form.password || !form.firstName || !form.lastName) {
@@ -148,7 +166,13 @@ export default function AdminUsersScreen({ navigation }: any) {
           <ActivityIndicator size="large" color={colors.navy} />
         </View>
       ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+          }
+        >
           <Text style={styles.sectionLabel}>{admins.length} admin user{admins.length !== 1 ? 's' : ''}</Text>
 
           {admins.map((admin) => (

@@ -1,10 +1,11 @@
 import { showAlert } from '../../../utils/alert';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
+import { adminAPI } from '../../../services/api';
 
-const MOCK_COMPLIANCE = [
+const MOCK_COMPLIANCE_REMOVED = [
   {
     id: '1', status: 'compliant',
     business: { businessName: 'Chicken Republic - Lekki', user: { firstName: 'Adewale', lastName: 'Johnson' } },
@@ -87,9 +88,39 @@ const MOCK_COMPLIANCE = [
 ];
 
 export default function MerchantComplianceScreen({ navigation }: any) {
-  const [compliance, setCompliance] = useState<any[]>(MOCK_COMPLIANCE);
-  const [loading, setLoading] = useState(false);
+  const [compliance, setCompliance] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    loadCompliance();
+  }, []);
+
+  const loadCompliance = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getMerchantCompliance();
+      if (res?.data) {
+        setCompliance(res.data);
+      } else if (Array.isArray(res)) {
+        setCompliance(res);
+      } else {
+        setCompliance([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load compliance data:', e);
+      setCompliance([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCompliance();
+    setRefreshing(false);
+  };
 
   const filteredCompliance = filter === 'all' ? compliance : compliance.filter(c => c.status === filter);
 
@@ -102,6 +133,15 @@ export default function MerchantComplianceScreen({ navigation }: any) {
       default: return colors.textSecondary;
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading compliance data...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -126,7 +166,12 @@ export default function MerchantComplianceScreen({ navigation }: any) {
         ))}
       </View>
 
-      <ScrollView style={styles.complianceList}>
+      <ScrollView 
+        style={styles.complianceList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {filteredCompliance.map((item) => (
           <View key={item.id} style={styles.complianceCard}>
             <View style={styles.complianceHeader}>
@@ -228,6 +273,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLight,
   },
   header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' },

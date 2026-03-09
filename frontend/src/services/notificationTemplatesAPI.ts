@@ -46,36 +46,36 @@ export interface CreateTemplateRequest {
 export const notificationTemplatesAPI = {
   // Get all templates
   getTemplates: async (): Promise<NotificationTemplate[]> => {
-    const response = await api.get('/notifications/templates');
+    const response = await api.get('/admin/notification-templates');
     return response.data;
   },
 
   // Get single template
   getTemplate: async (id: string): Promise<NotificationTemplate> => {
-    const response = await api.get(`/notifications/templates/${id}`);
+    const response = await api.get(`/admin/notification-templates/${id}`);
     return response.data;
   },
 
   // Create template
   createTemplate: async (data: CreateTemplateRequest): Promise<NotificationTemplate> => {
-    const response = await api.post('/notifications/templates', data);
+    const response = await api.post('/admin/notification-templates', data);
     return response.data;
   },
 
   // Update template
   updateTemplate: async (id: string, data: Partial<CreateTemplateRequest>): Promise<NotificationTemplate> => {
-    const response = await api.put(`/notifications/templates/${id}`, data);
+    const response = await api.put(`/admin/notification-templates/${id}`, data);
     return response.data;
   },
 
   // Delete template
   deleteTemplate: async (id: string): Promise<void> => {
-    await api.delete(`/notifications/templates/${id}`);
+    await api.delete(`/admin/notification-templates/${id}`);
   },
 
   // Toggle template active status
   toggleActive: async (id: string, isActive: boolean): Promise<void> => {
-    await api.put(`/notifications/templates/${id}`, { isActive });
+    await api.put(`/admin/notification-templates/${id}/toggle`, { isActive });
   },
 
   // Get template analytics
@@ -86,7 +86,7 @@ export const notificationTemplatesAPI = {
     openRate: number;
     clickRate: number;
   }> => {
-    const response = await api.get(`/notifications/templates/${id}/analytics`);
+    const response = await api.get(`/admin/notification-templates/${id}/analytics`);
     return response.data;
   },
 };

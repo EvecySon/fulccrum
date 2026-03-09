@@ -49,39 +49,77 @@ export default function AdminTemplateEditorScreen({ route, navigation }: any) {
   };
 
   const handleSave = async (templateTitle: string, templateBody: string) => {
-    if (!key.trim() || !name.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    console.log('=== SAVE TEMPLATE STARTED ===');
+    console.log('Template Title:', templateTitle);
+    console.log('Template Body:', templateBody);
+    console.log('Key:', key);
+    console.log('Name:', name);
+    console.log('Type:', type);
+    console.log('Category:', category);
+    console.log('Target Role:', targetRole);
+    
+    const missingFields = [];
+    if (!key.trim()) missingFields.push('Template Key');
+    if (!name.trim()) missingFields.push('Template Name');
+    if (!templateTitle.trim()) missingFields.push('Notification Title');
+    if (!templateBody.trim()) missingFields.push('Notification Body');
+    
+    if (missingFields.length > 0) {
+      console.log('Missing fields:', missingFields);
+      Alert.alert('Missing Required Fields', `Please fill in:\n• ${missingFields.join('\n• ')}`);
       return;
     }
 
+    console.log('All fields validated, starting save...');
     setSaving(true);
+    
     try {
       const data = {
-        key,
-        name,
-        description,
-        title: templateTitle,
-        body: templateBody,
+        key: key.trim(),
+        name: name.trim(),
+        description: description.trim(),
+        title: templateTitle.trim(),
+        body: templateBody.trim(),
         type,
         category,
         targetRole,
       };
+      
+      console.log('Data to send:', JSON.stringify(data, null, 2));
 
       if (isEditing) {
-        await notificationTemplatesAPI.updateTemplate(templateId, data);
-        Alert.alert('Success', 'Template updated successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        console.log('Updating template:', templateId);
+        const result = await notificationTemplatesAPI.updateTemplate(templateId, data);
+        console.log('Update result:', result);
+        setSaving(false);
+        Alert.alert(
+          'Success', 
+          'Template updated successfully!', 
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+          { cancelable: false }
+        );
       } else {
-        await notificationTemplatesAPI.createTemplate(data);
-        Alert.alert('Success', 'Template created successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        console.log('Creating new template...');
+        const result = await notificationTemplatesAPI.createTemplate(data);
+        console.log('Create result:', result);
+        setSaving(false);
+        Alert.alert(
+          'Success', 
+          'Template created successfully!', 
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+          { cancelable: false }
+        );
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save template');
-    } finally {
       setSaving(false);
+      console.error('=== TEMPLATE SAVE ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error message:', error?.message);
+      
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save template. Please check your connection and try again.';
+      Alert.alert('Error', errorMessage, [{ text: 'OK' }], { cancelable: false });
     }
   };
 

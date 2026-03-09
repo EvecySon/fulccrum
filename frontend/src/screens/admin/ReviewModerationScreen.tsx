@@ -8,34 +8,43 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { reviewsAPI } from '../../services/api';
 
-const mockReviews = [
-  { id: '1', customer: 'Adaeze O.', avatar: 'https://i.pravatar.cc/100?img=1', business: 'Burger House', rating: 1, comment: 'Terrible food, arrived cold and missing items. Never ordering again!', date: '2 hrs ago', flagged: true, flagReason: 'Potentially abusive', orderId: '#3242' },
-  { id: '2', customer: 'Chidi K.', avatar: 'https://i.pravatar.cc/100?img=3', business: 'Sushi Sushi', rating: 5, comment: 'Best sushi in Lagos! Amazing quality and fast delivery.', date: '5 hrs ago', flagged: false, flagReason: null, orderId: '#3238' },
-  { id: '3', customer: 'Emeka N.', avatar: 'https://i.pravatar.cc/100?img=8', business: 'Pizzeria Roma', rating: 2, comment: 'This is a scam restaurant. They charge double and deliver half. AVOID!!!', date: '1 day ago', flagged: true, flagReason: 'Reported by merchant', orderId: '#3215' },
-  { id: '4', customer: 'Funke A.', avatar: 'https://i.pravatar.cc/100?img=5', business: 'Thai Garden', rating: 4, comment: 'Really good pad thai. Slightly overpriced but worth it for the quality.', date: '1 day ago', flagged: false, flagReason: null, orderId: '#3210' },
-  { id: '5', customer: 'Tunde B.', avatar: 'https://i.pravatar.cc/100?img=12', business: 'Burger House', rating: 1, comment: 'Found a hair in my burger. Disgusting. Health department should check this place.', date: '2 days ago', flagged: true, flagReason: 'Health concern', orderId: '#3200' },
-];
 
 export default function ReviewModerationScreen({ navigation }: any) {
   const [filter, setFilter] = useState<'all' | 'flagged'>('flagged');
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderationNote, setModerationNote] = useState('');
-  const [reviews, setReviews] = useState(mockReviews);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await reviewsAPI.getBusinessReviews('all');
-        if (res?.data?.length) setReviews(res.data);
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadReviews();
   }, []);
+
+  const loadReviews = async () => {
+    try {
+      setLoading(true);
+      const res = await reviewsAPI.getBusinessReviews('all');
+      if (res?.data?.length) setReviews(res.data);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load reviews');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadReviews();
+    setRefreshing(false);
+  };
 
   const filtered = filter === 'flagged' ? reviews.filter(r => r.flagged) : reviews;
   const flaggedCount = reviews.filter(r => r.flagged).length;
@@ -47,6 +56,15 @@ export default function ReviewModerationScreen({ navigation }: any) {
       ))}
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading reviews...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -61,7 +79,13 @@ export default function ReviewModerationScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Filter */}
         <View style={styles.filterRow}>
           <TouchableOpacity style={[styles.filterChip, filter === 'flagged' && styles.filterChipActive]} onPress={() => setFilter('flagged')}>
@@ -150,6 +174,8 @@ export default function ReviewModerationScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: colors.white },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },

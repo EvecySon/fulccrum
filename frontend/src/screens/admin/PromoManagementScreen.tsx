@@ -8,33 +8,41 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { promosAPI } from '../../services/api';
 
-const mockPromos = [
-  { id: '1', code: 'WELCOME20', type: 'percentage', value: 20, maxDiscount: 3000, minOrder: 5000, used: 1450, limit: 5000, validUntil: 'Mar 31, 2026', isActive: true, scope: 'platform', createdBy: 'Admin' },
-  { id: '2', code: 'FREEDELIVERY', type: 'fixed', value: 700, maxDiscount: null, minOrder: 3000, used: 890, limit: 2000, validUntil: 'Feb 28, 2026', isActive: true, scope: 'platform', createdBy: 'Admin' },
-  { id: '3', code: 'WEEKEND15', type: 'percentage', value: 15, maxDiscount: 2000, minOrder: 4000, used: 560, limit: 3000, validUntil: 'Apr 1, 2026', isActive: true, scope: 'platform', createdBy: 'Admin' },
-  { id: '4', code: 'BURGER50', type: 'percentage', value: 50, maxDiscount: 5000, minOrder: 3000, used: 200, limit: 200, validUntil: 'Feb 15, 2026', isActive: false, scope: 'merchant', createdBy: 'Burger House' },
-  { id: '5', code: 'NEWUSER500', type: 'fixed', value: 500, maxDiscount: null, minOrder: 2000, used: 3200, limit: 10000, validUntil: 'Dec 31, 2026', isActive: true, scope: 'platform', createdBy: 'Admin' },
-];
-
 export default function PromoManagementScreen({ navigation }: any) {
-  const [promos, setPromos] = useState(mockPromos);
+  const [promos, setPromos] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'expired' | 'merchant'>('all');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await promosAPI.getAll(1, false);
-        if (res?.data?.length) setPromos(res.data);
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadPromos();
   }, []);
+
+  const loadPromos = async () => {
+    try {
+      setLoading(true);
+      const res = await promosAPI.getAll(1, false);
+      if (res?.data?.length) setPromos(res.data);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load promos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPromos();
+    setRefreshing(false);
+  };
 
   const togglePromo = async (id: string) => {
     try { await promosAPI.toggle(id); } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
@@ -50,8 +58,17 @@ export default function PromoManagementScreen({ navigation }: any) {
       return true;
     });
 
-  const totalRedemptions = promos.reduce((s, p) => s + p.used, 0);
+  const totalRedemptions = promos.reduce((s, p) => s + (p.used || 0), 0);
   const activeCount = promos.filter(p => p.isActive).length;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading promos...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -65,7 +82,13 @@ export default function PromoManagementScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -171,6 +194,8 @@ export default function PromoManagementScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: colors.white },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },

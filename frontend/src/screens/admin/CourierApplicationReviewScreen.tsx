@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,14 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
-const MOCK_APPLICATIONS: any[] = [
+const MOCK_APPLICATIONS_REMOVED: any[] = [
   {
     id: 'ca-1',
     status: 'pending',
@@ -225,7 +228,35 @@ const getAppStatusColor = (s: string) => {
 };
 
 export default function CourierApplicationReviewScreen({ navigation }: any) {
-  const [applications, setApplications] = useState<any[]>(MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadApplications();
+  }, []);
+
+  const loadApplications = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getPendingCouriers();
+      if (res?.data) {
+        setApplications(res.data);
+      } else if (Array.isArray(res)) {
+        setApplications(res);
+      }
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadApplications();
+    setRefreshing(false);
+  };
   const [filter, setFilter] = useState('pending');
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -295,6 +326,15 @@ export default function CourierApplicationReviewScreen({ navigation }: any) {
     showAlert('Done', 'Document rejected');
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading applications...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -302,8 +342,8 @@ export default function CourierApplicationReviewScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Courier Applications</Text>
-        <View style={styles.headerBadge}>
-          <Text style={styles.headerBadgeText}>{applications.filter(a => a.status === 'pending').length} pending</Text>
+        <View style={styles.pendingBadge}>
+          <Text style={styles.pendingBadgeText}>{applications.filter(a => a.status === 'pending').length} pending</Text>
         </View>
       </View>
 
@@ -553,6 +593,8 @@ export default function CourierApplicationReviewScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
     marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.white,
@@ -563,6 +605,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, flex: 1 },
   headerBadge: { backgroundColor: colors.warning + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   headerBadgeText: { fontSize: 13, fontWeight: '600', color: colors.warning },
+  pendingBadge: { backgroundColor: colors.warning + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  pendingBadgeText: { fontSize: 13, fontWeight: '600', color: colors.warning },
   statsRow: { flexDirection: 'row', paddingHorizontal: 10, gap: 8, marginTop: 10 },
   statCard: { flex: 1, backgroundColor: colors.white, borderRadius: 14, padding: 12, alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: '800' },

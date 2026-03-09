@@ -71,7 +71,9 @@ export default function SupplyChainScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Supply Chain</Text>
-        <Ionicons name="leaf-outline" size={22} color={colors.tealLight} />
+        <TouchableOpacity onPress={() => navigation.navigate('AddSupplyChainEntry')}>
+          <Ionicons name="add-circle" size={28} color={colors.tealLight} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (

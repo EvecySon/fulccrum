@@ -8,41 +8,58 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { zonesAPI } from '../../services/api';
 
-const mockZones = [
-  { id: '1', name: 'Lekki Phase 1', businesses: 45, activeOrders: 120, baseFee: 500, avgDeliveryTime: 18, isActive: true, couriersAvailable: 15 },
-  { id: '2', name: 'Victoria Island', businesses: 62, activeOrders: 95, baseFee: 600, avgDeliveryTime: 22, isActive: true, couriersAvailable: 12 },
-  { id: '3', name: 'Ikoyi', businesses: 38, activeOrders: 67, baseFee: 550, avgDeliveryTime: 20, isActive: true, couriersAvailable: 8 },
-  { id: '4', name: 'Surulere', businesses: 28, activeOrders: 45, baseFee: 700, avgDeliveryTime: 30, isActive: true, couriersAvailable: 6 },
-  { id: '5', name: 'Ajah', businesses: 15, activeOrders: 22, baseFee: 1200, avgDeliveryTime: 45, isActive: false, couriersAvailable: 3 },
-  { id: '6', name: 'Ikeja', businesses: 52, activeOrders: 88, baseFee: 800, avgDeliveryTime: 35, isActive: true, couriersAvailable: 10 },
-];
 
 export default function DeliveryZonesManagementScreen({ navigation }: any) {
-  const [zones, setZones] = useState(mockZones);
+  const [zones, setZones] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await zonesAPI.getBusinessZones('all');
-        if (res?.length) setZones(res);
-      } catch (e: any) { showAlert('Error', e?.message || 'Something went wrong'); }
-    })();
+    loadZones();
   }, []);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const loadZones = async () => {
+    try {
+      setLoading(true);
+      const res = await zonesAPI.getBusinessZones('all');
+      if (res?.length) setZones(res);
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load zones');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadZones();
+    setRefreshing(false);
+  };
 
   const toggleZone = (id: string) => {
     setZones(prev => prev.map(z => z.id === id ? { ...z, isActive: !z.isActive } : z));
   };
 
-  const totalBusinesses = zones.filter(z => z.isActive).reduce((s, z) => s + z.businesses, 0);
-  const totalOrders = zones.filter(z => z.isActive).reduce((s, z) => s + z.activeOrders, 0);
-  const totalCouriers = zones.filter(z => z.isActive).reduce((s, z) => s + z.couriersAvailable, 0);
+  const totalBusinesses = zones.filter(z => z.isActive).reduce((s, z) => s + (z.businesses || 0), 0);
+  const totalOrders = zones.filter(z => z.isActive).reduce((s, z) => s + (z.activeOrders || 0), 0);
+  const totalCouriers = zones.filter(z => z.isActive).reduce((s, z) => s + (z.couriersAvailable || 0), 0);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading zones...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -168,6 +185,8 @@ export default function DeliveryZonesManagementScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: colors.white },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },

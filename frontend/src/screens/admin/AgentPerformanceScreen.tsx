@@ -1,5 +1,5 @@
 import { showAlert } from '../../utils/alert';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { adminAPI } from '../../services/api';
 
 interface AgentStats {
   id: string;
@@ -26,65 +29,6 @@ interface AgentStats {
   slaCompliance: number; // percentage
 }
 
-const mockAgents: AgentStats[] = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    avatar: 'https://i.pravatar.cc/100?img=1',
-    status: 'online',
-    activeChats: 3,
-    avgResponseTime: 1.5,
-    avgResolutionTime: 18,
-    ticketsToday: 23,
-    ticketsTotal: 487,
-    satisfactionScore: 4.8,
-    firstContactResolution: 87,
-    slaCompliance: 96,
-  },
-  {
-    id: '2',
-    name: 'Mike Chen',
-    avatar: 'https://i.pravatar.cc/100?img=2',
-    status: 'online',
-    activeChats: 5,
-    avgResponseTime: 2.1,
-    avgResolutionTime: 22,
-    ticketsToday: 31,
-    ticketsTotal: 612,
-    satisfactionScore: 4.6,
-    firstContactResolution: 82,
-    slaCompliance: 94,
-  },
-  {
-    id: '3',
-    name: 'John Davis',
-    avatar: 'https://i.pravatar.cc/100?img=3',
-    status: 'busy',
-    activeChats: 7,
-    avgResponseTime: 3.2,
-    avgResolutionTime: 28,
-    ticketsToday: 19,
-    ticketsTotal: 356,
-    satisfactionScore: 4.4,
-    firstContactResolution: 75,
-    slaCompliance: 89,
-  },
-  {
-    id: '4',
-    name: 'Lisa Wang',
-    avatar: 'https://i.pravatar.cc/100?img=4',
-    status: 'offline',
-    activeChats: 0,
-    avgResponseTime: 1.8,
-    avgResolutionTime: 20,
-    ticketsToday: 0,
-    ticketsTotal: 523,
-    satisfactionScore: 4.7,
-    firstContactResolution: 85,
-    slaCompliance: 95,
-  },
-];
-
 const teamStats = {
   totalTicketsToday: 73,
   avgResponseTime: 2.2,
@@ -96,9 +40,42 @@ const teamStats = {
 };
 
 export default function AgentPerformanceScreen({ navigation }: any) {
+  const [agents, setAgents] = useState<AgentStats[]>([]);
+  const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'busy'>('all');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'tickets' | 'satisfaction' | 'response'>('tickets');
 
-  const sortedAgents = [...mockAgents].sort((a, b) => {
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      setLoading(true);
+      const res = await adminAPI.getAgents();
+      if (res?.data) {
+        setAgents(res.data);
+      } else if (Array.isArray(res)) {
+        setAgents(res);
+      } else {
+        setAgents([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load agents:', e);
+      setAgents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAgents();
+    setRefreshing(false);
+  };
+
+  const sortedAgents = [...agents].sort((a, b) => {
     switch (sortBy) {
       case 'tickets':
         return b.ticketsToday - a.ticketsToday;
@@ -110,6 +87,8 @@ export default function AgentPerformanceScreen({ navigation }: any) {
         return 0;
     }
   });
+
+  const filteredAgents = filter === 'all' ? sortedAgents : sortedAgents.filter(a => a.status === filter);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,6 +117,15 @@ export default function AgentPerformanceScreen({ navigation }: any) {
     return colors.textPrimary;
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.navy} />
+        <Text style={styles.loadingText}>Loading agents...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -150,7 +138,13 @@ export default function AgentPerformanceScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />
+        }
+      >
         {/* Team Overview */}
         <View style={styles.teamOverview}>
           <Text style={styles.sectionTitle}>Team Overview</Text>
@@ -290,6 +284,8 @@ export default function AgentPerformanceScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.textLight },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: colors.white,

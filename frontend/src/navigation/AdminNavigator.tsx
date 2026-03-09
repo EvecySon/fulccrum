@@ -29,6 +29,7 @@ import MerchantApplicationReviewScreen from '../screens/admin/MerchantApplicatio
 import CourierManagementScreen from '../screens/admin/CourierManagementScreen';
 import CourierApplicationReviewScreen from '../screens/admin/CourierApplicationReviewScreen';
 import CategoryManagementScreen from '../screens/admin/CategoryManagementScreen';
+import ApprovePendingScreen from '../screens/admin/ApprovePendingScreen';
 
 // Finance Screens
 import CommissionTiersScreen from '../screens/admin/finance/CommissionTiersScreen';
@@ -157,6 +158,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="CourierManagement" component={CourierManagementScreen} />
       <Stack.Screen name="CourierApplicationReview" component={CourierApplicationReviewScreen} />
       <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
+      <Stack.Screen name="ApprovePending" component={ApprovePendingScreen} />
       
       {/* Finance Screens */}
       <Stack.Screen name="CommissionTiers" component={CommissionTiersScreen} />

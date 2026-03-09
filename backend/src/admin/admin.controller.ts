@@ -90,6 +90,29 @@ export class AdminController {
     return this.adminService.getRecentActivity(req.user.role, limit ? parseInt(limit) : 20);
   }
 
+  @Get('support/agents')
+  async getSupportAgents(@Request() req: any) {
+    return this.adminService.getSupportAgents(req.user.role);
+  }
+
+  @Get('merchants/compliance')
+  async getMerchantCompliance(@Request() req: any, @Query('filter') filter?: string) {
+    return this.adminService.getMerchantCompliance(req.user.role, filter);
+  }
+
+  @Get('merchants')
+  async getAllMerchants(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getAllMerchants(
+      req.user.role,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
   @Get('merchants/pending')
   async getPendingMerchants(
     @Request() req: any,
