@@ -1,0 +1,545 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Linking,
+  Alert,
+  Animated,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+
+const TrackDeliveryScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { orderId, courier } = (route.params as any) || {};
+
+  const mapRef = useRef<MapView>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<any>(null);
+  const [courierLocation, setCourierLocation] = useState<any>(null);
+  const [eta, setEta] = useState<number | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    fetchDeliveryStatus();
+    const interval = setInterval(fetchDeliveryStatus, 5000); // Poll every 5 seconds
+
+    startPulseAnimation();
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (deliveryStatus?.order?.status === 'delivered') {
+      setTimeout(() => {
+        (navigation as any).replace('DeliveryComplete', { orderId });
+      }, 2000);
+    }
+  }, [deliveryStatus]);
+
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const fetchDeliveryStatus = async () => {
+    try {
+      const response = await packageDeliveryAPI.getDeliveryStatus(orderId);
+      
+      if (response.success) {
+        setDeliveryStatus(response.data);
+        setCourierLocation(response.data.courierLocation);
+        setEta(response.data.eta || null);
+
+        // Update map to show courier location
+        if (response.data.courierLocation && mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: response.data.courierLocation.latitude,
+            longitude: response.data.courierLocation.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Fetch delivery status error:', error);
+    }
+  };
+
+  const handleCallCourier = () => {
+    if (courier?.phoneNumber) {
+      Linking.openURL(`tel:${courier.phoneNumber}`);
+    }
+  };
+
+  const handleCancelDelivery = () => {
+    Alert.alert(
+      'Cancel Delivery',
+      'Are you sure you want to cancel this delivery?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await packageDeliveryAPI.cancelDelivery(orderId);
+              (navigation as any).navigate('HomeTabs');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to cancel delivery');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getStatusInfo = () => {
+    const status = deliveryStatus?.order?.status;
+    switch (status) {
+      case 'accepted':
+        return {
+          title: 'Courier on the way to pickup',
+          icon: 'bicycle',
+          color: '#3498db',
+        };
+      case 'picked_up':
+        return {
+          title: 'Package picked up',
+          icon: 'checkmark-circle',
+          color: '#f39c12',
+        };
+      case 'delivered':
+        return {
+          title: 'Package delivered',
+          icon: 'checkmark-done-circle',
+          color: '#2ecc71',
+        };
+      default:
+        return {
+          title: 'Tracking delivery',
+          icon: 'location',
+          color: '#ff6b35',
+        };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+
+  if (!deliveryStatus) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Map */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={{
+          latitude: courierLocation?.latitude || 9.0820,
+          longitude: courierLocation?.longitude || 8.6753,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }}
+        showsUserLocation
+      >
+        {/* Courier Location Marker */}
+        {courierLocation && (
+          <Marker
+            coordinate={{
+              latitude: courierLocation.latitude,
+              longitude: courierLocation.longitude,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <Animated.View style={[styles.courierMarker, { transform: [{ scale: pulseAnim }] }]}>
+              <Ionicons name="bicycle" size={24} color="#fff" />
+            </Animated.View>
+          </Marker>
+        )}
+
+        {/* Pickup Location Marker */}
+        {deliveryStatus.order.pickupLocation && (
+          <Marker
+            coordinate={{
+              latitude: deliveryStatus.order.pickupLocation.lat,
+              longitude: deliveryStatus.order.pickupLocation.lng,
+            }}
+          >
+            <View style={styles.locationMarker}>
+              <Ionicons name="location" size={28} color="#3498db" />
+            </View>
+          </Marker>
+        )}
+
+        {/* Dropoff Location Marker */}
+        {deliveryStatus.order.dropoffLocation && (
+          <Marker
+            coordinate={{
+              latitude: deliveryStatus.order.dropoffLocation.lat,
+              longitude: deliveryStatus.order.dropoffLocation.lng,
+            }}
+          >
+            <View style={styles.locationMarker}>
+              <Ionicons name="flag" size={28} color="#e74c3c" />
+            </View>
+          </Marker>
+        )}
+
+        {/* Route Line */}
+        {courierLocation && deliveryStatus.order.dropoffLocation && (
+          <Polyline
+            coordinates={[
+              {
+                latitude: courierLocation.latitude,
+                longitude: courierLocation.longitude,
+              },
+              {
+                latitude: deliveryStatus.order.dropoffLocation.lat,
+                longitude: deliveryStatus.order.dropoffLocation.lng,
+              },
+            ]}
+            strokeColor="#ff6b35"
+            strokeWidth={3}
+            lineDashPattern={[10, 5]}
+          />
+        )}
+      </MapView>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (navigation as any).navigate('HomeTabs')}
+        >
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Status Card */}
+      <View style={styles.statusCard}>
+        <View style={[styles.statusIcon, { backgroundColor: `${statusInfo.color}15` }]}>
+          <Ionicons name={statusInfo.icon as any} size={32} color={statusInfo.color} />
+        </View>
+        <View style={styles.statusContent}>
+          <Text style={styles.statusTitle}>{statusInfo.title}</Text>
+          {eta && (
+            <Text style={styles.statusSubtitle}>ETA: {eta} minutes</Text>
+          )}
+        </View>
+      </View>
+
+      {/* Bottom Sheet */}
+      <View style={styles.bottomSheet}>
+        <View style={styles.handle} />
+
+        {/* Courier Info */}
+        <View style={styles.courierInfo}>
+          <View style={styles.courierAvatar}>
+            {courier?.avatarUrl ? (
+              <Image source={{ uri: courier.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={32} color="#666" />
+            )}
+          </View>
+          <View style={styles.courierDetails}>
+            <Text style={styles.courierName}>
+              {courier?.firstName} {courier?.lastName}
+            </Text>
+            <Text style={styles.courierRole}>Your Courier</Text>
+          </View>
+          <TouchableOpacity style={styles.callButton} onPress={handleCallCourier}>
+            <Ionicons name="call" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Delivery Timeline */}
+        <View style={styles.timeline}>
+          <View style={styles.timelineItem}>
+            <View style={[styles.timelineDot, deliveryStatus.order.acceptedAt && styles.timelineDotActive]} />
+            <View style={styles.timelineContent}>
+              <Text style={styles.timelineTitle}>Courier Assigned</Text>
+              {deliveryStatus.order.acceptedAt && (
+                <Text style={styles.timelineTime}>
+                  {new Date(deliveryStatus.order.acceptedAt).toLocaleTimeString()}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.timelineLine} />
+
+          <View style={styles.timelineItem}>
+            <View style={[styles.timelineDot, deliveryStatus.order.pickedUpAt && styles.timelineDotActive]} />
+            <View style={styles.timelineContent}>
+              <Text style={styles.timelineTitle}>Package Picked Up</Text>
+              {deliveryStatus.order.pickedUpAt && (
+                <Text style={styles.timelineTime}>
+                  {new Date(deliveryStatus.order.pickedUpAt).toLocaleTimeString()}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.timelineLine} />
+
+          <View style={styles.timelineItem}>
+            <View style={[styles.timelineDot, deliveryStatus.order.deliveredAt && styles.timelineDotActive]} />
+            <View style={styles.timelineContent}>
+              <Text style={styles.timelineTitle}>Package Delivered</Text>
+              {deliveryStatus.order.deliveredAt && (
+                <Text style={styles.timelineTime}>
+                  {new Date(deliveryStatus.order.deliveredAt).toLocaleTimeString()}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        {deliveryStatus.order.status !== 'delivered' && (
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
+            <Text style={styles.cancelButtonText}>Cancel Delivery</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  header: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    zIndex: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  statusCard: {
+    position: 'absolute',
+    top: 120,
+    left: 20,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
+  },
+  statusIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  statusContent: {
+    flex: 1,
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 4,
+  },
+  statusSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  courierMarker: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#ff6b35',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  locationMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  courierInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  courierAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  avatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  courierDetails: {
+    flex: 1,
+  },
+  courierName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 4,
+  },
+  courierRole: {
+    fontSize: 14,
+    color: '#666',
+  },
+  callButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2ecc71',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeline: {
+    marginBottom: 24,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  timelineDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#e0e0e0',
+    marginRight: 16,
+    marginTop: 4,
+  },
+  timelineDotActive: {
+    backgroundColor: '#2ecc71',
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  timelineTime: {
+    fontSize: 13,
+    color: '#666',
+  },
+  timelineLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#e0e0e0',
+    marginLeft: 7,
+    marginVertical: 4,
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e74c3c',
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#e74c3c',
+  },
+});
+
+export default TrackDeliveryScreen;

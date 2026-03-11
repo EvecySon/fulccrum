@@ -305,6 +305,24 @@ export default function HomeScreen({ navigation }: any) {
           contentContainerStyle={styles.categoriesList}
         />
 
+        {/* Send Package Feature Card */}
+        <TouchableOpacity 
+          style={styles.sendPackageCard}
+          onPress={() => navigation.navigate('SendPackageHome')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.sendPackageContent}>
+            <View style={styles.sendPackageIcon}>
+              <Ionicons name="cube" size={32} color="#fff" />
+            </View>
+            <View style={styles.sendPackageText}>
+              <Text style={styles.sendPackageTitle}>Send a Package</Text>
+              <Text style={styles.sendPackageSubtitle}>Fast, reliable courier service • Track in real-time</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={24} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
         {/* Mood Cards */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
@@ -795,5 +813,44 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     textAlign: 'center',
     marginTop: 2,
+  },
+  sendPackageCard: {
+    backgroundColor: '#ff6b35',
+    marginHorizontal: 16,
+    marginVertical: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  sendPackageContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sendPackageIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  sendPackageText: {
+    flex: 1,
+  },
+  sendPackageTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  sendPackageSubtitle: {
+    fontSize: 13,
+    color: '#fff',
+    opacity: 0.9,
   },
 });

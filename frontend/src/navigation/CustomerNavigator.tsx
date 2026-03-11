@@ -35,6 +35,13 @@ import CategoryBrowseScreen from '../screens/customer/CategoryBrowseScreen';
 import DealsScreen from '../screens/customer/DealsScreen';
 import OnboardingScreen from '../screens/customer/OnboardingScreen';
 import WalletTopUpScreen from '../screens/customer/WalletTopUpScreen';
+import SendPackageHomeScreen from '../screens/customer/SendPackageHomeScreen';
+import LocationPickerScreen from '../screens/customer/LocationPickerScreen';
+import PackageDetailsScreen from '../screens/customer/PackageDetailsScreen';
+import PriceEstimateScreen from '../screens/customer/PriceEstimateScreen';
+import FindingCourierScreen from '../screens/customer/FindingCourierScreen';
+import TrackDeliveryScreen from '../screens/customer/TrackDeliveryScreen';
+import DeliveryCompleteScreen from '../screens/customer/DeliveryCompleteScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -126,6 +133,13 @@ export default function CustomerNavigator() {
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />
       <Stack.Screen name="WalletTopUp" component={WalletTopUpScreen} />
+      <Stack.Screen name="SendPackageHome" component={SendPackageHomeScreen} />
+      <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
+      <Stack.Screen name="PackageDetails" component={PackageDetailsScreen} />
+      <Stack.Screen name="PriceEstimate" component={PriceEstimateScreen} />
+      <Stack.Screen name="FindingCourier" component={FindingCourierScreen} />
+      <Stack.Screen name="TrackDelivery" component={TrackDeliveryScreen} />
+      <Stack.Screen name="DeliveryComplete" component={DeliveryCompleteScreen} />
     </Stack.Navigator>
   );
 }
