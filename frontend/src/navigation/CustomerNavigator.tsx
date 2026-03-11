@@ -49,6 +49,13 @@ import ServiceProviderScreen from '../screens/customer/ServiceProviderScreen';
 import BookingScreen from '../screens/customer/BookingScreen';
 import BookingConfirmationScreen from '../screens/customer/BookingConfirmationScreen';
 import AppointmentTrackingScreen from '../screens/customer/AppointmentTrackingScreen';
+import GadgetsHomeScreen from '../screens/customer/GadgetsHomeScreen';
+import ProductListScreen from '../screens/customer/ProductListScreen';
+import ProductDetailsScreen from '../screens/customer/ProductDetailsScreen';
+import GadgetsCartScreen from '../screens/customer/GadgetsCartScreen';
+import GadgetsCheckoutScreen from '../screens/customer/GadgetsCheckoutScreen';
+import GadgetsOrderTrackingScreen from '../screens/customer/GadgetsOrderTrackingScreen';
+import SellerDashboardScreen from '../screens/customer/SellerDashboardScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -154,6 +161,13 @@ export default function CustomerNavigator() {
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
       <Stack.Screen name="AppointmentTracking" component={AppointmentTrackingScreen} />
+      <Stack.Screen name="GadgetsHome" component={GadgetsHomeScreen} />
+      <Stack.Screen name="ProductList" component={ProductListScreen} />
+      <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+      <Stack.Screen name="Cart" component={GadgetsCartScreen} />
+      <Stack.Screen name="GadgetsCheckout" component={GadgetsCheckoutScreen} />
+      <Stack.Screen name="GadgetsOrderTracking" component={GadgetsOrderTrackingScreen} />
+      <Stack.Screen name="SellerDashboard" component={SellerDashboardScreen} />
     </Stack.Navigator>
   );
 }
