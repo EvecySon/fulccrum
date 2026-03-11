@@ -59,6 +59,8 @@ import { CacheModule } from './cache/cache.module';
 import { WebSocketModule } from './websocket/websocket.module';
 import { AgentModule } from './agent/agent.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { PackageDeliveryModule } from './package-delivery/package-delivery.module';
+import { ServicesModule } from './services/services.module';
 import { initializeFirebase } from './config/firebase.config';
 
 @Module({
@@ -134,6 +136,8 @@ import { initializeFirebase } from './config/firebase.config';
     WebSocketModule,
     AgentModule,
     TicketsModule,
+    PackageDeliveryModule,
+    ServicesModule,
   ],
   controllers: [AppController],
   providers: [

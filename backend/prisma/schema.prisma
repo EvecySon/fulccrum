@@ -152,6 +152,76 @@ enum WithdrawalStatus {
   expired
 }
 
+enum OrderType {
+  food_delivery
+  package_delivery
+  service_booking
+  product_delivery
+}
+
+enum PackageSize {
+  small // < 5kg, fits in backpack
+  medium // 5-15kg, small box
+  large // 15-30kg, large box
+}
+
+enum DeliverySpeed {
+  express // 30-60 minutes
+  same_day // 2-4 hours
+  scheduled // User picks specific time
+}
+
+enum RequestStatus {
+  pending // Waiting for courier
+  accepted // Courier accepted
+  expired // No courier accepted in time
+  cancelled // Customer cancelled
+}
+
+enum ServiceType {
+  home_service // Cleaning, plumbing, electrical, etc.
+  health_service // Doctor, nurse, physiotherapy, etc.
+  beauty_service // Hair, makeup, spa, etc.
+  repair_service // Appliance, gadget repair, etc.
+}
+
+enum ServiceCategory {
+  cleaning
+  plumbing
+  electrical
+  carpentry
+  painting
+  pest_control
+  doctor_consultation
+  nursing
+  physiotherapy
+  lab_test
+  hair_styling
+  makeup
+  spa
+  massage
+  appliance_repair
+  phone_repair
+  computer_repair
+  other
+}
+
+enum BookingStatus {
+  pending // Waiting for provider confirmation
+  confirmed // Provider confirmed
+  in_progress // Service is being performed
+  completed // Service completed
+  cancelled // Cancelled by customer or provider
+  no_show // Customer didn't show up
+}
+
+enum ProviderStatus {
+  pending_approval // Waiting for admin approval
+  active // Approved and active
+  suspended // Temporarily suspended
+  inactive // Deactivated
+}
+
 model User {
   id                  String     @id @default(uuid()) @db.Uuid
   email               String     @unique @db.VarChar(255)
@@ -186,6 +256,9 @@ model User {
   withdrawalRequests       WithdrawalRequest[]
   mediaFiles               MediaFile[]
   driverLocations          DriverLocation[]
+  courierLocations         CourierLocation[]         @relation("CourierLocations")
+  serviceProvider          ServiceProvider?
+  customerBookings         ServiceBooking[]          @relation("CustomerBookings")
   customerReviews          Review[]                  @relation("customer_reviews")
   driverReviews            Review[]                  @relation("driver_reviews")
   supportTickets           SupportTicket[]           @relation("user_tickets")
@@ -369,8 +442,9 @@ model Address {
 model Order {
   id          String      @id @default(uuid()) @db.Uuid
   orderNumber String      @unique @map("order_number") @db.VarChar(20)
+  orderType   OrderType   @default(food_delivery) @map("order_type")
   customerId  String      @map("customer_id") @db.Uuid
-  businessId  String      @map("business_id") @db.Uuid
+  businessId  String?     @map("business_id") @db.Uuid
   driverId    String?     @map("driver_id") @db.Uuid
   status      OrderStatus @default(pending)
 
@@ -399,6 +473,21 @@ model Order {
   paymentId           String?       @unique @map("payment_id") @db.VarChar(255)
   deliveryAddressId   String?       @map("delivery_address_id") @db.Uuid
 
+  // Package delivery fields
+  pickupLocation     Json?          @map("pickup_location")
+  dropoffLocation    Json?          @map("dropoff_location")
+  packageSize        PackageSize?   @map("package_size")
+  packageWeight      Float?         @map("package_weight")
+  packagePhoto       String?        @map("package_photo")
+  deliverySpeed      DeliverySpeed? @map("delivery_speed")
+  packageDescription String?        @map("package_description") @db.VarChar(500)
+
+  // Pricing breakdown for package delivery
+  basePrice      Decimal? @map("base_price") @db.Decimal(10, 2)
+  distancePrice  Decimal? @map("distance_price") @db.Decimal(10, 2)
+  sizeMultiplier Float?   @map("size_multiplier")
+  surgeFactor    Float?   @map("surge_factor")
+
   scheduledFor    DateTime? @map("scheduled_for")
   fulfillmentType String    @default("delivery") @map("fulfillment_type") @db.VarChar(20)
   deliveryOption  String?   @map("delivery_option") @db.VarChar(30)
@@ -408,7 +497,7 @@ model Order {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   customer        User             @relation("customer_orders", fields: [customerId], references: [id], onDelete: Cascade)
-  business        BusinessProfile  @relation(fields: [businessId], references: [userId], onDelete: Cascade)
+  business        BusinessProfile? @relation(fields: [businessId], references: [userId], onDelete: Cascade)
   driver          User?            @relation("driver_orders", fields: [driverId], references: [id], onDelete: SetNull)
   deliveryAddress Address?         @relation("order_delivery_address", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
   review          Review?
@@ -419,12 +508,14 @@ model Order {
   chargebacks     Chargeback[]
   incidents       Incident[]
   deliveryProofs  DeliveryProof[]
+  deliveryRequest DeliveryRequest?
 
   @@index([customerId])
   @@index([businessId])
   @@index([driverId])
   @@index([status])
   @@index([deliveryAddressId])
+  @@index([orderType, status])
   @@map("orders")
 }
 
@@ -562,6 +653,115 @@ model DriverLocation {
   @@map("driver_locations")
 }
 
+// Courier Location for real-time package delivery tracking
+model CourierLocation {
+  id        String   @id @default(uuid()) @db.Uuid
+  courierId String   @map("courier_id") @db.Uuid
+  latitude  Float
+  longitude Float
+  heading   Float?
+  speed     Float?
+  accuracy  Float?
+  timestamp DateTime @default(now())
+
+  courier User @relation("CourierLocations", fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, timestamp])
+  @@map("courier_locations")
+}
+
+// Delivery Request Queue for package delivery
+model DeliveryRequest {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderId           String        @unique @map("order_id") @db.Uuid
+  pickupLocation    Json          @map("pickup_location")
+  dropoffLocation   Json          @map("dropoff_location")
+  packageSize       PackageSize   @map("package_size")
+  estimatedPrice    Decimal       @map("estimated_price") @db.Decimal(10, 2)
+  estimatedDistance Float         @map("estimated_distance")
+  status            RequestStatus @default(pending)
+  requestedAt       DateTime      @default(now()) @map("requested_at")
+  expiresAt         DateTime      @map("expires_at")
+  sentToCouriers    String[]      @default([]) @map("sent_to_couriers")
+  rejectedBy        String[]      @default([]) @map("rejected_by")
+  acceptedBy        String?       @map("accepted_by") @db.Uuid
+  acceptedAt        DateTime?     @map("accepted_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([orderId])
+  @@map("delivery_requests")
+}
+
+// Services Models
+
+model ServiceProvider {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @unique @map("user_id") @db.Uuid
+  serviceType      ServiceType       @map("service_type")
+  categories       ServiceCategory[]
+  businessName     String            @map("business_name") @db.VarChar(255)
+  description      String?           @db.Text
+  experience       Int? // Years of experience
+  certifications   Json              @default("[]") // Array of certification objects
+  serviceArea      Json // Geofence/areas they serve
+  hourlyRate       Decimal?          @map("hourly_rate") @db.Decimal(10, 2)
+  fixedRates       Json?             @map("fixed_rates") // Service-specific pricing
+  availability     Json              @default("{}") // Weekly schedule
+  rating           Decimal           @default(0) @db.Decimal(3, 2)
+  totalReviews     Int               @default(0) @map("total_reviews")
+  completedJobs    Int               @default(0) @map("completed_jobs")
+  status           ProviderStatus    @default(pending_approval)
+  verificationDocs Json              @default("[]") @map("verification_docs")
+  isVerified       Boolean           @default(false) @map("is_verified")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings ServiceBooking[]
+
+  @@index([serviceType, status])
+  @@index([status])
+  @@map("service_providers")
+}
+
+model ServiceBooking {
+  id                 String          @id @default(uuid()) @db.Uuid
+  bookingNumber      String          @unique @map("booking_number") @db.VarChar(50)
+  customerId         String          @map("customer_id") @db.Uuid
+  providerId         String          @map("provider_id") @db.Uuid
+  serviceType        ServiceType     @map("service_type")
+  category           ServiceCategory
+  serviceDetails     Json            @map("service_details") // Description, requirements
+  scheduledDate      DateTime        @map("scheduled_date")
+  scheduledTime      String          @map("scheduled_time") @db.VarChar(20)
+  duration           Int? // Estimated duration in minutes
+  location           Json // Address and coordinates
+  status             BookingStatus   @default(pending)
+  price              Decimal         @db.Decimal(10, 2)
+  paymentStatus      PaymentStatus   @default(pending) @map("payment_status")
+  paymentMethod      String?         @map("payment_method") @db.VarChar(50)
+  specialNotes       String?         @map("special_notes") @db.Text
+  startedAt          DateTime?       @map("started_at")
+  completedAt        DateTime?       @map("completed_at")
+  cancelledAt        DateTime?       @map("cancelled_at")
+  cancellationReason String?         @map("cancellation_reason") @db.Text
+  rating             Int? // 1-5 stars
+  review             String?         @db.Text
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  customer User            @relation("CustomerBookings", fields: [customerId], references: [id])
+  provider ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("service_bookings")
+}
+
 // Menu Management Models
 
 // Menu Categories
@@ -603,11 +803,11 @@ model MenuItem {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  category     MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  inventory    Inventory?
-  modifiers    ItemModifierLink[]
-  orderItems   OrderItem[]
-  supplyChain  SupplyChainEntry[]
+  category    MenuCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  inventory   Inventory?
+  modifiers   ItemModifierLink[]
+  orderItems  OrderItem[]
+  supplyChain SupplyChainEntry[]
 
   @@index([businessId])
   @@index([categoryId])
@@ -2253,9 +2453,9 @@ model TicketMessage {
 // ─── Food Supply Chain Traceability ────────────────────────────────────────
 
 model SupplyChainEntry {
-  id         String   @id @default(uuid()) @db.Uuid
-  menuItemId String   @map("menu_item_id") @db.Uuid
-  businessId String   @map("business_id") @db.Uuid
+  id         String @id @default(uuid()) @db.Uuid
+  menuItemId String @map("menu_item_id") @db.Uuid
+  businessId String @map("business_id") @db.Uuid
 
   // Hash-chain fields (blockchain-inspired immutability)
   blockIndex   Int    @map("block_index")
@@ -2263,18 +2463,18 @@ model SupplyChainEntry {
   currentHash  String @map("current_hash") @db.VarChar(128)
 
   // Supply chain event data
-  stage       String @db.VarChar(50) // sourced, processed, stored, prepared, dispatched, delivered
-  location    String @db.VarChar(255)
-  handler     String @db.VarChar(255) // e.g. "Farm ABC", "Cold Storage Ltd", "Chef John"
-  description String @db.Text
+  stage       String  @db.VarChar(50) // sourced, processed, stored, prepared, dispatched, delivered
+  location    String  @db.VarChar(255)
+  handler     String  @db.VarChar(255) // e.g. "Farm ABC", "Cold Storage Ltd", "Chef John"
+  description String  @db.Text
   temperature String? @db.VarChar(20) // for cold-chain tracking
   batchNumber String? @map("batch_number") @db.VarChar(100)
 
   // Verification
-  verified    Boolean  @default(false)
-  verifiedBy  String?  @map("verified_by") @db.Uuid
+  verified    Boolean   @default(false)
+  verifiedBy  String?   @map("verified_by") @db.Uuid
   verifiedAt  DateTime? @map("verified_at")
-  certificate String?  @db.VarChar(255) // certificate/license reference
+  certificate String?   @db.VarChar(255) // certificate/license reference
 
   // Metadata
   metadata  Json     @default("{}")
@@ -2282,10 +2482,10 @@ model SupplyChainEntry {
 
   menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
+  @@unique([menuItemId, blockIndex])
   @@index([menuItemId])
   @@index([businessId])
   @@index([stage])
   @@index([timestamp])
-  @@unique([menuItemId, blockIndex])
   @@map("supply_chain_entries")
 }

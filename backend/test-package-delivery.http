@@ -1,0 +1,89 @@
+### Package Delivery API Tests
+### Base URL
+@baseUrl = http://localhost:3001
+@token = YOUR_JWT_TOKEN_HERE
+
+### 1. Calculate Delivery Price
+POST {{baseUrl}}/package-delivery/calculate-price
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "pickup": {
+    "lat": 6.5244,
+    "lng": 3.3792
+  },
+  "dropoff": {
+    "lat": 6.4281,
+    "lng": 3.4219
+  },
+  "size": "medium",
+  "speed": "express"
+}
+
+### 2. Calculate Price - Small Package, Same Day
+POST {{baseUrl}}/package-delivery/calculate-price
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "pickup": {
+    "lat": 6.5244,
+    "lng": 3.3792
+  },
+  "dropoff": {
+    "lat": 6.5300,
+    "lng": 3.3850
+  },
+  "size": "small",
+  "speed": "same_day"
+}
+
+### 3. Request Package Delivery
+POST {{baseUrl}}/package-delivery/request
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "pickupLocation": {
+    "lat": 6.5244,
+    "lng": 3.3792,
+    "address": "123 Victoria Island, Lagos",
+    "contactName": "John Doe",
+    "contactPhone": "+2348012345678"
+  },
+  "dropoffLocation": {
+    "lat": 6.4281,
+    "lng": 3.4219,
+    "address": "456 Lekki Phase 1, Lagos",
+    "contactName": "Jane Smith",
+    "contactPhone": "+2348087654321"
+  },
+  "packageSize": "medium",
+  "deliverySpeed": "express",
+  "packageDescription": "Important documents",
+  "packageWeight": 2.5,
+  "specialInstructions": "Handle with care, fragile contents"
+}
+
+### 4. Get Delivery Status (replace {orderId} with actual order ID)
+GET {{baseUrl}}/package-delivery/{orderId}/status
+Authorization: Bearer {{token}}
+
+### 5. Get Delivery History
+GET {{baseUrl}}/package-delivery/history?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 6. Cancel Delivery (replace {orderId} with actual order ID)
+POST {{baseUrl}}/package-delivery/{orderId}/cancel
+Authorization: Bearer {{token}}
+
+### 7. Rate Delivery (replace {orderId} with actual order ID)
+POST {{baseUrl}}/package-delivery/{orderId}/rate
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "rating": 5,
+  "feedback": "Excellent service, very fast delivery!"
+}
