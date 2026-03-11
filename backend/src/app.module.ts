@@ -61,6 +61,7 @@ import { AgentModule } from './agent/agent.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { PackageDeliveryModule } from './package-delivery/package-delivery.module';
 import { ServicesModule } from './services/services.module';
+import { GadgetsModule } from './gadgets/gadgets.module';
 import { initializeFirebase } from './config/firebase.config';
 
 @Module({
@@ -138,6 +139,7 @@ import { initializeFirebase } from './config/firebase.config';
     TicketsModule,
     PackageDeliveryModule,
     ServicesModule,
+    GadgetsModule,
   ],
   controllers: [AppController],
   providers: [

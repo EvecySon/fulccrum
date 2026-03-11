@@ -222,6 +222,21 @@ enum ProviderStatus {
   inactive // Deactivated
 }
 
+enum ProductCondition {
+  new
+  refurbished
+  used_like_new
+  used_good
+  used_fair
+}
+
+enum ProductStatus {
+  draft
+  active
+  out_of_stock
+  discontinued
+}
+
 model User {
   id                  String     @id @default(uuid()) @db.Uuid
   email               String     @unique @db.VarChar(255)
@@ -259,6 +274,7 @@ model User {
   courierLocations         CourierLocation[]         @relation("CourierLocations")
   serviceProvider          ServiceProvider?
   customerBookings         ServiceBooking[]          @relation("CustomerBookings")
+  productReviews           ProductReview[]           @relation("CustomerProductReviews")
   customerReviews          Review[]                  @relation("customer_reviews")
   driverReviews            Review[]                  @relation("driver_reviews")
   supportTickets           SupportTicket[]           @relation("user_tickets")
@@ -411,6 +427,7 @@ model BusinessProfile {
   merchantCommissions MerchantCommission[]
   merchantCompliance  MerchantCompliance?
   activityLogs        MerchantActivityLog[]
+  products            Product[]
 
   @@map("business_profiles")
 }
@@ -760,6 +777,166 @@ model ServiceBooking {
   @@index([status])
   @@index([scheduledDate])
   @@map("service_bookings")
+}
+
+// E-commerce/Gadgets Models
+
+model ProductCategory {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  icon        String?   @db.VarChar(100)
+  parentId    String?   @map("parent_id") @db.Uuid
+  isActive    Boolean   @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  parent   ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryHierarchy")
+  products Product[]
+
+  @@index([slug])
+  @@index([parentId])
+  @@map("product_categories")
+}
+
+model Product {
+  id              String           @id @default(uuid()) @db.Uuid
+  sellerId        String           @map("seller_id") @db.Uuid
+  categoryId      String           @map("category_id") @db.Uuid
+  name            String           @db.VarChar(255)
+  slug            String           @unique @db.VarChar(255)
+  description     String           @db.Text
+  shortDescription String?         @map("short_description") @db.VarChar(500)
+  brand           String?          @db.VarChar(100)
+  model           String?          @db.VarChar(100)
+  sku             String?          @unique @db.VarChar(100)
+  barcode         String?          @db.VarChar(100)
+  condition       ProductCondition @default(new)
+  status          ProductStatus    @default(draft)
+  
+  // Pricing
+  basePrice       Decimal          @map("base_price") @db.Decimal(10, 2)
+  salePrice       Decimal?         @map("sale_price") @db.Decimal(10, 2)
+  costPrice       Decimal?         @map("cost_price") @db.Decimal(10, 2)
+  
+  // Inventory
+  stockQuantity   Int              @default(0) @map("stock_quantity")
+  lowStockThreshold Int            @default(5) @map("low_stock_threshold")
+  
+  // Media
+  images          Json             @default("[]")
+  videos          Json?            @default("[]")
+  
+  // Specifications
+  specifications  Json?            // Technical specs
+  features        String[]         @default([])
+  
+  // Shipping
+  weight          Float?           // in kg
+  dimensions      Json?            // length, width, height in cm
+  shippingClass   String?          @map("shipping_class") @db.VarChar(50)
+  
+  // SEO
+  metaTitle       String?          @map("meta_title") @db.VarChar(255)
+  metaDescription String?          @map("meta_description") @db.VarChar(500)
+  metaKeywords    String[]         @default([]) @map("meta_keywords")
+  
+  // Stats
+  viewCount       Int              @default(0) @map("view_count")
+  salesCount      Int              @default(0) @map("sales_count")
+  rating          Decimal          @default(0) @db.Decimal(3, 2)
+  reviewCount     Int              @default(0) @map("review_count")
+  
+  // Flags
+  isFeatured      Boolean          @default(false) @map("is_featured")
+  isNewArrival    Boolean          @default(false) @map("is_new_arrival")
+  isBestSeller    Boolean          @default(false) @map("is_best_seller")
+  
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  publishedAt     DateTime?        @map("published_at")
+
+  seller          BusinessProfile  @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  category        ProductCategory  @relation(fields: [categoryId], references: [id])
+  variants        ProductVariant[]
+  reviews         ProductReview[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([slug])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@map("products")
+}
+
+model ProductVariant {
+  id              String   @id @default(uuid()) @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  sku             String?  @unique @db.VarChar(100)
+  
+  // Variant attributes (e.g., color, size, storage)
+  attributes      Json     // { "color": "Black", "storage": "128GB" }
+  
+  // Pricing
+  priceAdjustment Decimal  @default(0) @map("price_adjustment") @db.Decimal(10, 2)
+  
+  // Inventory
+  stockQuantity   Int      @default(0) @map("stock_quantity")
+  
+  // Media
+  images          Json?    @default("[]")
+  
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model ProductReview {
+  id              String   @id @default(uuid()) @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  customerId      String   @map("customer_id") @db.Uuid
+  orderId         String?  @map("order_id") @db.Uuid
+  
+  rating          Int      @db.SmallInt // 1-5
+  title           String?  @db.VarChar(255)
+  comment         String   @db.Text
+  images          Json     @default("[]")
+  
+  // Helpful votes
+  helpfulCount    Int      @default(0) @map("helpful_count")
+  
+  // Verification
+  isVerifiedPurchase Boolean @default(false) @map("is_verified_purchase")
+  
+  // Moderation
+  isApproved      Boolean  @default(false) @map("is_approved")
+  isHidden        Boolean  @default(false) @map("is_hidden")
+  
+  // Seller response
+  sellerResponse  String?  @map("seller_response") @db.Text
+  respondedAt     DateTime? @map("responded_at")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer        User     @relation("CustomerProductReviews", fields: [customerId], references: [id])
+
+  @@index([productId])
+  @@index([customerId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("product_reviews")
 }
 
 // Menu Management Models
