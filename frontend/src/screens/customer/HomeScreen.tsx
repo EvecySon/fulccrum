@@ -323,6 +323,24 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
+        {/* Services Feature Card */}
+        <TouchableOpacity 
+          style={styles.servicesCard}
+          onPress={() => navigation.navigate('ServicesHome')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.servicesContent}>
+            <View style={styles.servicesIcon}>
+              <Ionicons name="construct" size={32} color="#fff" />
+            </View>
+            <View style={styles.servicesText}>
+              <Text style={styles.servicesTitle}>Book Services</Text>
+              <Text style={styles.servicesSubtitle}>Home services & healthcare appointments</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={24} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
         {/* Mood Cards */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
@@ -849,6 +867,45 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sendPackageSubtitle: {
+    fontSize: 13,
+    color: '#fff',
+    opacity: 0.9,
+  },
+  servicesCard: {
+    backgroundColor: '#3498db',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  servicesContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servicesIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  servicesText: {
+    flex: 1,
+  },
+  servicesTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  servicesSubtitle: {
     fontSize: 13,
     color: '#fff',
     opacity: 0.9,

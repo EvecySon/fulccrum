@@ -42,6 +42,13 @@ import PriceEstimateScreen from '../screens/customer/PriceEstimateScreen';
 import FindingCourierScreen from '../screens/customer/FindingCourierScreen';
 import TrackDeliveryScreen from '../screens/customer/TrackDeliveryScreen';
 import DeliveryCompleteScreen from '../screens/customer/DeliveryCompleteScreen';
+import ServicesHomeScreen from '../screens/customer/ServicesHomeScreen';
+import HomeServicesScreen from '../screens/customer/HomeServicesScreen';
+import HealthServicesScreen from '../screens/customer/HealthServicesScreen';
+import ServiceProviderScreen from '../screens/customer/ServiceProviderScreen';
+import BookingScreen from '../screens/customer/BookingScreen';
+import BookingConfirmationScreen from '../screens/customer/BookingConfirmationScreen';
+import AppointmentTrackingScreen from '../screens/customer/AppointmentTrackingScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -140,6 +147,13 @@ export default function CustomerNavigator() {
       <Stack.Screen name="FindingCourier" component={FindingCourierScreen} />
       <Stack.Screen name="TrackDelivery" component={TrackDeliveryScreen} />
       <Stack.Screen name="DeliveryComplete" component={DeliveryCompleteScreen} />
+      <Stack.Screen name="ServicesHome" component={ServicesHomeScreen} />
+      <Stack.Screen name="HomeServices" component={HomeServicesScreen} />
+      <Stack.Screen name="HealthServices" component={HealthServicesScreen} />
+      <Stack.Screen name="ServiceProvider" component={ServiceProviderScreen} />
+      <Stack.Screen name="Booking" component={BookingScreen} />
+      <Stack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
+      <Stack.Screen name="AppointmentTracking" component={AppointmentTrackingScreen} />
     </Stack.Navigator>
   );
 }
