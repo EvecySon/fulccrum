@@ -37,6 +37,8 @@ import OnboardingScreen from '../screens/customer/OnboardingScreen';
 import WalletTopUpScreen from '../screens/customer/WalletTopUpScreen';
 import SendPackageHomeScreen from '../screens/customer/SendPackageHomeScreen';
 import LocationPickerScreen from '../screens/customer/LocationPickerScreen';
+import ServiceSelectionScreen from '../screens/customer/ServiceSelectionScreen';
+import BillsScreen from '../screens/customer/BillsScreen';
 import PackageDetailsScreen from '../screens/customer/PackageDetailsScreen';
 import PriceEstimateScreen from '../screens/customer/PriceEstimateScreen';
 import FindingCourierScreen from '../screens/customer/FindingCourierScreen';
@@ -119,6 +121,7 @@ function HomeTabs() {
 export default function CustomerNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
+      <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
       <Stack.Screen name="HomeTabs" component={HomeTabs} />
       <Stack.Screen name="Restaurant" component={RestaurantScreen} />
       <Stack.Screen name="MenuItem" component={MenuItemScreen} />
@@ -147,6 +150,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="OrderChat" component={OrderChatScreen} />
       <Stack.Screen name="Call" component={CallScreen} />
       <Stack.Screen name="WalletTopUp" component={WalletTopUpScreen} />
+      <Stack.Screen name="Bills" component={BillsScreen} />
       <Stack.Screen name="SendPackageHome" component={SendPackageHomeScreen} />
       <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
       <Stack.Screen name="PackageDetails" component={PackageDetailsScreen} />
@@ -164,7 +168,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="GadgetsHome" component={GadgetsHomeScreen} />
       <Stack.Screen name="ProductList" component={ProductListScreen} />
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
-      <Stack.Screen name="Cart" component={GadgetsCartScreen} />
+      <Stack.Screen name="GadgetsCart" component={GadgetsCartScreen} />
       <Stack.Screen name="GadgetsCheckout" component={GadgetsCheckoutScreen} />
       <Stack.Screen name="GadgetsOrderTracking" component={GadgetsOrderTrackingScreen} />
       <Stack.Screen name="SellerDashboard" component={SellerDashboardScreen} />

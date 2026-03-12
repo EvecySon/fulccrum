@@ -51,6 +51,6 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📱 Mobile access: http://192.168.18.3:${port}`);
+  console.log(`📱 Mobile access: http://192.168.18.7:${port}`);
 }
 bootstrap();

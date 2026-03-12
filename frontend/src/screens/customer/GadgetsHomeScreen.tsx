@@ -83,7 +83,7 @@ const GadgetsHomeScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Gadgets Marketplace</Text>
         <TouchableOpacity
           style={styles.cartButton}
-          onPress={() => (navigation as any).navigate('Cart')}
+          onPress={() => (navigation as any).navigate('GadgetsCart')}
         >
           <Ionicons name="cart-outline" size={24} color="#000" />
         </TouchableOpacity>

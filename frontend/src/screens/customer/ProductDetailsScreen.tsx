@@ -52,7 +52,7 @@ const ProductDetailsScreen: React.FC = () => {
       if (response.success) {
         Alert.alert('Added to Cart', 'Product added to your cart', [
           { text: 'Continue Shopping', style: 'cancel' },
-          { text: 'View Cart', onPress: () => (navigation as any).navigate('Cart') },
+          { text: 'View Cart', onPress: () => (navigation as any).navigate('GadgetsCart') },
         ]);
       }
     } catch (error: any) {
@@ -62,7 +62,7 @@ const ProductDetailsScreen: React.FC = () => {
 
   const handleBuyNow = async () => {
     await handleAddToCart();
-    (navigation as any).navigate('Cart');
+    (navigation as any).navigate('GadgetsCart');
   };
 
   if (isLoading) {
@@ -93,7 +93,7 @@ const ProductDetailsScreen: React.FC = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cartButton} onPress={() => (navigation as any).navigate('Cart')}>
+        <TouchableOpacity style={styles.cartButton} onPress={() => (navigation as any).navigate('GadgetsCart')}>
           <Ionicons name="cart-outline" size={24} color="#000" />
         </TouchableOpacity>
       </View>

@@ -8,7 +8,7 @@ import { getAccessToken } from './api';
 let socket: any = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-const SOCKET_URL = 'http://192.168.18.3:3001';
+const SOCKET_URL = 'http://192.168.18.7:3001';
 
 type EventHandler = (...args: any[]) => void;
 const eventHandlers: Map<string, Set<EventHandler>> = new Map();

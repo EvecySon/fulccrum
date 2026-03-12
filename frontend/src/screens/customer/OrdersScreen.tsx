@@ -22,7 +22,7 @@ export default function OrdersScreen({ navigation }: any) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const loadOrders = useCallback(async (pageNum = 1, append = false) => {
+  const loadOrders = async (pageNum = 1, append = false) => {
     if (loading) return;
     setLoading(true);
     try {
@@ -46,11 +46,11 @@ export default function OrdersScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  };
 
   useEffect(() => {
     loadOrders();
-  }, [loadOrders]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
