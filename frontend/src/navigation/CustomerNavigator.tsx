@@ -58,6 +58,7 @@ import GadgetsCartScreen from '../screens/customer/GadgetsCartScreen';
 import GadgetsCheckoutScreen from '../screens/customer/GadgetsCheckoutScreen';
 import GadgetsOrderTrackingScreen from '../screens/customer/GadgetsOrderTrackingScreen';
 import SellerDashboardScreen from '../screens/customer/SellerDashboardScreen';
+import FoodCategoriesScreen from '../screens/customer/FoodCategoriesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -172,6 +173,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="GadgetsCheckout" component={GadgetsCheckoutScreen} />
       <Stack.Screen name="GadgetsOrderTracking" component={GadgetsOrderTrackingScreen} />
       <Stack.Screen name="SellerDashboard" component={SellerDashboardScreen} />
+      <Stack.Screen name="FoodCategories" component={FoodCategoriesScreen} />
     </Stack.Navigator>
   );
 }
