@@ -8,11 +8,19 @@ import {
   Platform,
   ImageBackground,
   Animated,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
+
+const { width } = Dimensions.get('window');
+const SIDE_PADDING = 16;
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - SIDE_PADDING * 2 - CARD_GAP) / 2;
+const CARD_HEIGHT = CARD_WIDTH * 1.35;
 
 interface ServiceCard {
   id: string;
@@ -29,9 +37,9 @@ const SERVICES: ServiceCard[] = [
     route: 'HomeTabs',
   },
   {
-    id: 'bills',
-    title: 'Bills',
-    imageUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&h=500&fit=crop',
+    id: 'send-package',
+    title: 'Send Package',
+    imageUrl: 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=400&h=500&fit=crop',
     route: 'SendPackageHome',
   },
   {
@@ -84,47 +92,50 @@ const ServiceSelectionScreen: React.FC = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => (navigation as any).navigate('Profile')}>
           <Ionicons name="menu" size={24} color="#F97316" />
         </TouchableOpacity>
-        <Text style={styles.greeting}>Hi {user?.firstName || 'Guest'}</Text>
-        <TouchableOpacity style={styles.headphoneButton}>
+        <Text style={styles.greeting}>Hi {user?.firstName || 'Ada'}</Text>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => (navigation as any).navigate('Support')}>
           <Ionicons name="headset-outline" size={24} color="#000" />
         </TouchableOpacity>
       </View>
 
       {/* Service Cards Grid */}
-      <View style={styles.gridContainer}>
-        {SERVICES.map((service, index) => (
-          <Animated.View
-            key={service.id}
-            style={[
-              styles.cardWrapper,
-              { transform: [{ scale: scaleAnims[index] }] },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => handleServicePress(service.route)}
-              onPressIn={() => handlePressIn(index)}
-              onPressOut={() => handlePressOut(index)}
-              activeOpacity={1}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.gridContainer}>
+          {SERVICES.map((service, index) => (
+            <Animated.View
+              key={service.id}
+              style={{ transform: [{ scale: scaleAnims[index] }] }}
             >
-              <ImageBackground
-                source={{ uri: service.imageUrl }}
-                style={styles.serviceCard}
-                imageStyle={styles.cardImage}
+              <TouchableOpacity
+                onPress={() => handleServicePress(service.route)}
+                onPressIn={() => handlePressIn(index)}
+                onPressOut={() => handlePressOut(index)}
+                activeOpacity={1}
               >
-                <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.7)']}
-                  style={styles.cardGradient}
+                <ImageBackground
+                  source={{ uri: service.imageUrl }}
+                  style={styles.card}
+                  imageStyle={styles.cardImage}
                 >
-                  <Text style={styles.serviceTitle}>{service.title}</Text>
-                </LinearGradient>
-              </ImageBackground>
-            </TouchableOpacity>
-          </Animated.View>
-        ))}
-      </View>
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.72)']}
+                    style={styles.cardGradient}
+                  >
+                    <Text style={styles.cardTitle}>{service.title}</Text>
+                  </LinearGradient>
+                </ImageBackground>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* Brand Name */}
       <View style={styles.brandContainer}>
@@ -142,11 +153,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 58 : 36,
+    paddingBottom: 16,
   },
-  menuButton: {
+  iconBtn: {
     width: 40,
     height: 40,
     justifyContent: 'center',
@@ -157,57 +168,55 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
-  headphoneButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
   },
   gridContainer: {
-    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    justifyContent: 'space-between',
+    paddingHorizontal: SIDE_PADDING,
+    rowGap: CARD_GAP,
+    columnGap: CARD_GAP,
   },
-  cardWrapper: {
-    width: '48.5%',
-    aspectRatio: 0.8,
-    marginBottom: 12,
-  },
-  serviceCard: {
-    width: '100%',
-    height: '100%',
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     justifyContent: 'flex-end',
-    overflow: 'hidden',
   },
   cardImage: {
-    borderRadius: 20,
+    borderRadius: 18,
   },
   cardGradient: {
-    padding: 16,
-    paddingBottom: 20,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 18,
+    paddingTop: 40,
   },
-  serviceTitle: {
-    fontSize: 32,
+  cardTitle: {
+    fontSize: 26,
     fontWeight: '700',
     color: '#fff',
     fontStyle: 'italic',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   brandContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 44 : 24,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   brandName: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#3B82F6',
-    letterSpacing: 3,
+    letterSpacing: 4,
   },
 });
 
