@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
+import DrawerMenu from '../../components/DrawerMenu';
 
 const { width } = Dimensions.get('window');
 const SIDE_PADDING = 16;
@@ -60,6 +61,7 @@ const ServiceSelectionScreen: React.FC = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const scaleAnims = useRef(SERVICES.map(() => new Animated.Value(1))).current;
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const handleServicePress = (route: string) => {
     (navigation as any).navigate(route);
@@ -92,11 +94,11 @@ const ServiceSelectionScreen: React.FC = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => (navigation as any).navigate('Profile')}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setDrawerVisible(true)}>
           <Ionicons name="menu" size={24} color="#F97316" />
         </TouchableOpacity>
         <Text style={styles.greeting}>Hi {user?.firstName || 'Ada'}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => (navigation as any).navigate('Support')}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => (navigation as any).navigate('Feedback')}>
           <Ionicons name="headset-outline" size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -141,6 +143,13 @@ const ServiceSelectionScreen: React.FC = () => {
       <View style={styles.brandContainer}>
         <Text style={styles.brandName}>FULCCRUM</Text>
       </View>
+
+      {/* Drawer Menu */}
+      <DrawerMenu
+        visible={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        onNavigate={(screen) => (navigation as any).navigate(screen)}
+      />
     </LinearGradient>
   );
 };
