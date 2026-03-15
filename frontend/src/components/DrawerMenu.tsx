@@ -64,6 +64,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
   const menuItems = [
     { icon: 'home', label: 'Home', screen: 'ServiceSelection', color: '#fff' },
     { icon: 'person', label: 'Account', screen: 'EditProfile', color: '#fff' },
+    { icon: 'bicycle', label: 'Active Orders', screen: 'ActiveOrders', color: '#fff' },
+    { icon: 'time', label: 'Order History', screen: 'PackageHistory', color: '#fff' },
     { icon: 'wallet', label: 'Wallet', screen: 'WalletDetails', color: '#fff' },
     { icon: 'people', label: 'Referrals', screen: 'Referrals', color: '#fff' },
     { icon: 'chatbubbles', label: 'Contact Us', screen: 'Feedback', color: '#fff' },

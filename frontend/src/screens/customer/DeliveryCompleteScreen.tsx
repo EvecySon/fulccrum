@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 
@@ -20,6 +22,26 @@ const DeliveryCompleteScreen: React.FC = () => {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Celebration animation on mount
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleRatingSubmit = async () => {
     if (rating === 0) {
@@ -58,13 +80,25 @@ const DeliveryCompleteScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Success Icon */}
         <View style={styles.successSection}>
-          <View style={styles.successIconContainer}>
-            <Ionicons name="checkmark-circle" size={100} color="#2ecc71" />
-          </View>
-          <Text style={styles.successTitle}>Delivery Complete!</Text>
-          <Text style={styles.successSubtitle}>
-            Your package has been successfully delivered
-          </Text>
+          <Animated.View 
+            style={[
+              styles.successIconContainer,
+              { transform: [{ scale: scaleAnim }], opacity: fadeAnim }
+            ]}
+          >
+            <LinearGradient
+              colors={['#2ecc71', '#27ae60']}
+              style={styles.iconGradient}
+            >
+              <Ionicons name="checkmark-circle" size={80} color="#fff" />
+            </LinearGradient>
+          </Animated.View>
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <Text style={styles.successTitle}>🎉 Delivery Complete!</Text>
+            <Text style={styles.successSubtitle}>
+              Your package has been successfully delivered
+            </Text>
+          </Animated.View>
         </View>
 
         {/* Rating Section */}
@@ -214,6 +248,18 @@ const styles = StyleSheet.create({
   successIconContainer: {
     marginBottom: 24,
   },
+  iconGradient: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2ecc71',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   successTitle: {
     fontSize: 32,
     fontWeight: '800',
@@ -284,13 +330,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   ctaCard: {
-    backgroundColor: '#fff5f2',
+    backgroundColor: '#f0fdfa',
     marginHorizontal: 20,
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ff6b35',
+    borderColor: '#14b8a6',
   },
   ctaTitle: {
     fontSize: 18,
@@ -308,12 +354,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ff6b35',
+    borderColor: '#14b8a6',
   },
   ctaButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#ff6b35',
+    color: '#14b8a6',
     marginRight: 8,
   },
   bottomPadding: {
@@ -351,7 +397,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -365,7 +411,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   doneButton: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

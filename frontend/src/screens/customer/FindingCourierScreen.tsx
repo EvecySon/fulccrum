@@ -6,10 +6,15 @@ import {
   Animated,
   TouchableOpacity,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { mockFindCourier } from '../../services/mockPackageDelivery';
+
+const { width } = Dimensions.get('window');
 
 const FindingCourierScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -23,6 +28,20 @@ const FindingCourierScreen: React.FC = () => {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    console.log('FindingCourierScreen mounted with params:', {
+      orderId,
+      requestId,
+      estimatedPrice,
+      expiresAt,
+    });
+
+    if (!orderId) {
+      console.error('No orderId provided to FindingCourierScreen!');
+      Alert.alert('Error', 'Missing order information. Please try again.');
+      navigation.goBack();
+      return;
+    }
+
     startAnimations();
     startPolling();
     startCountdown();
@@ -59,34 +78,34 @@ const FindingCourierScreen: React.FC = () => {
     ).start();
   };
 
-  const startPolling = () => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await packageDeliveryAPI.getDeliveryStatus(orderId);
+  const startPolling = async () => {
+    try {
+      console.log('Starting courier search for orderId:', orderId);
+      
+      // Use mock service to find courier
+      const response = await mockFindCourier(orderId);
+      
+      console.log('Courier search response:', response);
+      
+      if (response.success) {
+        setCourierFound(true);
         
-        if (response.success && response.data.order.status === 'accepted') {
-          setCourierFound(true);
-          clearInterval(pollInterval);
+        setTimeout(() => {
+          console.log('Navigating to TrackDelivery with:', {
+            orderId,
+            courier: response.courier,
+          });
           
-          setTimeout(() => {
-            (navigation as any).replace('TrackDelivery', {
-              orderId,
-              courier: response.data.order.courier,
-            });
-          }, 2000);
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
+          (navigation as any).replace('TrackDelivery', {
+            orderId,
+            courier: response.courier,
+          });
+        }, 2000);
       }
-    }, 3000); // Poll every 3 seconds
-
-    // Cleanup after 5 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      if (!courierFound) {
-        handleTimeout();
-      }
-    }, 300000); // 5 minutes
+    } catch (error) {
+      console.error('Finding courier error:', error);
+      handleTimeout();
+    }
   };
 
   const startCountdown = () => {
@@ -150,39 +169,63 @@ const FindingCourierScreen: React.FC = () => {
 
   if (courierFound) {
     return (
-      <View style={styles.container}>
+      <LinearGradient
+        colors={['#2ecc71', '#27ae60']}
+        style={styles.container}
+      >
         <View style={styles.content}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={80} color="#2ecc71" />
-          </View>
-          <Text style={styles.successTitle}>Courier Found!</Text>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={100} color="#fff" />
+            </View>
+          </Animated.View>
+          <Text style={styles.successTitle}>Courier Found! 🎉</Text>
           <Text style={styles.successSubtitle}>
             Connecting you to your courier...
           </Text>
+          <View style={styles.loadingDots}>
+            <View style={[styles.loadingDot, { backgroundColor: '#fff' }]} />
+            <View style={[styles.loadingDot, { backgroundColor: '#fff' }]} />
+            <View style={[styles.loadingDot, { backgroundColor: '#fff' }]} />
+          </View>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Animated Background Circles */}
+      <Animated.View style={[styles.bgCircle, styles.bgCircle1, { transform: [{ scale: pulseAnim }] }]} />
+      <Animated.View style={[styles.bgCircle, styles.bgCircle2, { transform: [{ scale: pulseAnim }] }]} />
+      <Animated.View style={[styles.bgCircle, styles.bgCircle3, { transform: [{ rotate: spin }] }]} />
+
       <View style={styles.content}>
         {/* Animated Icon */}
         <Animated.View
           style={[
             styles.iconContainer,
             {
-              transform: [{ scale: pulseAnim }, { rotate: spin }],
+              transform: [{ scale: pulseAnim }],
             },
           ]}
         >
-          <Ionicons name="bicycle" size={64} color="#ff6b35" />
+          <LinearGradient
+            colors={['#14b8a6', '#0d9488']}
+            style={styles.iconGradient}
+          >
+            <Ionicons name="bicycle" size={72} color="#fff" />
+          </LinearGradient>
         </Animated.View>
 
+        {/* Animated Radar Rings */}
+        <Animated.View style={[styles.radarRing, styles.radarRing1, { transform: [{ scale: pulseAnim }] }]} />
+        <Animated.View style={[styles.radarRing, styles.radarRing2, { transform: [{ scale: pulseAnim }] }]} />
+
         {/* Title */}
-        <Text style={styles.title}>Finding Courier...</Text>
+        <Text style={styles.title}>Finding Your Courier</Text>
         <Text style={styles.subtitle}>
-          We're matching you with the nearest available courier
+          🔍 Searching for the best courier nearby
         </Text>
 
         {/* Timer */}
@@ -202,7 +245,7 @@ const FindingCourierScreen: React.FC = () => {
         {/* Info Cards */}
         <View style={styles.infoSection}>
           <View style={styles.infoCard}>
-            <Ionicons name="cash-outline" size={24} color="#ff6b35" />
+            <Ionicons name="cash-outline" size={24} color="#14b8a6" />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Estimated Cost</Text>
               <Text style={styles.infoValue}>₦{estimatedPrice?.toLocaleString()}</Text>
@@ -240,7 +283,33 @@ const FindingCourierScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 1000,
+    opacity: 0.05,
+  },
+  bgCircle1: {
+    width: width * 1.5,
+    height: width * 1.5,
+    backgroundColor: '#14b8a6',
+    top: -width * 0.5,
+    left: -width * 0.25,
+  },
+  bgCircle2: {
+    width: width * 1.2,
+    height: width * 1.2,
+    backgroundColor: '#3498db',
+    bottom: -width * 0.4,
+    right: -width * 0.3,
+  },
+  bgCircle3: {
+    width: width * 0.8,
+    height: width * 0.8,
+    backgroundColor: '#2ecc71',
+    top: '40%',
+    right: -width * 0.2,
   },
   content: {
     flex: 1,
@@ -249,15 +318,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#fff5f2',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    marginBottom: 40,
+    shadowColor: '#14b8a6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  iconGradient: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
   },
-  successIcon: {
+  radarRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#14b8a6',
+    borderRadius: 1000,
+    opacity: 0.2,
+  },
+  radarRing1: {
+    width: 200,
+    height: 200,
+    top: '50%',
+    left: '50%',
+    marginTop: -100,
+    marginLeft: -100,
+  },
+  radarRing2: {
+    width: 260,
+    height: 260,
+    top: '50%',
+    left: '50%',
+    marginTop: -130,
+    marginLeft: -130,
+  },
+  successIconContainer: {
     marginBottom: 32,
   },
   title: {
@@ -275,16 +376,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   successTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: '#2ecc71',
-    marginBottom: 12,
+    color: '#fff',
+    marginBottom: 16,
     textAlign: 'center',
   },
   successSubtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    color: '#fff',
     textAlign: 'center',
+    opacity: 0.9,
+    marginBottom: 24,
+  },
+  loadingDots: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  loadingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    opacity: 0.7,
   },
   timerContainer: {
     flexDirection: 'row',
@@ -314,7 +427,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   dotActive: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     width: 24,
   },
   infoSection: {

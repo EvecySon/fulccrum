@@ -41,6 +41,16 @@ export default function RegisterScreen({ navigation }: any) {
       return;
     }
     setError('');
+    
+    // If merchant/business owner, navigate to Provider Type Selection
+    if (selectedRole === 'business_owner') {
+      navigation.navigate('ProviderTypeSelection', {
+        firstName,
+        lastName,
+      });
+      return;
+    }
+    
     setStep(2);
   };
 

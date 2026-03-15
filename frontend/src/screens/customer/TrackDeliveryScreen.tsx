@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -23,9 +24,17 @@ const TrackDeliveryScreen: React.FC = () => {
   const [deliveryStatus, setDeliveryStatus] = useState<any>(null);
   const [courierLocation, setCourierLocation] = useState<any>(null);
   const [eta, setEta] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (!orderId) {
+      setError('No order ID provided');
+      setIsLoading(false);
+      return;
+    }
+
     fetchDeliveryStatus();
     const interval = setInterval(fetchDeliveryStatus, 5000); // Poll every 5 seconds
 
@@ -61,7 +70,10 @@ const TrackDeliveryScreen: React.FC = () => {
 
   const fetchDeliveryStatus = async () => {
     try {
-      const response = await packageDeliveryAPI.getDeliveryStatus(orderId);
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await mockGetDeliveryStatus(orderId);
       
       if (response.success) {
         setDeliveryStatus(response.data);
@@ -77,9 +89,14 @@ const TrackDeliveryScreen: React.FC = () => {
             longitudeDelta: 0.02,
           }, 1000);
         }
+      } else {
+        setError('Failed to load delivery status');
       }
     } catch (error) {
       console.error('Fetch delivery status error:', error);
+      setError('Failed to load delivery status. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -143,10 +160,48 @@ const TrackDeliveryScreen: React.FC = () => {
 
   const statusInfo = getStatusInfo();
 
-  if (!deliveryStatus) {
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={64} color="#e74c3c" />
+        <Text style={styles.errorTitle}>Internal server error</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton} 
+          onPress={fetchDeliveryStatus}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isLoading && !deliveryStatus) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Loading delivery status...</Text>
+      </View>
+    );
+  }
+
+  if (!deliveryStatus) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={64} color="#e74c3c" />
+        <Text style={styles.errorTitle}>No delivery data</Text>
+        <Text style={styles.errorText}>Unable to load delivery information</Text>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -343,6 +398,43 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#14b8a6',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#666',
   },
   map: {

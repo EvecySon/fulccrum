@@ -47,6 +47,8 @@ import WalletScreen from '../screens/customer/WalletScreen';
 import ReferralsScreen from '../screens/customer/ReferralsScreen';
 import SupportScreen from '../screens/customer/SupportScreen';
 import DeliveryCompleteScreen from '../screens/customer/DeliveryCompleteScreen';
+import PackageHistoryScreen from '../screens/customer/PackageHistoryScreen';
+import ActiveOrdersScreen from '../screens/customer/ActiveOrdersScreen';
 import ServicesHomeScreen from '../screens/customer/ServicesHomeScreen';
 import HomeServicesScreen from '../screens/customer/HomeServicesScreen';
 import HealthServicesScreen from '../screens/customer/HealthServicesScreen';
@@ -165,6 +167,8 @@ export default function CustomerNavigator() {
       <Stack.Screen name="FindingCourier" component={FindingCourierScreen} />
       <Stack.Screen name="TrackDelivery" component={TrackDeliveryScreen} />
       <Stack.Screen name="DeliveryComplete" component={DeliveryCompleteScreen} />
+      <Stack.Screen name="PackageHistory" component={PackageHistoryScreen} />
+      <Stack.Screen name="ActiveOrders" component={ActiveOrdersScreen} />
       <Stack.Screen name="ServicesHome" component={ServicesHomeScreen} />
       <Stack.Screen name="HomeServices" component={HomeServicesScreen} />
       <Stack.Screen name="HealthServices" component={HealthServicesScreen} />

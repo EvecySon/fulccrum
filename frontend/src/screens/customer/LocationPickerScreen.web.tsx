@@ -60,8 +60,10 @@ const LocationPickerScreen: React.FC = () => {
 
     navigation.navigate('PriceEstimate' as never, {
       packageSize,
-      pickup: pickupLocation,
-      dropoff: dropoffLocation,
+      pickupLocation: pickupLocation,
+      dropoffLocation: dropoffLocation,
+      deliverySpeed: 'same_day',
+      packageDescription: 'Package',
     } as never);
   };
 

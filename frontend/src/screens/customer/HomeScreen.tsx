@@ -246,7 +246,13 @@ export default function HomeScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.navigate('ServiceSelection')}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}!</Text>
             <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Address')}>
               <Ionicons name="location" size={16} color={colors.tealLight} />
@@ -426,6 +432,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -4,
   },
   greeting: {
     fontSize: 24,

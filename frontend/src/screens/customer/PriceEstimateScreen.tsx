@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI, PriceCalculation } from '../../services/packageDeliveryAPI';
+import { mockCalculatePrice, mockRequestDelivery } from '../../services/mockPackageDelivery';
 
 const PriceEstimateScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -31,13 +32,28 @@ const PriceEstimateScreen: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    console.log('PriceEstimateScreen mounted with params:', {
+      packageSize,
+      pickupLocation,
+      dropoffLocation,
+      deliverySpeed,
+    });
     calculatePrice();
   }, []);
 
   const calculatePrice = async () => {
     try {
       setIsLoading(true);
-      const response = await packageDeliveryAPI.calculatePrice({
+      
+      // Validate location data
+      if (!pickupLocation?.lat || !pickupLocation?.lng || !dropoffLocation?.lat || !dropoffLocation?.lng) {
+        console.error('Missing location data:', { pickupLocation, dropoffLocation });
+        Alert.alert('Error', 'Location data is missing. Please go back and select locations again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await mockCalculatePrice({
         pickup: { lat: pickupLocation.lat, lng: pickupLocation.lng },
         dropoff: { lat: dropoffLocation.lat, lng: dropoffLocation.lng },
         size: packageSize,
@@ -61,7 +77,7 @@ const PriceEstimateScreen: React.FC = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await packageDeliveryAPI.requestDelivery({
+      const response = await mockRequestDelivery({
         pickupLocation,
         dropoffLocation,
         packageSize,
@@ -332,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -370,7 +386,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   totalPriceCard: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     marginHorizontal: 20,
     marginBottom: 24,
     padding: 24,
@@ -447,7 +463,7 @@ const styles = StyleSheet.create({
   breakdownValueTotal: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#ff6b35',
+    color: '#14b8a6',
   },
   routeCard: {
     backgroundColor: '#f8f9fa',
@@ -547,7 +563,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   confirmButton: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#14b8a6',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',
