@@ -36,6 +36,50 @@ export class WalletService {
     };
   }
 
+  async getTransactions(userId: string, page: number = 1, limit: number = 20) {
+    const wallet = await this.getOrCreateWallet(userId);
+    const skip = (page - 1) * limit;
+
+    // Get withdrawal requests as transactions
+    const withdrawals = await this.prisma.withdrawalRequest.findMany({
+      where: { userId },
+      orderBy: { requestedAt: 'desc' },
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        requestedAt: true,
+        reference: true,
+      },
+    });
+
+    // Format transactions
+    const transactions = withdrawals.map((w) => ({
+      id: w.id,
+      type: 'debit' as const,
+      amount: Number(w.amount),
+      description: `Withdrawal - ${w.reference}`,
+      date: w.requestedAt.toISOString(),
+      status: w.status,
+    }));
+
+    const total = await this.prisma.withdrawalRequest.count({
+      where: { userId },
+    });
+
+    return {
+      transactions,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async addFunds(userId: string, amount: number, description: string) {
     const wallet = await this.getOrCreateWallet(userId);
 

@@ -17,6 +17,19 @@ export class WalletController {
     return this.walletService.getBalance(req.user.sub);
   }
 
+  @Get('transactions')
+  async getTransactions(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.walletService.getTransactions(
+      req.user.sub,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
   @Post('withdraw/request')
   @UseGuards(NonceGuard)
   @RequireNonce('withdraw')
