@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { promosAPI, searchAPI } from '../../services/api';
-import { withMock, mockGetActivePromos, mockSearchBusinesses, normalizeRestaurants } from '../../services/mockApi';
+import { normalizeRestaurants } from '../../services/mockApi';
 
 type Deal = {
   id: string;
@@ -41,8 +41,8 @@ export default function DealsScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       const [dealsRes, restaurantsRes] = await Promise.allSettled([
-        withMock(() => promosAPI.getActive(), () => mockGetActivePromos()),
-        withMock(() => searchAPI.searchBusinesses(''), () => mockSearchBusinesses('')),
+        promosAPI.getActive(),
+        searchAPI.searchBusinesses(''),
       ]);
 
       if (dealsRes.status === 'fulfilled') {

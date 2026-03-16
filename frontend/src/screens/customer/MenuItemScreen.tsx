@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { menuAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
-import { withMock, mockGetModifiers, mockGetMenuItems, normalizeMenuItems } from '../../services/mockApi';
+import { normalizeMenuItems } from '../../services/mockApi';
 import ReportContentModal from '../../components/ReportContentModal';
 
 
@@ -28,10 +28,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await withMock(
-          () => menuAPI.getModifiers(restaurant?.id || 'me'),
-          () => mockGetModifiers()
-        );
+        const res = await menuAPI.getModifiers(restaurant?.id || 'me');
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setModifierGroups(data);
       } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load modifiers'); }
@@ -39,10 +36,7 @@ export default function MenuItemScreen({ route, navigation }: any) {
     // Load frequently ordered together suggestions
     (async () => {
       try {
-        const res = await withMock(
-          () => menuAPI.getItems(restaurant?.id),
-          () => mockGetMenuItems(restaurant?.id)
-        );
+        const res = await menuAPI.getItems(restaurant?.id);
         const raw = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         const data = normalizeMenuItems(raw);
         const others = data.filter((i: any) => i.id !== item.id).slice(0, 4);

@@ -17,7 +17,7 @@ import { menuAPI } from '../../services/api';
 import ReportContentModal from '../../components/ReportContentModal';
 import { useCart } from '../../contexts/CartContext';
 import { hapticImpact } from '../../utils/haptics';
-import { withMock, mockGetMenuItems, normalizeMenuItems } from '../../services/mockApi';
+import { normalizeMenuItems } from '../../services/mockApi';
 
 export default function RestaurantScreen({ route, navigation }: any) {
   const { restaurant } = route.params;
@@ -53,10 +53,7 @@ export default function RestaurantScreen({ route, navigation }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await withMock(
-          () => menuAPI.getItems(restaurant.id),
-          () => mockGetMenuItems(restaurant.id)
-        );
+        const res = await menuAPI.getItems(restaurant.id);
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setMenuItems(normalizeMenuItems(data));
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }

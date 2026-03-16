@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import { colors } from '../../theme/colors';
 import { ordersAPI, locationAPI } from '../../services/api';
-import { withMock, mockGetOrder, mockCancelOrder, mockAddTip } from '../../services/mockApi';
 import { joinOrderRoom, leaveOrderRoom, onDriverLocationUpdate } from '../../services/socketService';
 
 // Default coordinates (Lagos, Nigeria)
@@ -129,10 +128,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
     if (!order && orderId) {
       (async () => {
         try {
-          const res = await withMock(
-            () => ordersAPI.getOrder(orderId),
-            () => mockGetOrder(orderId)
-          );
+          const res = await ordersAPI.getOrder(orderId);
           if (res) setOrder(res);
         } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load order'); }
         setLoading(false);

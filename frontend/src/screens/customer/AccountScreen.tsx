@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, loyaltyAPI } from '../../services/api';
-import { withMock } from '../../services/mockApi';
 
 const menuItems = [
   { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
@@ -57,10 +56,7 @@ export default function AccountScreen({ navigation }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const profile = await withMock(
-          () => loyaltyAPI.getProfile(),
-          () => ({ tier: 'Gold', points: 2450, totalOrders: 47, nextTier: 'Platinum', pointsToNext: 550 })
-        );
+        const profile = await loyaltyAPI.getProfile();
         setLoyaltyProfile(profile);
       } catch {
         // Loyalty profile may not exist yet — that's fine
