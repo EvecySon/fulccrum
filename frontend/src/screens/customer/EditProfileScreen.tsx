@@ -78,8 +78,17 @@ export default function EditProfileScreen({ navigation }: any) {
       const uploaded = await uploadAPI.uploadAvatar(formData);
       if (uploaded?.url) {
         setAvatarUri(uploaded.url);
-        // Update user context with new avatar
-        if (user) setUser({ ...user, avatarUrl: uploaded.url });
+        
+        // Fetch fresh user data from backend to ensure avatar persists
+        try {
+          const freshUser = await usersAPI.getProfile();
+          if (freshUser) {
+            setUser(freshUser);
+          }
+        } catch (err) {
+          // Fallback: update local context if fetch fails
+          if (user) setUser({ ...user, avatarUrl: uploaded.url });
+        }
       }
     } catch (e: any) {
       Alert.alert('Upload Failed', e?.message || 'Could not upload avatar');
