@@ -71,6 +71,9 @@ import AdminNotificationTemplatesScreen from '../screens/admin/AdminNotification
 import AdminTemplateEditorScreen from '../screens/admin/AdminTemplateEditorScreen';
 import AdminTemplateAnalyticsScreen from '../screens/admin/AdminTemplateAnalyticsScreen';
 
+// Package Delivery Settings
+import PackageDeliverySettingsScreen from '../screens/admin/PackageDeliverySettingsScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -199,6 +202,9 @@ export default function AdminNavigator() {
       <Stack.Screen name="AdminNotificationTemplates" component={AdminNotificationTemplatesScreen} />
       <Stack.Screen name="AdminTemplateEditor" component={AdminTemplateEditorScreen} />
       <Stack.Screen name="AdminTemplateAnalytics" component={AdminTemplateAnalyticsScreen} />
+      
+      {/* Package Delivery Settings */}
+      <Stack.Screen name="PackageDeliverySettings" component={PackageDeliverySettingsScreen} />
     </Stack.Navigator>
   );
 }

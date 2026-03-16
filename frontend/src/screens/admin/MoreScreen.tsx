@@ -73,6 +73,7 @@ const menuSections = [
     title: 'System',
     items: [
       { icon: 'construct-outline', label: 'Settings & Config', desc: 'Platform settings', screen: 'AdminSettings', color: colors.teal },
+      { icon: 'cube-outline', label: 'Package Delivery Pricing', desc: 'Configure delivery pricing', screen: 'PackageDeliverySettings', color: colors.navy },
     ],
   },
 ];
