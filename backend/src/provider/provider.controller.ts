@@ -41,9 +41,4 @@ export class ProviderController {
   async addMenuItem(@Request() req: any, @Body() data: any) {
     return this.providerService.addMenuItem(req.user.sub, data);
   }
-
-  @Post('products')
-  async addProduct(@Request() req: any, @Body() data: any) {
-    return this.providerService.addProduct(req.user.sub, data);
-  }
 }

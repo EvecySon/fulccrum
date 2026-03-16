@@ -210,47 +210,27 @@ export class ProviderService {
       throw new NotFoundException('Restaurant profile not found');
     }
 
+    // MenuItem uses businessId, not restaurantId
+    // We need to get the user's businessProfile or create menu through business module
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { businessProfile: true },
+    });
+
+    if (!user?.businessProfile) {
+      throw new BadRequestException('Business profile required to add menu items');
+    }
+
     return this.prisma.menuItem.create({
       data: {
-        restaurantId: restaurant.id,
+        businessId: user.businessProfile.userId,
+        categoryId: data.categoryId, // Required field
         name: data.name,
         description: data.description,
-        category: data.category,
         price: data.price,
         images: data.images || [],
         isAvailable: data.isAvailable !== false,
-        preparationTime: data.preparationTime,
-      },
-    });
-  }
-
-  async addProduct(userId: string, data: any) {
-    const seller = await this.prisma.sellerProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!seller) {
-      throw new NotFoundException('Seller profile not found');
-    }
-
-    return this.prisma.product.create({
-      data: {
-        sellerId: seller.id,
-        name: data.name,
-        description: data.description,
-        category: data.category,
-        brand: data.brand,
-        price: data.price,
-        compareAtPrice: data.compareAtPrice,
-        costPrice: data.costPrice,
-        sku: data.sku,
-        barcode: data.barcode,
-        images: data.images || [],
-        specifications: data.specifications || {},
-        stockQuantity: data.stockQuantity || 0,
-        lowStockThreshold: data.lowStockThreshold || 5,
-        weight: data.weight,
-        dimensions: data.dimensions,
+        preparationTime: data.preparationTime || 15,
       },
     });
   }

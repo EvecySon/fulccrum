@@ -269,6 +269,9 @@ model User {
 
   ordersAsCustomer Order[] @relation("customer_orders")
   ordersAsDriver   Order[] @relation("driver_orders")
+  
+  packageDeliveriesAsCustomer PackageDelivery[] @relation("CustomerPackageDeliveries")
+  packageDeliveriesAsCourier  PackageDelivery[] @relation("CourierPackageDeliveries")
 
   refreshTokens            RefreshToken[]
   notifications            Notification[]
@@ -2852,4 +2855,75 @@ model HomeServiceProfile {
   @@index([userId])
   @@index([isApproved])
   @@map("home_service_profiles")
+}
+
+// ─── Package Delivery System ────────────────────────────────────────────
+
+model PackageDelivery {
+  id                  String   @id @default(uuid()) @db.Uuid
+  customerId          String   @map("customer_id") @db.Uuid
+  courierId           String?  @map("courier_id") @db.Uuid
+  
+  pickupLatitude      Float    @map("pickup_latitude")
+  pickupLongitude     Float    @map("pickup_longitude")
+  pickupAddress       String   @map("pickup_address") @db.VarChar(500)
+  pickupContactName   String   @map("pickup_contact_name") @db.VarChar(255)
+  pickupContactPhone  String   @map("pickup_contact_phone") @db.VarChar(20)
+  
+  dropoffLatitude     Float    @map("dropoff_latitude")
+  dropoffLongitude    Float    @map("dropoff_longitude")
+  dropoffAddress      String   @map("dropoff_address") @db.VarChar(500)
+  dropoffContactName  String   @map("dropoff_contact_name") @db.VarChar(255)
+  dropoffContactPhone String   @map("dropoff_contact_phone") @db.VarChar(20)
+  
+  packageSize         PackageSize      @map("package_size")
+  deliverySpeed       DeliverySpeed    @map("delivery_speed")
+  packageDescription  String?          @map("package_description") @db.Text
+  packageWeight       Float?           @map("package_weight")
+  specialInstructions String?          @map("special_instructions") @db.Text
+  packagePhotoUrl     String?          @map("package_photo_url") @db.VarChar(500)
+  
+  basePrice           Decimal  @map("base_price") @db.Decimal(10, 2)
+  distancePrice       Decimal  @map("distance_price") @db.Decimal(10, 2)
+  sizeMultiplier      Float    @map("size_multiplier")
+  speedMultiplier     Float    @map("speed_multiplier")
+  surgeFactor         Float    @default(1.0) @map("surge_factor")
+  totalPrice          Decimal  @map("total_price") @db.Decimal(10, 2)
+  distance            Float
+  
+  status              String   @default("PENDING") @db.VarChar(20)
+  requestId           String   @unique @map("request_id") @db.VarChar(100)
+  expiresAt           DateTime @map("expires_at")
+  
+  createdAt           DateTime @default(now()) @map("created_at")
+  acceptedAt          DateTime? @map("accepted_at")
+  pickedUpAt          DateTime? @map("picked_up_at")
+  deliveredAt         DateTime? @map("delivered_at")
+  cancelledAt         DateTime? @map("cancelled_at")
+  
+  customer            User     @relation("CustomerPackageDeliveries", fields: [customerId], references: [id], onDelete: Cascade)
+  courier             User?    @relation("CourierPackageDeliveries", fields: [courierId], references: [id], onDelete: SetNull)
+  rating              PackageDeliveryRating?
+  
+  @@index([customerId])
+  @@index([courierId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([requestId])
+  @@map("package_deliveries")
+}
+
+model PackageDeliveryRating {
+  id                String          @id @default(uuid()) @db.Uuid
+  deliveryId        String          @unique @map("delivery_id") @db.Uuid
+  rating            Int
+  feedback          String?         @db.Text
+  courierRating     Int?            @map("courier_rating")
+  courierFeedback   String?         @map("courier_feedback") @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
+  
+  delivery          PackageDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  @@index([deliveryId])
+  @@map("package_delivery_ratings")
 }
