@@ -12,7 +12,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { ordersAPI } from '../../services/api';
-import { withMock, mockGetOrders } from '../../services/mockApi';
 
 export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
@@ -26,10 +25,7 @@ export default function OrdersScreen({ navigation }: any) {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await withMock(
-        () => ordersAPI.getMyOrders(pageNum, 20),
-        () => mockGetOrders(pageNum, 20)
-      );
+      const res = await ordersAPI.getMyOrders(pageNum, 20);
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       const meta = res?.meta;
       

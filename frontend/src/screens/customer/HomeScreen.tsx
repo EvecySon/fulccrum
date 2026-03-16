@@ -15,8 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI, addressesAPI, notificationsAPI } from '../../services/api';
-import { withMock, mockSearchBusinesses, mockGetTrending, mockGetNotifications, normalizeRestaurants } from '../../services/mockApi';
-import { mockAddresses } from '../../services/mockData';
+import { normalizeRestaurants } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { getActiveCategories } from '../../config/businessCategories';
@@ -89,10 +88,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadAddress = async () => {
     try {
-      const res = await withMock(
-        () => addressesAPI.getAll(),
-        () => mockAddresses
-      );
+      const res = await addressesAPI.getAll();
       const addrs = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       const def = addrs.find((a: any) => a.isDefault) || addrs[0];
       if (def) setDefaultAddress(`${def.streetAddress}${def.city ? `, ${def.city}` : ''}`);
@@ -101,10 +97,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadNotifCount = async () => {
     try {
-      const res = await withMock(
-        () => notificationsAPI.getAll(),
-        () => mockGetNotifications()
-      );
+      const res = await notificationsAPI.getAll();
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setNotifCount(data.filter((n: any) => !n.isRead).length);
     } catch {}
@@ -112,10 +105,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadRestaurants = async () => {
     try {
-      const res = await withMock(
-        () => searchAPI.searchBusinesses(''),
-        () => mockSearchBusinesses('')
-      );
+      const res = await searchAPI.searchBusinesses('');
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setRestaurants(normalizeRestaurants(data));
     } catch (e: any) { Alert.alert('Error', e?.message || 'Could not load restaurants'); }
@@ -123,10 +113,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadTrending = async () => {
     try {
-      const res = await withMock(
-        () => analyticsAPI.topPerformers('menu_items', 5),
-        () => mockGetTrending()
-      );
+      const res = await analyticsAPI.topPerformers('menu_items', 5);
       const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setTrendingItems(data);
     } catch { /* trending is optional */ }

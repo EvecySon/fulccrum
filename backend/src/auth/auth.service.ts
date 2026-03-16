@@ -65,6 +65,22 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
+    // Handle referral code if provided
+    let referrerId: string | undefined;
+    if (dto.referredByCode) {
+      const referrer = await this.prisma.user.findUnique({
+        where: { referralCode: dto.referredByCode },
+        select: { id: true },
+      });
+      
+      if (referrer) {
+        referrerId = referrer.id;
+      }
+    }
+
+    // Generate unique referral code for new user
+    const referralCode = await this.generateUniqueReferralCode(dto.firstName);
+
     try {
       const user = await this.prisma.user.create({
         data: {
@@ -77,6 +93,7 @@ export class AuthService {
           status: 'inactive',
           emailVerified: false,
           phoneVerified: false,
+          referralCode,
         },
         select: {
           id: true,
@@ -85,8 +102,24 @@ export class AuthService {
           role: true,
           firstName: true,
           lastName: true,
+          referralCode: true,
         },
       });
+
+      // Create referral record if user was referred
+      if (referrerId) {
+        await this.prisma.referral.create({
+          data: {
+            referrerId,
+            referredId: user.id,
+            status: 'pending',
+            deliveriesRequired: 25,
+            deliveriesCompleted: 0,
+            rewardAmount: 5000,
+            paidOut: false,
+          },
+        });
+      }
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
@@ -784,5 +817,30 @@ export class AuthService {
 
   private async signAccessToken(userId: string, role: string) {
     return this.jwt.signAsync({ sub: userId, role });
+  }
+
+  private async generateUniqueReferralCode(firstName: string): Promise<string> {
+    const baseCode = firstName.toUpperCase().substring(0, 4);
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      const code = `${baseCode}${randomNum}`;
+
+      const existing = await this.prisma.user.findUnique({
+        where: { referralCode: code },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return code;
+      }
+
+      attempts++;
+    }
+
+    // Fallback to timestamp-based code if all attempts fail
+    return `${baseCode}${Date.now().toString().slice(-4)}`;
   }
 }

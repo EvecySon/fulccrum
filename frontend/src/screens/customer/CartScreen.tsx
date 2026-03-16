@@ -16,8 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { ordersAPI, feesAPI, promosAPI, addressesAPI, walletAPI } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
-import { withMock, mockGetAddresses, mockValidatePromo, mockCreateOrder } from '../../services/mockApi';
-import { mockFees } from '../../services/mockData';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 
 export default function CartScreen({ navigation }: any) {
@@ -64,10 +62,7 @@ export default function CartScreen({ navigation }: any) {
     (async () => {
       try {
         const [addressRes, walletRes] = await Promise.all([
-          withMock(
-            () => addressesAPI.getAll(),
-            () => mockGetAddresses()
-          ),
+          addressesAPI.getAll(),
           walletAPI.getBalance().catch(() => ({ balance: 0 }))
         ]);
         const addrs = Array.isArray(addressRes?.data) ? addressRes.data : Array.isArray(addressRes) ? addressRes : [];
@@ -117,10 +112,7 @@ export default function CartScreen({ navigation }: any) {
     if (fulfillmentType === 'delivery' && !selectedAddress) return;
     (async () => {
       try {
-        const fees = await withMock(
-          () => feesAPI.calculate({ businessId: restaurant.id, customerAddressId: selectedAddress?.id, subtotal }),
-          () => ({ deliveryFee: fulfillmentType === 'pickup' ? 0 : mockFees.deliveryFee, serviceFee: Math.round(subtotal * 0.05), taxAmount: Math.round(subtotal * mockFees.taxRate) })
-        );
+        const fees = await feesAPI.calculate({ businessId: restaurant.id, customerAddressId: selectedAddress?.id, subtotal });
         setDeliveryFee(fees?.deliveryFee || 0);
         setServiceFee(fees?.serviceFee || 0);
         setTaxAmount(fees?.taxAmount || 0);
@@ -138,10 +130,7 @@ export default function CartScreen({ navigation }: any) {
     if (!promoCode.trim()) return;
     setPromoLoading(true);
     try {
-      const res = await withMock(
-        () => promosAPI.validate(promoCode.trim(), subtotal),
-        () => mockValidatePromo(promoCode.trim(), subtotal)
-      );
+      const res = await promosAPI.validate(promoCode.trim(), subtotal);
       const discount = res?.discountAmount || res?.discount || 0;
       setPromoDiscount(discount);
       setPromoApplied(promoCode.trim());
@@ -209,10 +198,7 @@ export default function CartScreen({ navigation }: any) {
         orderData.scheduledFor = `${scheduledDate}T${scheduledTime}:00`;
       }
 
-      const order = await withMock(
-        () => ordersAPI.create(orderData),
-        () => mockCreateOrder(orderData)
-      );
+      const order = await ordersAPI.create(orderData);
       
       // If wallet payment, pay immediately
       if (paymentMethod === 'wallet') {

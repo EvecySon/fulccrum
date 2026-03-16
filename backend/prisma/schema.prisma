@@ -250,6 +250,7 @@ model User {
   status              UserStatus @default(active)
   emailVerified       Boolean    @default(false) @map("email_verified")
   phoneVerified       Boolean    @default(false) @map("phone_verified")
+  referralCode        String?    @unique @map("referral_code") @db.VarChar(20)
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
   lastLogin           DateTime?  @map("last_login")

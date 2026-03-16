@@ -6,14 +6,13 @@ export class ReferralsService {
   constructor(private prisma: PrismaService) {}
 
   async getMyStats(userId: string) {
-    // Get or generate referral code
+    // Get user's stored referral code
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { firstName: true, lastName: true },
+      select: { referralCode: true },
     });
 
-    // Generate referral code from user's name
-    const referralCode = this.generateReferralCode(user?.firstName || 'USER');
+    const referralCode = user?.referralCode || '';
 
     // Get referral statistics
     const referralsGiven = await this.prisma.referral.findMany({
@@ -42,10 +41,5 @@ export class ReferralsService {
         pendingEarnings,
       },
     };
-  }
-
-  private generateReferralCode(firstName: string): string {
-    const randomNum = Math.floor(Math.random() * 10000);
-    return `${firstName.toUpperCase()}${randomNum}`;
   }
 }

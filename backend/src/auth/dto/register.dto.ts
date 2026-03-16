@@ -19,6 +19,10 @@ export class RegisterDto {
   lastName!: string;
 
   @IsOptional()
+  @IsString()
+  referredByCode?: string;
+
+  @IsOptional()
   @IsEnum(['customer', 'business_owner', 'driver', 'admin'])
   role?: 'customer' | 'business_owner' | 'driver' | 'admin';
 }

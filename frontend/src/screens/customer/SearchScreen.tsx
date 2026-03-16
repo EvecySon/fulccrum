@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { withMock, mockSearchBusinesses, mockGetPopularSearches, normalizeRestaurants } from '../../services/mockApi';
 
 const SORT_OPTIONS = [
   { key: 'relevance', label: 'Relevance', icon: 'sparkles' },
@@ -53,10 +52,7 @@ export default function SearchScreen({ navigation }: any) {
 
   const loadPopularSearches = async () => {
     try {
-      const res = await withMock(
-        () => analyticsAPI.topPerformers('items', 10),
-        () => mockGetPopularSearches()
-      );
+      const res = await analyticsAPI.topPerformers('items', 10);
       const data = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
       if (typeof data[0] === 'string') { setPopularSearches(data.slice(0, 8)); return; }
       const names = data.map((item: any) => item.name || item.menuItem?.name || item.itemName).filter(Boolean).slice(0, 5);
@@ -90,10 +86,7 @@ export default function SearchScreen({ navigation }: any) {
     if (text.length === 0) { setResults([]); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await withMock(
-          () => searchAPI.searchBusinesses(text),
-          () => mockSearchBusinesses(text)
-        );
+        const res = await searchAPI.searchBusinesses(query, { category: selectedCategory, sort: sortBy, dietary: dietaryFilters });
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setResults(normalizeRestaurants(data));
       } catch (e: any) {

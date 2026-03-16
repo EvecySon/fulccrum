@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { ReferralTrackingService } from '../referrals/referral-tracking.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
@@ -13,6 +14,7 @@ export class OrdersService {
     private walletService: WalletService,
     @Inject(forwardRef(() => RealtimeGateway))
     private realtimeGateway: RealtimeGateway,
+    private referralTracking: ReferralTrackingService,
   ) {}
 
   async createOrder(customerId: string, dto: CreateOrderDto) {
@@ -374,6 +376,9 @@ export class OrdersService {
         Number(updatedOrder.totalAmount),
         Number(updatedOrder.deliveryFee),
       );
+
+      // Track referral progress for this order
+      await this.referralTracking.trackOrderCompletion(updatedOrder.customerId);
     }
 
     this.realtimeGateway.emitOrderUpdate(updatedOrder.id, dto.status, {
