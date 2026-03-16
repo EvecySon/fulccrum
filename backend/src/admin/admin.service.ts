@@ -64,6 +64,84 @@ export class AdminService {
     });
   }
 
+  async getLockedAccounts(userRole: string, page = 1, limit = 50) {
+    this.verifyAdmin(userRole);
+
+    const skip = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          accountLockedUntil: {
+            gt: new Date(),
+          },
+        },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          role: true,
+          status: true,
+          accountLockedUntil: true,
+          failedLoginAttempts: true,
+          lastLogin: true,
+          createdAt: true,
+        },
+        orderBy: { accountLockedUntil: 'desc' },
+      }),
+      this.prisma.user.count({
+        where: {
+          accountLockedUntil: {
+            gt: new Date(),
+          },
+        },
+      }),
+    ]);
+
+    return { data: users, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async unlockUserAccount(userRole: string, userId: string) {
+    this.verifyAdmin(userRole);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, accountLockedUntil: true, failedLoginAttempts: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.accountLockedUntil || user.accountLockedUntil <= new Date()) {
+      throw new BadRequestException('User account is not locked');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountLockedUntil: null,
+        failedLoginAttempts: 0,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        accountLockedUntil: true,
+        failedLoginAttempts: true,
+      },
+    });
+
+    return {
+      message: 'User account unlocked successfully',
+      user: updated,
+    };
+  }
+
   async getAllOrders(userRole: string, page = 1, limit = 50) {
     this.verifyAdmin(userRole);
 

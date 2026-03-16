@@ -40,6 +40,24 @@ export class AdminController {
     return this.adminService.activateUser(req.user.role, userId);
   }
 
+  @Get('users/locked')
+  async getLockedAccounts(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getLockedAccounts(
+      req.user.role,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
+  @Patch('users/:userId/unlock')
+  async unlockUserAccount(@Request() req: any, @Param('userId') userId: string) {
+    return this.adminService.unlockUserAccount(req.user.role, userId);
+  }
+
   @Get('orders')
   async getAllOrders(
     @Request() req: any,

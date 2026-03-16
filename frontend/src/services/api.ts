@@ -507,6 +507,8 @@ export const adminAPI = {
   getUsers: (page = 1, limit = 50) => api.get(`/admin/users?page=${page}&limit=${limit}`),
   suspendUser: (userId: string) => api.patch(`/admin/users/${userId}/suspend`),
   activateUser: (userId: string) => api.patch(`/admin/users/${userId}/activate`),
+  getLockedAccounts: (page = 1, limit = 50) => api.get(`/admin/users/locked?page=${page}&limit=${limit}`),
+  unlockUserAccount: (userId: string) => api.patch(`/admin/users/${userId}/unlock`),
   getOrders: (page = 1, limit = 50) => api.get(`/admin/orders?page=${page}&limit=${limit}`),
   getMetrics: () => api.get('/admin/metrics'),
   getPendingWithdrawals: (page = 1) => api.get(`/admin/withdrawals/pending?page=${page}`),

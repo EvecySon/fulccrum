@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { adminAPI } from '../../services/api';
 
-const roleFilters = ['All', 'Customers', 'Couriers', 'Merchants', 'Admins'];
+const roleFilters = ['All', 'Customers', 'Couriers', 'Merchants', 'Admins', 'Locked'];
 
 const getRoleColor = (role: string) => {
   switch (role) {
@@ -39,11 +39,13 @@ export default function UsersScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [users, setUsers] = useState<any[]>([]);
+  const [lockedUsers, setLockedUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUsers();
+    loadLockedAccounts();
   }, []);
 
   const loadUsers = async () => {
@@ -65,15 +67,45 @@ export default function UsersScreen({ navigation }: any) {
     }
   };
 
+  const loadLockedAccounts = async () => {
+    try {
+      const res = await adminAPI.getLockedAccounts();
+      if (res?.data) {
+        setLockedUsers(Array.isArray(res.data) ? res.data : []);
+      } else if (Array.isArray(res)) {
+        setLockedUsers(res);
+      } else {
+        setLockedUsers([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load locked accounts:', e);
+      setLockedUsers([]);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUsers();
+    await Promise.all([loadUsers(), loadLockedAccounts()]);
     setRefreshing(false);
   };
 
-  const filteredUsers = users.filter((u) => {
+  const handleUnlockAccount = async (userId: string, userName: string) => {
+    try {
+      await adminAPI.unlockUserAccount(userId);
+      showAlert('Success', `${userName}'s account has been unlocked`);
+      await loadLockedAccounts();
+      await loadUsers();
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to unlock account');
+    }
+  };
+
+  const displayUsers = activeFilter === 'Locked' ? lockedUsers : users;
+  
+  const filteredUsers = displayUsers.filter((u) => {
     const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
     const matchesSearch = name.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase());
+    if (activeFilter === 'Locked') return matchesSearch;
     const matchesFilter = activeFilter === 'All' ||
       (activeFilter === 'Customers' && u.role === 'customer') ||
       (activeFilter === 'Couriers' && u.role === 'driver') ||
@@ -141,6 +173,10 @@ export default function UsersScreen({ navigation }: any) {
           <Text style={[styles.statMiniValue, { color: colors.error }]}>{users.filter(u => u.status === 'suspended').length}</Text>
           <Text style={styles.statMiniLabel}>Suspended</Text>
         </View>
+        <View style={styles.statMini}>
+          <Text style={[styles.statMiniValue, { color: colors.orange }]}>{lockedUsers.length}</Text>
+          <Text style={styles.statMiniLabel}>Locked</Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
@@ -169,6 +205,12 @@ export default function UsersScreen({ navigation }: any) {
 
             <View style={styles.userMeta}>
               <Text style={styles.userMetaText}>Joined {joinedDate}</Text>
+              {user.accountLockedUntil && new Date(user.accountLockedUntil) > new Date() && (
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={12} color={colors.error} />
+                  <Text style={styles.lockedText}>Locked until {new Date(user.accountLockedUntil).toLocaleTimeString()}</Text>
+                </View>
+              )}
               {user.role === 'customer' && user.orders && <Text style={styles.userMetaText}>{user.orders} orders · ₦{user.spent || 0}</Text>}
               {user.role === 'driver' && user.deliveries && <Text style={styles.userMetaText}>{user.deliveries} deliveries · ★{user.rating || 0}</Text>}
               {user.role === 'business_owner' && user.restaurant && <Text style={styles.userMetaText}>{user.restaurant} · ₦{user.revenue?.toLocaleString() || 0}</Text>}
@@ -251,6 +293,23 @@ export default function UsersScreen({ navigation }: any) {
                   <Text style={styles.reactivateBtnText}>Reactivate</Text>
                 </TouchableOpacity>
               )}
+              {user.accountLockedUntil && new Date(user.accountLockedUntil) > new Date() && (
+                <TouchableOpacity 
+                  style={[styles.userActionBtn, styles.unlockBtn]}
+                  onPress={() => {
+                    showAlert('Unlock Account', `Unlock ${userName}'s account?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Unlock', 
+                        onPress: () => handleUnlockAccount(user.id, userName)
+                      }
+                    ]);
+                  }}
+                >
+                  <Ionicons name="lock-open" size={16} color={colors.warning} />
+                  <Text style={styles.unlockBtnText}>Unlock</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </TouchableOpacity>
           );
@@ -327,4 +386,8 @@ const styles = StyleSheet.create({
   suspendBtnText: { fontSize: 13, fontWeight: '600', color: colors.error },
   reactivateBtn: { backgroundColor: colors.success + '10' },
   reactivateBtnText: { fontSize: 13, fontWeight: '600', color: colors.success },
+  unlockBtn: { backgroundColor: colors.warning + '10' },
+  unlockBtnText: { fontSize: 13, fontWeight: '600', color: colors.warning },
+  lockedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.error + '10', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  lockedText: { fontSize: 11, fontWeight: '600', color: colors.error },
 });
