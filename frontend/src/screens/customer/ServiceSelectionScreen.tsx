@@ -181,12 +181,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: SIDE_PADDING,
+    paddingTop: 8,
+    justifyContent: 'space-between',
     rowGap: CARD_GAP,
     columnGap: CARD_GAP,
   },
