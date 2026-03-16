@@ -69,11 +69,21 @@ export default function EditProfileScreen({ navigation }: any) {
       setUploadingAvatar(true);
 
       const formData = new FormData();
-      formData.append('file', {
-        uri: asset.uri,
-        name: 'avatar.jpg',
-        type: asset.mimeType || 'image/jpeg',
-      } as any);
+
+      if (Platform.OS === 'web') {
+        // Web: fetch the blob from the URI and append as a File
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const file = new File([blob], 'avatar.jpg', { type: asset.mimeType || 'image/jpeg' });
+        formData.append('file', file);
+      } else {
+        // Mobile: use React Native FormData pattern
+        formData.append('file', {
+          uri: asset.uri,
+          name: 'avatar.jpg',
+          type: asset.mimeType || 'image/jpeg',
+        } as any);
+      }
 
       const uploaded = await uploadAPI.uploadAvatar(formData);
       if (uploaded?.url) {
