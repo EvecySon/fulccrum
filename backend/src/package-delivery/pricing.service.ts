@@ -1,9 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MapsService } from '../maps/maps.service';
 
 @Injectable()
 export class PricingService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(PricingService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private mapsService: MapsService,
+  ) {}
 
   async calculateDeliveryPrice(
     pickup: { lat: number; lng: number },
@@ -14,12 +20,13 @@ export class PricingService {
     // Get pricing settings from database
     const settings = await this.getPricingSettings();
 
-    const distance = this.calculateDistance(
-      pickup.lat,
-      pickup.lng,
-      dropoff.lat,
-      dropoff.lng,
+    // Get real road distance using Google Maps API (with Haversine fallback)
+    const { distance, source } = await this.mapsService.getRouteDistance(
+      pickup,
+      dropoff,
     );
+
+    this.logger.log(`Distance calculated: ${distance.toFixed(2)} km using ${source}`);
 
     const basePrice = settings.basePackagePrice.toNumber();
     const pricePerKm = settings.perKmPackageRate.toNumber();
