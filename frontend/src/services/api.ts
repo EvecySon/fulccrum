@@ -217,6 +217,30 @@ export const api = {
       headers,
       body: formData,
     });
+
+    // Auto-refresh token on 401 and retry
+    if (response.status === 401 && accessToken) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        const retryHeaders: Record<string, string> = {};
+        if (accessToken) {
+          retryHeaders['Authorization'] = `Bearer ${accessToken}`;
+        }
+        const retryResponse = await fetch(`${BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: retryHeaders,
+          body: formData,
+        });
+        if (!retryResponse.ok) {
+          const errorData = await retryResponse.json().catch(() => ({}));
+          const error: any = new Error(errorData.message || 'Upload failed');
+          error.status = retryResponse.status;
+          throw error;
+        }
+        return retryResponse.json() as Promise<T>;
+      }
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const error: any = new Error(errorData.message || 'Upload failed');

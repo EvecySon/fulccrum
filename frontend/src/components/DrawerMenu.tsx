@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -96,9 +97,13 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
 
           {/* User Profile Section */}
           <View style={styles.profileSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials()}</Text>
-            </View>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{getInitials()}</Text>
+              </View>
+            )}
             <Text style={styles.greeting}>
               Hello, <Text style={styles.userName}>{user?.firstName || 'Guest'}</Text>
             </Text>
@@ -178,6 +183,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   avatarText: {
     fontSize: 36,
