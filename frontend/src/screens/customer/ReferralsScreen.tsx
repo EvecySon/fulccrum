@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 
@@ -22,6 +23,7 @@ interface ReferralStats {
 }
 
 const ReferralsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [referralCode, setReferralCode] = useState('');
   const [stats, setStats] = useState<ReferralStats>({
@@ -76,6 +78,18 @@ const ReferralsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1f2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Referrals</Text>
+        <View style={styles.headerRight} />
+      </View>
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Referral Code Card */}
         <LinearGradient
@@ -190,6 +204,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  headerRight: {
+    width: 40,
   },
   codeCard: {
     margin: 16,
