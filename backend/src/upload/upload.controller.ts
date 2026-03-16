@@ -56,7 +56,12 @@ export class UploadController {
       throw new BadRequestException('No file uploaded');
     }
 
-    return this.uploadService.updateUserAvatar(req.user.sub, file);
+    try {
+      return await this.uploadService.updateUserAvatar(req.user.sub, file);
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      throw new BadRequestException(error.message || 'Failed to upload avatar');
+    }
   }
 
   @Post('business/logo')

@@ -194,51 +194,44 @@ export class UploadService {
       throw new BadRequestException('File size exceeds 10MB limit');
     }
 
-    try {
-      // Try using the full upload pipeline with image processing
-      const uploadedFile = await this.uploadImage(file, userId, 'profile');
+    // Simple upload without image processing
+    const fileExt = mime.extension(file.mimetype) || 'jpg';
+    const uniqueName = `avatar-${userId}-${Date.now()}.${fileExt}`;
+    
+    const storage = this.storageFactory.getProvider();
+    const uploadResult = await storage.uploadFile(file.buffer, uniqueName, file.mimetype, 'avatars');
 
-      // Update user avatar
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { avatarUrl: uploadedFile.url },
-      });
+    // Get base URL from config
+    const baseUrl = this.config.get('APP_URL') || 'http://localhost:3001';
+    const fullUrl = uploadResult.url.startsWith('http') 
+      ? uploadResult.url 
+      : `${baseUrl}${uploadResult.url}`;
 
-      return uploadedFile;
-    } catch (error) {
-      // Fallback: Save file directly without image processing
-      const fileExt = mime.extension(file.mimetype) || 'jpg';
-      const uniqueName = `avatar-${userId}-${Date.now()}.${fileExt}`;
-      
-      const storage = this.storageFactory.getProvider();
-      const uploadResult = await storage.uploadFile(file.buffer, uniqueName, file.mimetype, 'avatars');
+    // Save to database
+    const uploadedFile = await this.prisma.mediaFile.create({
+      data: {
+        userId,
+        filename: uniqueName,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        url: fullUrl,
+      },
+    });
 
-      // Save to database
-      const uploadedFile = await this.prisma.mediaFile.create({
-        data: {
-          userId,
-          filename: uniqueName,
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          size: file.size,
-          url: uploadResult.url,
-        },
-      });
+    // Update user avatar
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: fullUrl },
+    });
 
-      // Update user avatar
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { avatarUrl: uploadedFile.url },
-      });
-
-      return {
-        id: uploadedFile.id,
-        filename: uploadedFile.filename,
-        url: uploadedFile.url,
-        size: uploadedFile.size,
-        mimeType: uploadedFile.mimeType,
-      };
-    }
+    return {
+      id: uploadedFile.id,
+      filename: uploadedFile.filename,
+      url: fullUrl,
+      size: uploadedFile.size,
+      mimeType: uploadedFile.mimeType,
+    };
   }
 
   async updateBusinessLogo(userId: string, file: Express.Multer.File) {
