@@ -260,6 +260,12 @@ model User {
   driverProfile   DriverProfile?
   businessProfile BusinessProfile?
   addresses       Address[]
+  
+  restaurantProfile      RestaurantProfile?      @relation("RestaurantProfile")
+  serviceProviderProfile ServiceProviderProfile? @relation("ServiceProviderProfile")
+  healthServiceProfile   HealthServiceProfile?   @relation("HealthServiceProfile")
+  sellerProfile          SellerProfile?          @relation("SellerProfile")
+  homeServiceProfile     HomeServiceProfile?     @relation("HomeServiceProfile")
 
   ordersAsCustomer Order[] @relation("customer_orders")
   ordersAsDriver   Order[] @relation("driver_orders")
@@ -2665,4 +2671,185 @@ model SupplyChainEntry {
   @@index([stage])
   @@index([timestamp])
   @@map("supply_chain_entries")
+}
+
+// ─── Provider System Models ────────────────────────────────────────────
+
+model RestaurantProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  
+  businessName      String   @map("business_name") @db.VarChar(255)
+  restaurantType    String   @map("restaurant_type") @db.VarChar(100)
+  cuisineTypes      String[] @map("cuisine_types")
+  description       String?  @db.Text
+  
+  businessEmail     String   @map("business_email") @db.VarChar(255)
+  businessPhone     String   @map("business_phone") @db.VarChar(20)
+  
+  address           String   @db.VarChar(500)
+  city              String   @db.VarChar(100)
+  state             String   @db.VarChar(100)
+  latitude          Float?
+  longitude         Float?
+  deliveryRadius    Float    @default(5) @map("delivery_radius")
+  
+  operatingHours    Json     @default("{}") @map("operating_hours")
+  
+  foodLicense       String?  @map("food_license") @db.VarChar(255)
+  businessRegNumber String?  @map("business_reg_number") @db.VarChar(100)
+  kitchenPhotos     String[] @default([]) @map("kitchen_photos")
+  
+  isApproved        Boolean  @default(false) @map("is_approved")
+  isActive          Boolean  @default(true) @map("is_active")
+  rating            Float    @default(0)
+  totalOrders       Int      @default(0) @map("total_orders")
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(10, 2)
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User     @relation("RestaurantProfile", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isApproved])
+  @@index([isActive])
+  @@map("restaurant_profiles")
+}
+
+model ServiceProviderProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  
+  businessName      String   @map("business_name") @db.VarChar(255)
+  category          String   @db.VarChar(100)
+  subCategories     String[] @default([]) @map("sub_categories")
+  description       String?  @db.Text
+  
+  businessEmail     String   @map("business_email") @db.VarChar(255)
+  businessPhone     String   @map("business_phone") @db.VarChar(20)
+  
+  serviceAreas      String[] @default([]) @map("service_areas")
+  hourlyRate        Decimal? @map("hourly_rate") @db.Decimal(10, 2)
+  fixedPricing      Json?    @default("{}") @map("fixed_pricing")
+  
+  certifications    String[] @default([]) @map("certifications")
+  experience        Int?     @map("experience")
+  portfolio         String[] @default([]) @map("portfolio")
+  
+  isApproved        Boolean  @default(false) @map("is_approved")
+  isActive          Boolean  @default(true) @map("is_active")
+  rating            Float    @default(0)
+  totalJobs         Int      @default(0) @map("total_jobs")
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(10, 2)
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User     @relation("ServiceProviderProfile", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([category])
+  @@index([isApproved])
+  @@map("service_provider_profiles")
+}
+
+model HealthServiceProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  
+  profession        String   @db.VarChar(100)
+  specialization    String[] @default([]) @map("specialization")
+  description       String?  @db.Text
+  
+  businessEmail     String   @map("business_email") @db.VarChar(255)
+  businessPhone     String   @map("business_phone") @db.VarChar(20)
+  
+  licenseNumber     String   @map("license_number") @db.VarChar(100)
+  credentials       String[] @default([]) @map("credentials")
+  yearsOfExperience Int      @default(0) @map("years_of_experience")
+  
+  consultationFee   Decimal  @map("consultation_fee") @db.Decimal(10, 2)
+  availability      Json     @default("{}") @map("availability")
+  
+  isApproved        Boolean  @default(false) @map("is_approved")
+  isActive          Boolean  @default(true) @map("is_active")
+  rating            Float    @default(0)
+  totalConsultations Int     @default(0) @map("total_consultations")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User     @relation("HealthServiceProfile", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([profession])
+  @@index([isApproved])
+  @@map("health_service_profiles")
+}
+
+model SellerProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  
+  storeName         String   @map("store_name") @db.VarChar(255)
+  storeDescription  String?  @map("store_description") @db.Text
+  categories        String[] @default([]) @map("categories")
+  
+  businessEmail     String   @map("business_email") @db.VarChar(255)
+  businessPhone     String   @map("business_phone") @db.VarChar(20)
+  
+  storeLogo         String?  @map("store_logo") @db.VarChar(500)
+  bannerImage       String?  @map("banner_image") @db.VarChar(500)
+  
+  returnPolicy      String?  @map("return_policy") @db.Text
+  shippingPolicy    String?  @map("shipping_policy") @db.Text
+  
+  isApproved        Boolean  @default(false) @map("is_approved")
+  isActive          Boolean  @default(true) @map("is_active")
+  rating            Float    @default(0)
+  totalSales        Int      @default(0) @map("total_sales")
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(10, 2)
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User     @relation("SellerProfile", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isApproved])
+  @@map("seller_profiles")
+}
+
+model HomeServiceProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  
+  businessName      String   @map("business_name") @db.VarChar(255)
+  serviceTypes      String[] @default([]) @map("service_types")
+  description       String?  @db.Text
+  
+  businessEmail     String   @map("business_email") @db.VarChar(255)
+  businessPhone     String   @map("business_phone") @db.VarChar(20)
+  
+  serviceAreas      String[] @default([]) @map("service_areas")
+  pricing           Json     @default("{}") @map("pricing")
+  
+  certifications    String[] @default([]) @map("certifications")
+  insuranceInfo     String?  @map("insurance_info") @db.VarChar(255)
+  
+  isApproved        Boolean  @default(false) @map("is_approved")
+  isActive          Boolean  @default(true) @map("is_active")
+  rating            Float    @default(0)
+  totalJobs         Int      @default(0) @map("total_jobs")
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(10, 2)
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User     @relation("HomeServiceProfile", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isApproved])
+  @@map("home_service_profiles")
 }

@@ -63,6 +63,7 @@ import { PackageDeliveryModule } from './package-delivery/package-delivery.modul
 import { ServicesModule } from './services/services.module';
 import { GadgetsModule } from './gadgets/gadgets.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { ProviderModule } from './provider/provider.module';
 import { initializeFirebase } from './config/firebase.config';
 
 @Module({
@@ -142,6 +143,7 @@ import { initializeFirebase } from './config/firebase.config';
     ServicesModule,
     GadgetsModule,
     ReferralsModule,
+    ProviderModule,
   ],
   controllers: [AppController],
   providers: [
