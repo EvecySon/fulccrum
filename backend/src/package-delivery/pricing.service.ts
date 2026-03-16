@@ -1,15 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PricingService {
-  private readonly BASE_PRICE = 500;
-  private readonly PRICE_PER_KM = 100;
-  
-  private readonly SIZE_MULTIPLIERS = {
-    small: 1.0,
-    medium: 1.5,
-    large: 2.0,
-  };
+  constructor(private prisma: PrismaService) {}
 
   async calculateDeliveryPrice(
     pickup: { lat: number; lng: number },
@@ -17,6 +11,9 @@ export class PricingService {
     size: string,
     speed: string,
   ) {
+    // Get pricing settings from database
+    const settings = await this.getPricingSettings();
+
     const distance = this.calculateDistance(
       pickup.lat,
       pickup.lng,
@@ -24,31 +21,45 @@ export class PricingService {
       dropoff.lng,
     );
 
-    let price = this.BASE_PRICE + distance * this.PRICE_PER_KM;
+    const basePrice = settings.basePackagePrice.toNumber();
+    const pricePerKm = settings.perKmPackageRate.toNumber();
+    const distancePrice = distance * pricePerKm;
 
-    const sizeMultiplier = this.SIZE_MULTIPLIERS[size] || 1.0;
+    let price = basePrice + distancePrice;
+
+    // Apply size multiplier
+    const sizeMultipliers = {
+      small: settings.packageSizeSmallMultiplier.toNumber(),
+      medium: settings.packageSizeMediumMultiplier.toNumber(),
+      large: settings.packageSizeLargeMultiplier.toNumber(),
+    };
+    const sizeMultiplier = sizeMultipliers[size] || 1.0;
     price *= sizeMultiplier;
 
-    let speedMultiplier = 1.0;
-    if (speed === 'express') {
-      speedMultiplier = 1.3;
-    }
+    // Apply speed multiplier
+    const speedMultipliers = {
+      express: settings.expressSpeedMultiplier.toNumber(),
+      same_day: settings.sameDaySpeedMultiplier.toNumber(),
+      scheduled: settings.scheduledSpeedMultiplier.toNumber(),
+    };
+    const speedMultiplier = speedMultipliers[speed] || 1.0;
     price *= speedMultiplier;
 
-    const surgeFactor = await this.calculateSurgeFactor(pickup);
+    // Apply surge factor
+    const surgeFactor = await this.calculateSurgeFactor(pickup, settings);
     price *= surgeFactor;
 
     return {
-      basePrice: this.BASE_PRICE,
-      distancePrice: distance * this.PRICE_PER_KM,
+      basePrice,
+      distancePrice,
       sizeMultiplier,
       speedMultiplier,
       surgeFactor,
       distance: parseFloat(distance.toFixed(2)),
       totalPrice: parseFloat(price.toFixed(2)),
       breakdown: {
-        base: this.BASE_PRICE,
-        distance: distance * this.PRICE_PER_KM,
+        base: basePrice,
+        distance: distancePrice,
         sizeAdjustment: (sizeMultiplier - 1) * 100,
         speedAdjustment: (speedMultiplier - 1) * 100,
         surgeAdjustment: (surgeFactor - 1) * 100,
@@ -56,7 +67,48 @@ export class PricingService {
     };
   }
 
-  private async calculateSurgeFactor(location: { lat: number; lng: number }): Promise<number> {
+  private async getPricingSettings() {
+    let settings = await this.prisma.platformSettings.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // If no settings exist, create default settings
+    if (!settings) {
+      settings = await this.prisma.platformSettings.create({
+        data: {
+          baseDeliveryFee: 200,
+          perKmRate: 50,
+          minDeliveryFee: 200,
+          maxDeliveryFee: 2000,
+          serviceFeePercentage: 5,
+          minServiceFee: 50,
+          taxPercentage: 7.5,
+          taxName: 'VAT',
+          platformCommissionPercentage: 15,
+          basePackagePrice: 500,
+          perKmPackageRate: 100,
+          packageSizeSmallMultiplier: 1.0,
+          packageSizeMediumMultiplier: 1.5,
+          packageSizeLargeMultiplier: 2.0,
+          expressSpeedMultiplier: 1.3,
+          sameDaySpeedMultiplier: 1.0,
+          scheduledSpeedMultiplier: 0.8,
+          peakHourSurgeMultiplier: 1.3,
+          weekendSurgeMultiplier: 1.2,
+          currency: 'NGN',
+          isActive: true,
+        },
+      });
+    }
+
+    return settings;
+  }
+
+  private async calculateSurgeFactor(
+    location: { lat: number; lng: number },
+    settings: any,
+  ): Promise<number> {
     const hour = new Date().getHours();
     const day = new Date().getDay();
 
@@ -65,11 +117,11 @@ export class PricingService {
     const isWeekday = day >= 1 && day <= 5;
 
     if (isPeakHour && isWeekday) {
-      return 1.3;
+      return settings.peakHourSurgeMultiplier.toNumber();
     }
 
     if (!isWeekday && hour >= 18 && hour <= 22) {
-      return 1.2;
+      return settings.weekendSurgeMultiplier.toNumber();
     }
 
     return 1.0;

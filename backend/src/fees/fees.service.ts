@@ -252,4 +252,58 @@ export class FeesService {
       promoDiscount,
     );
   }
+
+  async getPackageDeliverySettings() {
+    const settings = await this.getActiveSettings();
+    
+    return {
+      basePackagePrice: settings.basePackagePrice.toNumber(),
+      perKmPackageRate: settings.perKmPackageRate.toNumber(),
+      packageSizeSmallMultiplier: settings.packageSizeSmallMultiplier.toNumber(),
+      packageSizeMediumMultiplier: settings.packageSizeMediumMultiplier.toNumber(),
+      packageSizeLargeMultiplier: settings.packageSizeLargeMultiplier.toNumber(),
+      expressSpeedMultiplier: settings.expressSpeedMultiplier.toNumber(),
+      sameDaySpeedMultiplier: settings.sameDaySpeedMultiplier.toNumber(),
+      scheduledSpeedMultiplier: settings.scheduledSpeedMultiplier.toNumber(),
+      peakHourSurgeMultiplier: settings.peakHourSurgeMultiplier.toNumber(),
+      weekendSurgeMultiplier: settings.weekendSurgeMultiplier.toNumber(),
+      currency: settings.currency,
+    };
+  }
+
+  async updatePackageDeliverySettings(dto: any) {
+    const settings = await this.getActiveSettings();
+
+    const updated = await this.prisma.platformSettings.update({
+      where: { id: settings.id },
+      data: {
+        ...(dto.basePackagePrice !== undefined && { basePackagePrice: dto.basePackagePrice }),
+        ...(dto.perKmPackageRate !== undefined && { perKmPackageRate: dto.perKmPackageRate }),
+        ...(dto.packageSizeSmallMultiplier !== undefined && { packageSizeSmallMultiplier: dto.packageSizeSmallMultiplier }),
+        ...(dto.packageSizeMediumMultiplier !== undefined && { packageSizeMediumMultiplier: dto.packageSizeMediumMultiplier }),
+        ...(dto.packageSizeLargeMultiplier !== undefined && { packageSizeLargeMultiplier: dto.packageSizeLargeMultiplier }),
+        ...(dto.expressSpeedMultiplier !== undefined && { expressSpeedMultiplier: dto.expressSpeedMultiplier }),
+        ...(dto.sameDaySpeedMultiplier !== undefined && { sameDaySpeedMultiplier: dto.sameDaySpeedMultiplier }),
+        ...(dto.scheduledSpeedMultiplier !== undefined && { scheduledSpeedMultiplier: dto.scheduledSpeedMultiplier }),
+        ...(dto.peakHourSurgeMultiplier !== undefined && { peakHourSurgeMultiplier: dto.peakHourSurgeMultiplier }),
+        ...(dto.weekendSurgeMultiplier !== undefined && { weekendSurgeMultiplier: dto.weekendSurgeMultiplier }),
+      },
+    });
+
+    return {
+      message: 'Package delivery pricing settings updated successfully',
+      settings: {
+        basePackagePrice: updated.basePackagePrice.toNumber(),
+        perKmPackageRate: updated.perKmPackageRate.toNumber(),
+        packageSizeSmallMultiplier: updated.packageSizeSmallMultiplier.toNumber(),
+        packageSizeMediumMultiplier: updated.packageSizeMediumMultiplier.toNumber(),
+        packageSizeLargeMultiplier: updated.packageSizeLargeMultiplier.toNumber(),
+        expressSpeedMultiplier: updated.expressSpeedMultiplier.toNumber(),
+        sameDaySpeedMultiplier: updated.sameDaySpeedMultiplier.toNumber(),
+        scheduledSpeedMultiplier: updated.scheduledSpeedMultiplier.toNumber(),
+        peakHourSurgeMultiplier: updated.peakHourSurgeMultiplier.toNumber(),
+        weekendSurgeMultiplier: updated.weekendSurgeMultiplier.toNumber(),
+      },
+    };
+  }
 }

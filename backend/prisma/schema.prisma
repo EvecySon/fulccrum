@@ -1166,6 +1166,18 @@ model PlatformSettings {
   // Platform Commission
   platformCommissionPercentage Decimal @default(15) @map("platform_commission_percentage") @db.Decimal(5, 2)
 
+  // Package Delivery Pricing Configuration
+  basePackagePrice              Decimal @default(500) @map("base_package_price") @db.Decimal(10, 2)
+  perKmPackageRate              Decimal @default(100) @map("per_km_package_rate") @db.Decimal(10, 2)
+  packageSizeSmallMultiplier    Decimal @default(1.0) @map("package_size_small_multiplier") @db.Decimal(3, 2)
+  packageSizeMediumMultiplier   Decimal @default(1.5) @map("package_size_medium_multiplier") @db.Decimal(3, 2)
+  packageSizeLargeMultiplier    Decimal @default(2.0) @map("package_size_large_multiplier") @db.Decimal(3, 2)
+  expressSpeedMultiplier        Decimal @default(1.3) @map("express_speed_multiplier") @db.Decimal(3, 2)
+  sameDaySpeedMultiplier        Decimal @default(1.0) @map("same_day_speed_multiplier") @db.Decimal(3, 2)
+  scheduledSpeedMultiplier      Decimal @default(0.8) @map("scheduled_speed_multiplier") @db.Decimal(3, 2)
+  peakHourSurgeMultiplier       Decimal @default(1.3) @map("peak_hour_surge_multiplier") @db.Decimal(3, 2)
+  weekendSurgeMultiplier        Decimal @default(1.2) @map("weekend_surge_multiplier") @db.Decimal(3, 2)
+
   // Other Settings
   currency String  @default("NGN") @db.VarChar(3)
   isActive Boolean @default(true) @map("is_active")

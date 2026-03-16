@@ -11,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI, PriceCalculation } from '../../services/packageDeliveryAPI';
-import { mockCalculatePrice, mockRequestDelivery } from '../../services/mockPackageDelivery';
 
 const PriceEstimateScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -53,18 +52,14 @@ const PriceEstimateScreen: React.FC = () => {
         return;
       }
       
-      const response = await mockCalculatePrice({
+      const response = await packageDeliveryAPI.calculatePrice({
         pickup: { lat: pickupLocation.lat, lng: pickupLocation.lng },
         dropoff: { lat: dropoffLocation.lat, lng: dropoffLocation.lng },
         size: packageSize,
         speed: deliverySpeed,
       });
 
-      if (response.success) {
-        setPricing(response.data);
-      } else {
-        Alert.alert('Error', 'Failed to calculate price. Please try again.');
-      }
+      setPricing(response);
     } catch (error) {
       console.error('Price calculation error:', error);
       Alert.alert('Error', 'Failed to calculate price. Please try again.');
@@ -77,7 +72,7 @@ const PriceEstimateScreen: React.FC = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await mockRequestDelivery({
+      const response = await packageDeliveryAPI.requestDelivery({
         pickupLocation,
         dropoffLocation,
         packageSize,
@@ -87,16 +82,12 @@ const PriceEstimateScreen: React.FC = () => {
         specialInstructions,
       });
 
-      if (response.success) {
-        (navigation as any).navigate('FindingCourier', {
-          orderId: response.data.orderId,
-          requestId: response.data.requestId,
-          estimatedPrice: response.data.estimatedPrice,
-          expiresAt: response.data.expiresAt,
-        });
-      } else {
-        Alert.alert('Error', response.message || 'Failed to request delivery');
-      }
+      (navigation as any).navigate('FindingCourier', {
+        orderId: response.orderId,
+        requestId: response.requestId,
+        estimatedPrice: response.estimatedPrice,
+        expiresAt: response.expiresAt,
+      });
     } catch (error: any) {
       console.error('Request delivery error:', error);
       Alert.alert(
