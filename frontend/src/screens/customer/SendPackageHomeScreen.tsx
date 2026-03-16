@@ -8,329 +8,247 @@ import {
   Dimensions,
   Animated,
   Platform,
+  TextInput,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { useAuth } from '../../contexts/AuthContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
 
-interface PackageSize {
-  id: 'small' | 'medium' | 'large';
-  title: string;
-  subtitle: string;
-  weight: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  accentColor: string;
-  gradientColors: string[];
-  multiplier: number;
-  priceLabel: string;
-}
+const QUICK_ACTIONS = [
+  { id: 'send', icon: 'cube-outline', label: 'Send\nParcel', screen: 'LocationPicker' },
+  { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'TrackDelivery' },
+  { id: 'history', icon: 'time-outline', label: 'My\nOrders', screen: 'PackageHistory' },
+  { id: 'support', icon: 'headset-outline', label: 'Support', screen: 'Feedback' },
+];
 
-const PACKAGE_SIZES: PackageSize[] = [
+const PACKAGE_SIZES = [
   {
-    id: 'small',
+    id: 'small' as const,
     title: 'Small',
     subtitle: 'Documents, phone, wallet',
     weight: 'Up to 5kg',
-    icon: 'document-text-outline',
-    color: '#007AFF',
-    accentColor: '#007AFF',
-    gradientColors: ['#007AFF', '#5856D6'],
-    multiplier: 1.0,
-    priceLabel: 'Base Price',
+    icon: 'document-text-outline' as const,
   },
   {
-    id: 'medium',
+    id: 'medium' as const,
     title: 'Medium',
     subtitle: 'Laptop, clothes, small box',
     weight: '5-15kg',
-    icon: 'cube-outline',
-    color: '#F59E0B',
-    accentColor: '#F59E0B',
-    gradientColors: ['#F59E0B', '#D97706'],
-    multiplier: 1.5,
-    priceLabel: '1.5x Base Price',
+    icon: 'cube-outline' as const,
   },
   {
-    id: 'large',
+    id: 'large' as const,
     title: 'Large',
     subtitle: 'Large box, multiple items',
     weight: '15-30kg',
-    icon: 'cube',
-    color: '#F43F5E',
-    accentColor: '#F43F5E',
-    gradientColors: ['#F43F5E', '#E11D48'],
-    multiplier: 2.0,
-    priceLabel: '2x Base Price',
+    icon: 'cube' as const,
   },
 ];
 
 const SendPackageHomeScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large' | null>(null);
-  
-  // Animation values
+  const [searchCode, setSearchCode] = useState('');
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-  const buttonSlideAnim = useRef(new Animated.Value(20)).current;
-  const buttonOpacityAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Initial entrance animations
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  useEffect(() => {
-    // Animate button when package is selected
-    if (selectedSize) {
-      Animated.parallel([
-        Animated.timing(buttonSlideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonOpacityAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(buttonSlideAnim, {
-          toValue: 20,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonOpacityAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [selectedSize]);
-
   const handleContinue = () => {
     if (!selectedSize) return;
-    
-    (navigation as any).navigate('LocationPicker', {
-      packageSize: selectedSize,
-    });
+    (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
+  };
+
+  const handleQuickAction = (screen: string) => {
+    if (screen === 'LocationPicker') {
+      (navigation as any).navigate('LocationPicker', { packageSize: 'small' });
+    } else {
+      (navigation as any).navigate(screen);
+    }
+  };
+
+  const handleTrackSearch = () => {
+    if (searchCode.trim()) {
+      (navigation as any).navigate('TrackDelivery', { trackingCode: searchCode.trim() });
+    }
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <BlurView intensity={95} tint="light" style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="chevron-back" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Send Package</Text>
-          <View style={styles.placeholder} />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>{"<"}</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <View style={styles.userAvatar}>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarInitial}>
+                {user?.firstName?.[0]?.toUpperCase() || 'U'}
+              </Text>
+            )}
+          </View>
+          <View>
+            <Text style={styles.headerGreeting}>Hello,</Text>
+            <Text style={styles.headerName}>{user?.firstName || 'Guest'}</Text>
+          </View>
         </View>
-      </BlurView>
+        <TouchableOpacity
+          style={styles.notifBtn}
+          onPress={() => (navigation as any).navigate('Notifications')}
+        >
+          <Ionicons name="notifications-outline" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Search Bar */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color={TEXT_DIM} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Track parcel code..."
+              placeholderTextColor={TEXT_DIM}
+              value={searchCode}
+              onChangeText={setSearchCode}
+              onSubmitEditing={handleTrackSearch}
+              returnKeyType="search"
+            />
+            {searchCode.length > 0 && (
+              <TouchableOpacity onPress={handleTrackSearch}>
+                <Ionicons name="arrow-forward-circle" size={28} color={ACCENT} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-        {/* Hero Section */}
-        <Animated.View 
-          style={[
-            styles.heroSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={['#007AFF', '#5856D6']}
-            style={styles.heroIcon}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="cube" size={40} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.title}>What are you sending?</Text>
-          <Text style={styles.subtitle}>
-            Select your package size to get started
-          </Text>
+        {/* Quick Actions */}
+        <Animated.View style={[styles.quickActions, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          {QUICK_ACTIONS.map((action) => (
+            <TouchableOpacity
+              key={action.id}
+              style={styles.quickActionItem}
+              onPress={() => handleQuickAction(action.screen)}
+            >
+              <View style={[
+                styles.quickActionIcon,
+                action.id === 'send' && styles.quickActionIconAccent,
+              ]}>
+                <Ionicons
+                  name={action.icon as any}
+                  size={24}
+                  color={action.id === 'send' ? BG_DARK : ACCENT}
+                />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
         </Animated.View>
 
-        {/* Package Selection List */}
-        <Animated.View 
-          style={[
-            styles.listContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.iosList}>
-            {PACKAGE_SIZES.map((size, index) => (
-              <TouchableOpacity
-                key={size.id}
-                style={[
-                  styles.iosListItem,
-                  selectedSize === size.id && styles.iosListItemSelected,
-                  index < PACKAGE_SIZES.length - 1 && styles.iosListItemBorder,
-                ]}
-                onPress={() => setSelectedSize(size.id)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.listItemLeft}>
-                  <View style={[
-                    styles.iconBox,
-                    { backgroundColor: size.id === 'small' ? '#EBF5FF' : size.id === 'medium' ? '#FFF7ED' : '#FFF1F2' }
-                  ]}>
-                    <Ionicons 
-                      name={size.icon} 
-                      size={20} 
-                      color={size.color} 
-                    />
-                  </View>
-                  <View style={styles.listItemText}>
-                    <Text style={styles.listItemTitle}>{size.title}</Text>
-                    <Text style={styles.listItemSubtitle}>{size.subtitle}</Text>
-                  </View>
-                </View>
-                <View style={styles.listItemRight}>
-                  <Text style={styles.weightText}>{size.weight}</Text>
-                  <View style={[
-                    styles.selectionRing,
-                    selectedSize === size.id && styles.selectionRingSelected
-                  ]}>
-                    {selectedSize === size.id && (
-                      <Ionicons name="checkmark" size={12} color="#fff" />
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+        {/* Promo Banner */}
+        <Animated.View style={[styles.promoBanner, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.promoContent}>
+            <Text style={styles.promoTitle}>Get ready{'\n'}Move on!</Text>
+            <Text style={styles.promoSubtitle}>Fast & secure delivery across the city</Text>
+            <TouchableOpacity
+              style={styles.promoBtn}
+              onPress={() => (navigation as any).navigate('LocationPicker', { packageSize: 'small' })}
+            >
+              <Text style={styles.promoBtnText}>Send Now</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.promoGraphic}>
+            <Ionicons name="bicycle" size={60} color={ACCENT} />
           </View>
         </Animated.View>
 
-        {/* Features Pills */}
-        <Animated.View 
-          style={[
-            styles.featuresContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Select Package Size */}
+        <Animated.View style={[styles.sizeSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <Text style={styles.sectionTitle}>Select Package Size</Text>
+
+          {PACKAGE_SIZES.map((size) => (
+            <TouchableOpacity
+              key={size.id}
+              style={[
+                styles.sizeCard,
+                selectedSize === size.id && styles.sizeCardSelected,
+              ]}
+              onPress={() => setSelectedSize(size.id)}
+              activeOpacity={0.8}
+            >
+              <View style={[
+                styles.sizeIconWrap,
+                selectedSize === size.id && styles.sizeIconWrapSelected,
+              ]}>
+                <Ionicons
+                  name={size.icon}
+                  size={22}
+                  color={selectedSize === size.id ? BG_DARK : ACCENT}
+                />
+              </View>
+              <View style={styles.sizeTextWrap}>
+                <Text style={styles.sizeTitle}>{size.title}</Text>
+                <Text style={styles.sizeSubtitle}>{size.subtitle}</Text>
+              </View>
+              <View style={styles.sizeRight}>
+                <Text style={styles.sizeWeight}>{size.weight}</Text>
+                <View style={[
+                  styles.sizeCheck,
+                  selectedSize === size.id && styles.sizeCheckSelected,
+                ]}>
+                  {selectedSize === size.id && (
+                    <Ionicons name="checkmark" size={14} color={BG_DARK} />
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
+
+        {/* Features */}
+        <View style={styles.featuresRow}>
           <View style={styles.featurePill}>
-            <Ionicons name="flash" size={12} color="#007AFF" />
+            <Ionicons name="flash" size={14} color={ACCENT} />
             <Text style={styles.featurePillText}>30-60 min</Text>
           </View>
           <View style={styles.featurePill}>
-            <Ionicons name="shield-checkmark" size={12} color="#007AFF" />
-            <Text style={styles.featurePillText}>Insured ₦50k</Text>
+            <Ionicons name="shield-checkmark" size={14} color={ACCENT} />
+            <Text style={styles.featurePillText}>Insured</Text>
           </View>
           <View style={styles.featurePill}>
-            <Ionicons name="location" size={12} color="#007AFF" />
+            <Ionicons name="locate" size={14} color={ACCENT} />
             <Text style={styles.featurePillText}>Live tracking</Text>
           </View>
-        </Animated.View>
+        </View>
 
-        {/* How It Works */}
-        <Animated.View 
-          style={[
-            styles.howItWorksSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Text style={styles.sectionTitle}>HOW IT WORKS</Text>
-          
-          <View style={styles.stepsContainer}>
-            <View style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Select package size</Text>
-                <Text style={styles.stepDescription}>Choose what fits your item</Text>
-              </View>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Set pickup & dropoff</Text>
-                <Text style={styles.stepDescription}>Enter both locations</Text>
-              </View>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Get matched</Text>
-                <Text style={styles.stepDescription}>Nearest courier assigned</Text>
-              </View>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>4</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Track in real-time</Text>
-                <Text style={styles.stepDescription}>Follow every step</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        <View style={styles.bottomPadding} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Continue Button */}
       {selectedSize && (
-        <Animated.View 
-          style={[
-            styles.footer,
-            {
-              opacity: buttonOpacityAnim,
-              transform: [{ translateY: buttonSlideAnim }],
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.continueButton}
-            onPress={handleContinue}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.continueButtonText}>Continue</Text>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.continueBtn} onPress={handleContinue} activeOpacity={0.85}>
+            <Text style={styles.continueBtnText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={BG_DARK} />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
       )}
     </View>
   );
@@ -339,242 +257,279 @@ const SendPackageHomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: BG_DARK,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 16,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 14,
+    gap: 10,
+  },
+  userAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: ACCENT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  avatarInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerGreeting: {
+    fontSize: 12,
+    color: TEXT_DIM,
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  notifBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
-  header: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(198, 198, 200, 0.5)',
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
-  headerContent: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 48,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#fff',
+  },
+  quickActions: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  backButton: {
-    width: 32,
-    height: 32,
+  quickActionItem: {
+    alignItems: 'center',
+    width: (width - 60) / 4,
+  },
+  quickActionIcon: {
+    width: 52,
+    height: 52,
     borderRadius: 16,
-    alignItems: 'center',
+    backgroundColor: CARD_DARK,
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  placeholder: {
-    width: 32,
-  },
-  heroSection: {
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 32,
-    paddingBottom: 32,
+    marginBottom: 8,
   },
-  heroIcon: {
+  quickActionIconAccent: {
+    backgroundColor: ACCENT,
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  promoBanner: {
+    marginHorizontal: 20,
+    backgroundColor: CARD_DARK,
+    borderRadius: 18,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  promoContent: {
+    flex: 1,
+  },
+  promoTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 6,
+    lineHeight: 28,
+  },
+  promoSubtitle: {
+    fontSize: 13,
+    color: TEXT_DIM,
+    marginBottom: 14,
+  },
+  promoBtn: {
+    backgroundColor: ACCENT,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  promoBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  promoGraphic: {
     width: 80,
     height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
+    borderRadius: 40,
+    backgroundColor: 'rgba(20, 184, 166, 0.1)',
     justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 8,
+    alignItems: 'center',
+    marginLeft: 12,
   },
-  title: {
-    fontSize: 28,
+  sizeSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
-    textAlign: 'center',
-    letterSpacing: -0.5,
+    color: '#fff',
+    marginBottom: 14,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  listContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  iosList: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0.5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 0,
-    elevation: 1,
-  },
-  iosListItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+  sizeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  iosListItemSelected: {
-    backgroundColor: '#F2F2F7',
+  sizeCardSelected: {
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20, 184, 166, 0.06)',
   },
-  iosListItemBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#C6C6C8',
-  },
-  listItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
+  sizeIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 184, 166, 0.1)',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  listItemText: {
+  sizeIconWrapSelected: {
+    backgroundColor: ACCENT,
+  },
+  sizeTextWrap: {
     flex: 1,
   },
-  listItemTitle: {
+  sizeTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: '700',
+    color: '#fff',
     marginBottom: 2,
   },
-  listItemSubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
+  sizeSubtitle: {
+    fontSize: 13,
+    color: TEXT_DIM,
   },
-  listItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  sizeRight: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
-  weightText: {
+  sizeWeight: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: TEXT_DIM,
     fontWeight: '500',
   },
-  selectionRing: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#C7C7CC',
+  sizeCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#353A4A',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  selectionRingSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+  sizeCheckSelected: {
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
   },
-  featuresContainer: {
+  featuresRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 32,
+    gap: 10,
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   featurePill: {
-    backgroundColor: 'rgba(0, 122, 255, 0.08)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: 'rgba(20, 184, 166, 0.08)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
   },
   featurePillText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#007AFF',
-  },
-  howItWorksSection: {
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
-    letterSpacing: 0.5,
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  stepsContainer: {
-    gap: 16,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepNumberText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  stepDescription: {
-    fontSize: 14,
-    color: '#8E8E93',
-    lineHeight: 18,
-  },
-  bottomPadding: {
-    height: 120,
+    color: ACCENT,
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    backgroundColor: BG_DARK,
   },
-  continueButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
+  continueBtn: {
+    backgroundColor: ACCENT,
+    borderRadius: 14,
     paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 8,
   },
-  continueButtonText: {
+  continueBtnText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#fff',
   },
 });

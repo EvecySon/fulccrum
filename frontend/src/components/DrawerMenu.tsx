@@ -9,12 +9,14 @@ import {
   Dimensions,
   StatusBar,
   Image,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = width * 0.75;
+const DRAWER_WIDTH = width * 0.8;
 
 interface DrawerMenuProps {
   visible: boolean;
@@ -63,14 +65,14 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
   };
 
   const menuItems = [
-    { icon: 'home', label: 'Home', screen: 'ServiceSelection', color: '#fff' },
-    { icon: 'person', label: 'Account', screen: 'EditProfile', color: '#fff' },
-    { icon: 'bicycle', label: 'Active Orders', screen: 'ActiveOrders', color: '#fff' },
-    { icon: 'time', label: 'Order History', screen: 'PackageHistory', color: '#fff' },
-    { icon: 'wallet', label: 'Wallet', screen: 'WalletDetails', color: '#fff' },
-    { icon: 'people', label: 'Referrals', screen: 'Referrals', color: '#fff' },
-    { icon: 'chatbubbles', label: 'Contact Us', screen: 'Feedback', color: '#fff' },
-    { icon: 'help-circle', label: 'Help', screen: 'Support', color: '#fff' },
+    { icon: 'home-outline', label: 'Home', screen: 'ServiceSelection' },
+    { icon: 'person-outline', label: 'Account', screen: 'EditProfile' },
+    { icon: 'bicycle-outline', label: 'Active Orders', screen: 'ActiveOrders' },
+    { icon: 'time-outline', label: 'Order History', screen: 'PackageHistory' },
+    { icon: 'wallet-outline', label: 'Wallet', screen: 'WalletDetails' },
+    { icon: 'people-outline', label: 'Referrals', screen: 'Referrals' },
+    { icon: 'chatbubbles-outline', label: 'Contact Us', screen: 'Feedback' },
+    { icon: 'help-circle-outline', label: 'Help', screen: 'Support' },
   ];
 
   return (
@@ -90,47 +92,67 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
             { transform: [{ translateX: slideAnim }] }
           ]}
         >
-          {/* Close Button */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </TouchableOpacity>
+          {/* Header Section - Navy */}
+          <View style={styles.headerSection}>
+            {/* Close Button */}
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={26} color="#fff" />
+            </TouchableOpacity>
 
-          {/* User Profile Section */}
-          <View style={styles.profileSection}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getInitials()}</Text>
+            {/* User Profile */}
+            <View style={styles.profileSection}>
+              <View style={styles.avatarWrapper}>
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{getInitials()}</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.editIconBtn}
+                  onPress={() => handleNavigate('EditProfile')}
+                >
+                  <Ionicons name="camera" size={14} color="#fff" />
+                </TouchableOpacity>
               </View>
-            )}
-            <Text style={styles.greeting}>
-              Hello, <Text style={styles.userName}>{user?.firstName || 'Guest'}</Text>
-            </Text>
+              <Text style={styles.userName}>{user?.firstName || 'Guest'} {user?.lastName || ''}</Text>
+              <Text style={styles.userEmail}>{user?.email || ''}</Text>
+            </View>
           </View>
 
-          {/* Menu Items */}
-          <View style={styles.menuItems}>
+          {/* Menu Items - White body */}
+          <ScrollView style={styles.menuSection} showsVerticalScrollIndicator={false}>
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.menuItem}
                 onPress={() => handleNavigate(item.screen)}
               >
-                <Ionicons name={item.icon as any} size={24} color={item.color} />
+                <View style={styles.menuIconWrap}>
+                  <Ionicons name={item.icon as any} size={22} color="#1e3a8a" />
+                </View>
                 <Text style={styles.menuLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
               </TouchableOpacity>
             ))}
+
+            <View style={styles.divider} />
 
             {/* Sign Out */}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={handleSignOut}
             >
-              <Ionicons name="log-out" size={24} color="#FF6B6B" />
-              <Text style={[styles.menuLabel, { color: '#FF6B6B' }]}>Sign out</Text>
+              <View style={[styles.menuIconWrap, { backgroundColor: '#fef2f2' }]}>
+                <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+              </View>
+              <Text style={[styles.menuLabel, { color: '#ef4444' }]}>Sign out</Text>
+              <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
             </TouchableOpacity>
-          </View>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
         </Animated.View>
 
         {/* Overlay */}
@@ -155,68 +177,106 @@ const styles = StyleSheet.create({
     top: 0,
     width: DRAWER_WIDTH,
     height: '100%',
-    backgroundColor: '#14b8a6',
-    paddingTop: 60,
-    paddingHorizontal: 24,
+    backgroundColor: '#ffffff',
     zIndex: 2,
+    overflow: 'hidden',
   },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
+  headerSection: {
+    backgroundColor: '#172554',
+    paddingTop: Platform.OS === 'ios' ? 54 : 36,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
   closeButton: {
-    position: 'absolute',
-    top: 50,
-    left: 24,
-    zIndex: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
   profileSection: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 20,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 12,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#A0AEC0',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1e3a8a',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#14b8a6',
   },
   avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: '#14b8a6',
   },
   avatarText: {
-    fontSize: 36,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#fff',
   },
-  greeting: {
-    fontSize: 18,
-    color: '#fff',
+  editIconBtn: {
+    position: 'absolute',
+    bottom: 0,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#14b8a6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#172554',
   },
   userName: {
+    fontSize: 18,
     fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
   },
-  menuItems: {
+  userEmail: {
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  menuSection: {
     flex: 1,
+    paddingTop: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    gap: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  menuIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
   menuLabel: {
-    fontSize: 18,
-    color: '#fff',
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
     fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 20,
+    marginVertical: 8,
   },
 });
 

@@ -7,10 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
+
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
 
 interface DeliveryHistoryItem {
   id: string;
@@ -43,10 +48,7 @@ const PackageHistoryScreen: React.FC = () => {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const mockHistory: DeliveryHistoryItem[] = [
         {
           id: 'PKG1773535247769',
@@ -58,10 +60,7 @@ const PackageHistoryScreen: React.FC = () => {
           totalAmount: 2500,
           createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
           deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-          courier: {
-            name: 'John Doe',
-            rating: 4.8,
-          },
+          courier: { name: 'John Doe', rating: 4.8 },
         },
         {
           id: 'PKG1773435247769',
@@ -73,10 +72,7 @@ const PackageHistoryScreen: React.FC = () => {
           totalAmount: 1800,
           createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
-          courier: {
-            name: 'Jane Smith',
-            rating: 4.9,
-          },
+          courier: { name: 'Jane Smith', rating: 4.9 },
         },
         {
           id: 'PKG1773335247769',
@@ -98,13 +94,9 @@ const PackageHistoryScreen: React.FC = () => {
           totalAmount: 2200,
           createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
           deliveredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000).toISOString(),
-          courier: {
-            name: 'Mike Johnson',
-            rating: 4.7,
-          },
+          courier: { name: 'Mike Johnson', rating: 4.7 },
         },
       ];
-      
       setDeliveries(mockHistory);
     } catch (error) {
       console.error('Load history error:', error);
@@ -121,10 +113,9 @@ const PackageHistoryScreen: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'DELIVERED': return '#10b981';
+      case 'DELIVERED': return ACCENT;
       case 'CANCELLED': return '#ef4444';
-      case 'IN_TRANSIT': return '#14b8a6';
-      default: return '#6b7280';
+      default: return TEXT_DIM;
     }
   };
 
@@ -132,7 +123,6 @@ const PackageHistoryScreen: React.FC = () => {
     switch (status) {
       case 'DELIVERED': return 'checkmark-done-circle';
       case 'CANCELLED': return 'close-circle';
-      case 'IN_TRANSIT': return 'bicycle';
       default: return 'time';
     }
   };
@@ -143,67 +133,58 @@ const PackageHistoryScreen: React.FC = () => {
   });
 
   const handleViewDetails = (delivery: DeliveryHistoryItem) => {
-    (navigation as any).navigate('TrackDelivery', {
-      orderId: delivery.id,
-    });
+    (navigation as any).navigate('TrackDelivery', { orderId: delivery.id });
   };
 
+  const completedCount = deliveries.filter(d => d.status === 'DELIVERED').length;
+  const totalSpent = deliveries.reduce((sum, d) => sum + d.totalAmount, 0);
+
   const renderDeliveryItem = ({ item }: { item: DeliveryHistoryItem }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.deliveryCard}
       onPress={() => handleViewDetails(item)}
       activeOpacity={0.7}
     >
-      {/* Status Badge */}
-      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-        <Ionicons name={getStatusIcon(item.status) as any} size={16} color="#fff" />
-        <Text style={styles.statusText}>{item.status}</Text>
-      </View>
-
-      {/* Order Info */}
-      <View style={styles.orderInfo}>
-        <Text style={styles.orderNumber}>#{item.orderNumber}</Text>
+      <View style={styles.cardHeader}>
+        <View style={[
+          styles.statusBadge,
+          { backgroundColor: item.status === 'DELIVERED' ? 'rgba(20,184,166,0.12)' : 'rgba(239,68,68,0.12)' },
+        ]}>
+          <Ionicons name={getStatusIcon(item.status) as any} size={14} color={getStatusColor(item.status)} />
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {item.status}
+          </Text>
+        </View>
         <Text style={styles.orderDate}>
-          {new Date(item.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </Text>
       </View>
 
-      {/* Route */}
       <View style={styles.route}>
         <View style={styles.routeItem}>
-          <View style={[styles.routeDot, { backgroundColor: '#10b981' }]} />
-          <Text style={styles.routeAddress} numberOfLines={1}>
-            {item.pickupAddress}
-          </Text>
+          <View style={[styles.routeDot, { backgroundColor: ACCENT }]} />
+          <Text style={styles.routeAddress} numberOfLines={1}>{item.pickupAddress}</Text>
         </View>
         <View style={styles.routeLine} />
         <View style={styles.routeItem}>
           <View style={[styles.routeDot, { backgroundColor: '#ef4444' }]} />
-          <Text style={styles.routeAddress} numberOfLines={1}>
-            {item.dropoffAddress}
-          </Text>
+          <Text style={styles.routeAddress} numberOfLines={1}>{item.dropoffAddress}</Text>
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.cardFooter}>
         <View style={styles.packageInfo}>
-          <Ionicons name="cube-outline" size={16} color="#6b7280" />
+          <Ionicons name="cube-outline" size={15} color={TEXT_DIM} />
           <Text style={styles.packageSize}>{item.packageSize}</Text>
         </View>
-        <Text style={styles.amount}>₦{item.totalAmount.toLocaleString()}</Text>
+        <Text style={styles.amount}>{'\u20A6'}{item.totalAmount.toLocaleString()}</Text>
       </View>
 
-      {/* Courier Info (if delivered) */}
       {item.courier && (
         <View style={styles.courierInfo}>
-          <Ionicons name="person-circle-outline" size={16} color="#14b8a6" />
+          <Ionicons name="person-circle-outline" size={15} color={ACCENT} />
           <Text style={styles.courierName}>{item.courier.name}</Text>
-          <Ionicons name="star" size={14} color="#f59e0b" />
+          <Ionicons name="star" size={13} color="#f59e0b" />
           <Text style={styles.courierRating}>{item.courier.rating}</Text>
         </View>
       )}
@@ -212,16 +193,16 @@ const PackageHistoryScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="cube-outline" size={80} color="#e5e7eb" />
+      <View style={styles.emptyIcon}>
+        <Ionicons name="cube-outline" size={48} color={TEXT_DIM} />
+      </View>
       <Text style={styles.emptyTitle}>No Deliveries Yet</Text>
-      <Text style={styles.emptyText}>
-        Your package delivery history will appear here
-      </Text>
-      <TouchableOpacity 
-        style={styles.sendPackageButton}
+      <Text style={styles.emptyText}>Your delivery history will appear here</Text>
+      <TouchableOpacity
+        style={styles.sendBtn}
         onPress={() => (navigation as any).navigate('SendPackageHome')}
       >
-        <Text style={styles.sendPackageButtonText}>Send a Package</Text>
+        <Text style={styles.sendBtnText}>Send a Package</Text>
       </TouchableOpacity>
     </View>
   );
@@ -230,15 +211,15 @@ const PackageHistoryScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backText}>{"<"}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Delivery History</Text>
-          <View style={{ width: 40 }} />
+          <Text style={styles.headerTitle}>My Orders</Text>
+          <View style={{ width: 38 }} />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#14b8a6" />
-          <Text style={styles.loadingText}>Loading history...</Text>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={ACCENT} />
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
     );
@@ -248,67 +229,49 @@ const PackageHistoryScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Delivery History</Text>
-        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="#14b8a6" />
+        <Text style={styles.headerTitle}>My Orders</Text>
+        <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
+          <Ionicons name="refresh" size={20} color={ACCENT} />
         </TouchableOpacity>
       </View>
 
-      {/* Stats Summary */}
-      <View style={styles.statsContainer}>
-        <LinearGradient
-          colors={['#14b8a6', '#0d9488']}
-          style={styles.statsCard}
-        >
-          <Text style={styles.statsNumber}>{deliveries.length}</Text>
-          <Text style={styles.statsLabel}>Total Deliveries</Text>
-        </LinearGradient>
-        <View style={styles.statsCard}>
-          <Text style={[styles.statsNumber, { color: '#10b981' }]}>
-            {deliveries.filter(d => d.status === 'DELIVERED').length}
-          </Text>
-          <Text style={styles.statsLabel}>Completed</Text>
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statCard, styles.statCardAccent]}>
+          <Text style={[styles.statNum, { color: '#fff' }]}>{deliveries.length}</Text>
+          <Text style={[styles.statLabel, { color: '#fff', opacity: 0.7 }]}>Total</Text>
         </View>
-        <View style={styles.statsCard}>
-          <Text style={[styles.statsNumber, { color: '#14b8a6' }]}>
-            ₦{deliveries.reduce((sum, d) => sum + d.totalAmount, 0).toLocaleString()}
-          </Text>
-          <Text style={styles.statsLabel}>Total Spent</Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statNum}>{completedCount}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNum}>{'\u20A6'}{totalSpent.toLocaleString()}</Text>
+          <Text style={styles.statLabel}>Spent</Text>
         </View>
       </View>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-          onPress={() => setFilter('all')}
-        >
-          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-            All ({deliveries.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'delivered' && styles.filterTabActive]}
-          onPress={() => setFilter('delivered')}
-        >
-          <Text style={[styles.filterText, filter === 'delivered' && styles.filterTextActive]}>
-            Delivered ({deliveries.filter(d => d.status === 'DELIVERED').length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'cancelled' && styles.filterTabActive]}
-          onPress={() => setFilter('cancelled')}
-        >
-          <Text style={[styles.filterText, filter === 'cancelled' && styles.filterTextActive]}>
-            Cancelled ({deliveries.filter(d => d.status === 'CANCELLED').length})
-          </Text>
-        </TouchableOpacity>
+      {/* Filters */}
+      <View style={styles.filterRow}>
+        {(['all', 'delivered', 'cancelled'] as const).map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[styles.filterTab, filter === f && styles.filterTabActive]}
+            onPress={() => setFilter(f)}
+          >
+            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+              {f === 'all' ? `All (${deliveries.length})`
+                : f === 'delivered' ? `Delivered (${completedCount})`
+                : `Cancelled (${deliveries.filter(d => d.status === 'CANCELLED').length})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Delivery List */}
+      {/* List */}
       <FlatList
         data={filteredDeliveries}
         renderItem={renderDeliveryItem}
@@ -316,11 +279,7 @@ const PackageHistoryScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#14b8a6"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT} />
         }
       />
     </View>
@@ -330,141 +289,138 @@ const PackageHistoryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: BG_DARK,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 12,
   },
-  backButton: {
-    padding: 8,
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#fff',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
   },
-  refreshButton: {
-    padding: 8,
+  refreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  loadingContainer: {
+  loadingWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    color: TEXT_DIM,
   },
-  statsContainer: {
+  statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 10,
   },
-  statsCard: {
+  statCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    padding: 14,
+    borderRadius: 14,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  statsNumber: {
-    fontSize: 24,
+  statCardAccent: {
+    backgroundColor: ACCENT,
+  },
+  statNum: {
+    fontSize: 20,
     fontWeight: '800',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  statsLabel: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.9,
+  statLabel: {
+    fontSize: 11,
+    color: TEXT_DIM,
+    fontWeight: '600',
   },
-  filterContainer: {
+  filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
     gap: 8,
   },
   filterTab: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderRadius: 10,
+    backgroundColor: CARD_DARK,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'transparent',
   },
   filterTabActive: {
-    backgroundColor: '#14b8a6',
-    borderColor: '#14b8a6',
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.08)',
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: TEXT_DIM,
   },
   filterTextActive: {
-    color: '#fff',
+    color: ACCENT,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 20,
   },
   deliveryCard: {
-    backgroundColor: '#fff',
+    backgroundColor: CARD_DARK,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-    marginLeft: 4,
-    textTransform: 'uppercase',
-  },
-  orderInfo: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  orderNumber: {
-    fontSize: 16,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#000',
+    textTransform: 'uppercase',
   },
   orderDate: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: TEXT_DIM,
   },
   route: {
     marginBottom: 12,
@@ -472,25 +428,25 @@ const styles = StyleSheet.create({
   routeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 3,
   },
   routeDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
+    marginRight: 10,
   },
   routeLine: {
     width: 2,
-    height: 16,
-    backgroundColor: '#e5e7eb',
+    height: 14,
+    backgroundColor: '#353A4A',
     marginLeft: 3,
-    marginVertical: 2,
+    marginVertical: 1,
   },
   routeAddress: {
     flex: 1,
     fontSize: 14,
-    color: '#374151',
+    color: '#cbd5e1',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -498,68 +454,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#353A4A',
   },
   packageInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   packageSize: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginLeft: 4,
+    fontSize: 13,
+    color: TEXT_DIM,
     textTransform: 'capitalize',
   },
   amount: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#14b8a6',
+    color: ACCENT,
   },
   courierInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#353A4A',
+    gap: 4,
   },
   courierName: {
     fontSize: 13,
-    color: '#6b7280',
-    marginLeft: 4,
-    marginRight: 8,
+    color: '#94a3b8',
+    flex: 1,
   },
   courierRating: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#000',
-    marginLeft: 2,
+    color: '#fff',
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
     paddingHorizontal: 40,
   },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
-    marginTop: 16,
+    color: '#fff',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: TEXT_DIM,
     textAlign: 'center',
     marginBottom: 24,
   },
-  sendPackageButton: {
-    backgroundColor: '#14b8a6',
+  sendBtn: {
+    backgroundColor: ACCENT,
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
   },
-  sendPackageButtonText: {
+  sendBtnText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',

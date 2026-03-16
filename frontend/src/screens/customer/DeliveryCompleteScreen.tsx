@@ -8,11 +8,16 @@ import {
   TextInput,
   Alert,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
 
 const DeliveryCompleteScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -22,12 +27,11 @@ const DeliveryCompleteScreen: React.FC = () => {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Celebration animation on mount
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -48,21 +52,12 @@ const DeliveryCompleteScreen: React.FC = () => {
       Alert.alert('Rating Required', 'Please select a rating before submitting');
       return;
     }
-
     try {
       setIsSubmitting(true);
       await packageDeliveryAPI.rateDelivery(orderId, rating, feedback.trim() || undefined);
-      
-      Alert.alert(
-        'Thank You!',
-        'Your feedback helps us improve our service',
-        [
-          {
-            text: 'OK',
-            onPress: () => (navigation as any).navigate('HomeTabs'),
-          },
-        ]
-      );
+      Alert.alert('Thank You!', 'Your feedback helps us improve our service', [
+        { text: 'OK', onPress: () => (navigation as any).navigate('HomeTabs') },
+      ]);
     } catch (error) {
       console.error('Rating error:', error);
       Alert.alert('Error', 'Failed to submit rating. Please try again.');
@@ -80,45 +75,36 @@ const DeliveryCompleteScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Success Icon */}
         <View style={styles.successSection}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.successIconContainer,
-              { transform: [{ scale: scaleAnim }], opacity: fadeAnim }
+              { transform: [{ scale: scaleAnim }], opacity: fadeAnim },
             ]}
           >
-            <LinearGradient
-              colors={['#2ecc71', '#27ae60']}
-              style={styles.iconGradient}
-            >
-              <Ionicons name="checkmark-circle" size={80} color="#fff" />
-            </LinearGradient>
+            <View style={styles.iconCircle}>
+              <Ionicons name="checkmark-circle" size={80} color={ACCENT} />
+            </View>
           </Animated.View>
           <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.successTitle}>🎉 Delivery Complete!</Text>
+            <Text style={styles.successTitle}>Delivery Complete!</Text>
             <Text style={styles.successSubtitle}>
               Your package has been successfully delivered
             </Text>
           </Animated.View>
         </View>
 
-        {/* Rating Section */}
+        {/* Rating */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How was your experience?</Text>
-          <Text style={styles.sectionSubtitle}>
-            Rate your courier to help us improve
-          </Text>
+          <Text style={styles.sectionSubtitle}>Rate your courier to help us improve</Text>
 
           <View style={styles.starsContainer}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setRating(star)}
-                style={styles.starButton}
-              >
+              <TouchableOpacity key={star} onPress={() => setRating(star)} style={styles.starButton}>
                 <Ionicons
                   name={star <= rating ? 'star' : 'star-outline'}
-                  size={48}
-                  color={star <= rating ? '#f39c12' : '#e0e0e0'}
+                  size={44}
+                  color={star <= rating ? '#f59e0b' : '#353A4A'}
                 />
               </TouchableOpacity>
             ))}
@@ -126,19 +112,19 @@ const DeliveryCompleteScreen: React.FC = () => {
 
           {rating > 0 && (
             <Text style={styles.ratingText}>
-              {rating === 5 && '⭐ Excellent!'}
-              {rating === 4 && '👍 Great!'}
-              {rating === 3 && '😊 Good'}
-              {rating === 2 && '😐 Fair'}
-              {rating === 1 && '😞 Poor'}
+              {rating === 5 && 'Excellent!'}
+              {rating === 4 && 'Great!'}
+              {rating === 3 && 'Good'}
+              {rating === 2 && 'Fair'}
+              {rating === 1 && 'Poor'}
             </Text>
           )}
         </View>
 
-        {/* Feedback Section */}
+        {/* Feedback */}
         {rating > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Feedback (Optional)</Text>
+            <Text style={styles.sectionTitle}>Additional Feedback</Text>
             <TextInput
               style={styles.feedbackInput}
               placeholder="Tell us more about your experience..."
@@ -146,7 +132,7 @@ const DeliveryCompleteScreen: React.FC = () => {
               onChangeText={setFeedback}
               multiline
               numberOfLines={4}
-              placeholderTextColor="#999"
+              placeholderTextColor={TEXT_DIM}
             />
           </View>
         )}
@@ -160,7 +146,7 @@ const DeliveryCompleteScreen: React.FC = () => {
                 <TouchableOpacity
                   key={tag}
                   style={styles.tag}
-                  onPress={() => setFeedback((prev) => prev ? `${prev}, ${tag}` : tag)}
+                  onPress={() => setFeedback((prev) => (prev ? `${prev}, ${tag}` : tag))}
                 >
                   <Text style={styles.tagText}>{tag}</Text>
                 </TouchableOpacity>
@@ -177,7 +163,7 @@ const DeliveryCompleteScreen: React.FC = () => {
                 <TouchableOpacity
                   key={tag}
                   style={styles.tag}
-                  onPress={() => setFeedback((prev) => prev ? `${prev}, ${tag}` : tag)}
+                  onPress={() => setFeedback((prev) => (prev ? `${prev}, ${tag}` : tag))}
                 >
                   <Text style={styles.tagText}>{tag}</Text>
                 </TouchableOpacity>
@@ -188,28 +174,25 @@ const DeliveryCompleteScreen: React.FC = () => {
 
         {/* Order Again CTA */}
         <View style={styles.ctaCard}>
-          <Ionicons name="cube-outline" size={32} color="#ff6b35" />
+          <Ionicons name="cube-outline" size={30} color={ACCENT} />
           <Text style={styles.ctaTitle}>Need to send another package?</Text>
           <TouchableOpacity
             style={styles.ctaButton}
             onPress={() => (navigation as any).navigate('SendPackageHome')}
           >
             <Text style={styles.ctaButtonText}>Send Package</Text>
-            <Ionicons name="arrow-forward" size={16} color="#ff6b35" />
+            <Ionicons name="arrow-forward" size={16} color={BG_DARK} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.bottomPadding} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Action Buttons */}
+      {/* Footer */}
       <View style={styles.footer}>
         {rating > 0 ? (
           <View style={styles.footerButtons}>
-            <TouchableOpacity
-              style={styles.skipButton}
-              onPress={handleSkip}
-            >
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
               <Text style={styles.skipButtonText}>Skip</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -235,147 +218,135 @@ const DeliveryCompleteScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
   },
   scrollView: {
     flex: 1,
   },
   successSection: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 40,
     paddingHorizontal: 20,
   },
   successIconContainer: {
     marginBottom: 24,
   },
-  iconGradient: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+  iconCircle: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(20,184,166,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2ecc71',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
   successTitle: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
-    color: '#000',
-    marginBottom: 12,
+    color: '#fff',
+    marginBottom: 10,
     textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: TEXT_DIM,
     textAlign: 'center',
   },
   section: {
     paddingHorizontal: 20,
-    marginBottom: 32,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
+    color: '#fff',
+    marginBottom: 6,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 24,
+    color: TEXT_DIM,
+    marginBottom: 20,
   },
   starsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 14,
   },
   starButton: {
     padding: 4,
   },
   ratingText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#f39c12',
+    fontWeight: '700',
+    color: ACCENT,
     textAlign: 'center',
   },
   feedbackInput: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
     padding: 16,
     fontSize: 15,
-    color: '#000',
-    minHeight: 120,
+    color: '#fff',
+    minHeight: 110,
     textAlignVertical: 'top',
+    marginTop: 8,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
+    marginTop: 8,
   },
   tag: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: CARD_DARK,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#353A4A',
   },
   tagText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     fontWeight: '500',
   },
   ctaCard: {
-    backgroundColor: '#f0fdfa',
+    backgroundColor: CARD_DARK,
     marginHorizontal: 20,
     padding: 24,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#14b8a6',
+    borderColor: 'rgba(20,184,166,0.15)',
   },
   ctaTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#000',
-    marginTop: 16,
-    marginBottom: 16,
+    color: '#fff',
+    marginTop: 14,
+    marginBottom: 14,
     textAlign: 'center',
   },
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: ACCENT,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#14b8a6',
+    gap: 6,
   },
   ctaButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#14b8a6',
-    marginRight: 8,
-  },
-  bottomPadding: {
-    height: 120,
+    color: '#fff',
   },
   footer: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 16,
+    backgroundColor: BG_DARK,
   },
   footerButtons: {
     flexDirection: 'row',
@@ -383,27 +354,27 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: CARD_DARK,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#353A4A',
   },
   skipButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#666',
+    color: TEXT_DIM,
   },
   submitButton: {
     flex: 2,
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: CARD_DARK,
   },
   submitButtonText: {
     fontSize: 16,
@@ -411,9 +382,9 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   doneButton: {
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
   doneButtonText: {

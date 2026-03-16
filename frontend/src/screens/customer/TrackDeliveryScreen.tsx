@@ -135,25 +135,25 @@ const TrackDeliveryScreen: React.FC = () => {
         return {
           title: 'Courier on the way to pickup',
           icon: 'bicycle',
-          color: '#3498db',
+          color: '#14b8a6',
         };
       case 'picked_up':
         return {
           title: 'Package picked up',
           icon: 'checkmark-circle',
-          color: '#f39c12',
+          color: '#14b8a6',
         };
       case 'delivered':
         return {
           title: 'Package delivered',
           icon: 'checkmark-done-circle',
-          color: '#2ecc71',
+          color: '#14b8a6',
         };
       default:
         return {
           title: 'Tracking delivery',
           icon: 'location',
-          color: '#ff6b35',
+          color: '#14b8a6',
         };
     }
   };
@@ -277,7 +277,7 @@ const TrackDeliveryScreen: React.FC = () => {
                 longitude: deliveryStatus.order.dropoffLocation.lng,
               },
             ]}
-            strokeColor="#ff6b35"
+            strokeColor="#14b8a6"
             strokeWidth={3}
             lineDashPattern={[10, 5]}
           />
@@ -290,7 +290,7 @@ const TrackDeliveryScreen: React.FC = () => {
           style={styles.backButton}
           onPress={() => (navigation as any).navigate('HomeTabs')}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -317,7 +317,7 @@ const TrackDeliveryScreen: React.FC = () => {
             {courier?.avatarUrl ? (
               <Image source={{ uri: courier.avatarUrl }} style={styles.avatarImage} />
             ) : (
-              <Ionicons name="person" size={32} color="#666" />
+              <Ionicons name="person" size={32} color="#7B8494" />
             )}
           </View>
           <View style={styles.courierDetails}>
@@ -385,43 +385,48 @@ const TrackDeliveryScreen: React.FC = () => {
   );
 };
 
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: TEXT_DIM,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
     padding: 20,
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: '#666',
+    color: TEXT_DIM,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: TEXT_DIM,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
@@ -447,15 +452,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: BG_DARK,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
@@ -464,25 +469,25 @@ const styles = StyleSheet.create({
     top: 120,
     left: 20,
     right: 20,
-    backgroundColor: '#fff',
+    backgroundColor: CARD_DARK,
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 8,
     zIndex: 10,
   },
   statusIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   statusContent: {
     flex: 1,
@@ -490,22 +495,23 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
     marginBottom: 4,
   },
   statusSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: ACCENT,
+    fontWeight: '600',
   },
   courierMarker: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#ff6b35',
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: BG_DARK,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -521,22 +527,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 36,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
   },
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 20,
@@ -547,37 +553,37 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   courierAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#f5f5f5',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: CARD_DARK,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
   },
   courierDetails: {
     flex: 1,
   },
   courierName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 3,
   },
   courierRole: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: TEXT_DIM,
   },
   callButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2ecc71',
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -592,12 +598,12 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#e0e0e0',
-    marginRight: 16,
+    backgroundColor: '#353A4A',
+    marginRight: 14,
     marginTop: 4,
   },
   timelineDotActive: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: ACCENT,
   },
   timelineContent: {
     flex: 1,
@@ -605,32 +611,32 @@ const styles = StyleSheet.create({
   timelineTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 3,
   },
   timelineTime: {
     fontSize: 13,
-    color: '#666',
+    color: TEXT_DIM,
   },
   timelineLine: {
     width: 2,
     height: 24,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     marginLeft: 7,
     marginVertical: 4,
   },
   cancelButton: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(239,68,68,0.1)',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e74c3c',
+    borderColor: 'rgba(239,68,68,0.3)',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#e74c3c',
+    color: '#ef4444',
   },
 });
 

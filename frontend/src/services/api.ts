@@ -12,7 +12,7 @@ const getNonceService = async () => {
 };
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.0.190';
+const DEV_IP = '192.168.0.103';
 
 const getBaseUrl = () => {
   // In production, use your production API URL

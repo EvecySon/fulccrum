@@ -649,6 +649,36 @@ async function main() {
   console.log('📦 Inventory: All items stocked (50 units each)');
   console.log('💰 Wallets: All users funded with test balances');
   console.log('═══════════════════════════════════════════\n');
+
+  // ============================================
+  // CREATE PLATFORM SETTINGS
+  // ============================================
+  console.log('⚙️  Creating platform settings...');
+  const platformSettings = await prisma.platformSettings.create({
+    data: {
+      serviceFeePercentage: 10,
+      minServiceFee: 50,
+      maxServiceFee: 500,
+      taxPercentage: 7.5,
+      taxName: 'VAT',
+      platformCommissionPercentage: 15,
+      currency: 'NGN',
+      isActive: true,
+      // Package Delivery Pricing
+      basePackagePrice: 500,
+      perKmPackageRate: 100,
+      packageSizeSmallMultiplier: 1.0,
+      packageSizeMediumMultiplier: 1.5,
+      packageSizeLargeMultiplier: 2.0,
+      expressSpeedMultiplier: 1.3,
+      sameDaySpeedMultiplier: 1.0,
+      scheduledSpeedMultiplier: 0.8,
+      peakHourSurgeMultiplier: 1.3,
+      weekendSurgeMultiplier: 1.2,
+    },
+  });
+  console.log('✅ Platform settings created with default package delivery pricing\n');
+
   console.log('✅ You can now test the complete order flow with wallet payments!');
   console.log('');
 }

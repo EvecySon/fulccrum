@@ -138,7 +138,7 @@ const LocationPickerScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
@@ -223,13 +223,13 @@ const LocationPickerScreen: React.FC = () => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Address</Text>
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+              <Ionicons name="search" size={20} color="#7B8494" style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search for an address or landmark"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholderTextColor="#999"
+                placeholderTextColor="#7B8494"
               />
             </View>
             <Text style={styles.inputHint}>
@@ -247,7 +247,7 @@ const LocationPickerScreen: React.FC = () => {
               placeholder="Enter full name"
               value={contactName}
               onChangeText={setContactName}
-              placeholderTextColor="#999"
+              placeholderTextColor="#7B8494"
             />
           </View>
 
@@ -262,7 +262,7 @@ const LocationPickerScreen: React.FC = () => {
               value={contactPhone}
               onChangeText={setContactPhone}
               keyboardType="phone-pad"
-              placeholderTextColor="#999"
+              placeholderTextColor="#7B8494"
             />
           </View>
 
@@ -270,7 +270,7 @@ const LocationPickerScreen: React.FC = () => {
           {pickupLocation && currentStep === 'dropoff' && (
             <View style={styles.locationPreview}>
               <View style={styles.locationPreviewHeader}>
-                <Ionicons name="checkmark-circle" size={20} color="#2ecc71" />
+                <Ionicons name="checkmark-circle" size={20} color="#14b8a6" />
                 <Text style={styles.locationPreviewTitle}>Pickup Location Set</Text>
               </View>
               <Text style={styles.locationPreviewAddress}>{pickupLocation.address}</Text>
@@ -304,25 +304,30 @@ const LocationPickerScreen: React.FC = () => {
   );
 };
 
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 14,
+    backgroundColor: BG_DARK,
     zIndex: 10,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -331,19 +336,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 3,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: TEXT_DIM,
   },
   progressContainer: {
     paddingHorizontal: 40,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    backgroundColor: BG_DARK,
   },
   progressBar: {
     flexDirection: 'row',
@@ -354,17 +359,17 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressStepActive: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: ACCENT,
   },
   progressStepText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#999',
+    color: TEXT_DIM,
   },
   progressStepTextActive: {
     color: '#fff',
@@ -372,11 +377,11 @@ const styles = StyleSheet.create({
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     marginHorizontal: 8,
   },
   progressLineActive: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: ACCENT,
   },
   progressLabels: {
     flexDirection: 'row',
@@ -384,7 +389,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: '#666',
+    color: TEXT_DIM,
     fontWeight: '500',
   },
   mapContainer: {
@@ -402,34 +407,34 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#ff6b35',
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
   bottomSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
     maxHeight: '50%',
   },
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -438,21 +443,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#000',
+    color: '#cbd5e1',
     marginBottom: 8,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: CARD_DARK,
     borderRadius: 12,
     paddingHorizontal: 16,
-    height: 50,
+    height: 48,
   },
   searchIcon: {
     marginRight: 12,
@@ -460,28 +465,28 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#000',
+    color: '#fff',
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: CARD_DARK,
     borderRadius: 12,
     paddingHorizontal: 16,
-    height: 50,
+    height: 48,
     fontSize: 15,
-    color: '#000',
+    color: '#fff',
   },
   inputHint: {
     fontSize: 12,
-    color: '#999',
+    color: TEXT_DIM,
     marginTop: 6,
   },
   locationPreview: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: 'rgba(20,184,166,0.06)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#2ecc71',
+    borderColor: 'rgba(20,184,166,0.2)',
   },
   locationPreviewHeader: {
     flexDirection: 'row',
@@ -491,37 +496,36 @@ const styles = StyleSheet.create({
   locationPreviewTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2ecc71',
+    color: ACCENT,
     marginLeft: 8,
   },
   locationPreviewAddress: {
     fontSize: 14,
-    color: '#000',
+    color: '#fff',
     marginBottom: 4,
   },
   locationPreviewContact: {
     fontSize: 12,
-    color: '#666',
+    color: TEXT_DIM,
   },
   bottomPadding: {
     height: 20,
   },
   footer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    paddingVertical: 14,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
   },
   confirmButton: {
-    backgroundColor: '#ff6b35',
+    backgroundColor: ACCENT,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: CARD_DARK,
   },
   confirmButtonText: {
     fontSize: 16,

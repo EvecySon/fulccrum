@@ -169,14 +169,13 @@ const FindingCourierScreen: React.FC = () => {
 
   if (courierFound) {
     return (
-      <LinearGradient
-        colors={['#2ecc71', '#27ae60']}
-        style={styles.container}
+      <View
+        style={[styles.container, { backgroundColor: '#1A1D2E' }]}
       >
         <View style={styles.content}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <View style={styles.successIconContainer}>
-              <Ionicons name="checkmark-circle" size={100} color="#fff" />
+              <Ionicons name="checkmark-circle" size={100} color="#14b8a6" />
             </View>
           </Animated.View>
           <Text style={styles.successTitle}>Courier Found! 🎉</Text>
@@ -189,7 +188,7 @@ const FindingCourierScreen: React.FC = () => {
             <View style={[styles.loadingDot, { backgroundColor: '#fff' }]} />
           </View>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -210,12 +209,11 @@ const FindingCourierScreen: React.FC = () => {
             },
           ]}
         >
-          <LinearGradient
-            colors={['#14b8a6', '#0d9488']}
-            style={styles.iconGradient}
+          <View
+            style={[styles.iconGradient, { backgroundColor: '#14b8a6' }]}
           >
             <Ionicons name="bicycle" size={72} color="#fff" />
-          </LinearGradient>
+          </View>
         </Animated.View>
 
         {/* Animated Radar Rings */}
@@ -230,7 +228,7 @@ const FindingCourierScreen: React.FC = () => {
 
         {/* Timer */}
         <View style={styles.timerContainer}>
-          <Ionicons name="time-outline" size={20} color="#666" />
+          <Ionicons name="time-outline" size={20} color="#14b8a6" />
           <Text style={styles.timerText}>{formatTime(timeRemaining)}</Text>
         </View>
 
@@ -253,7 +251,7 @@ const FindingCourierScreen: React.FC = () => {
           </View>
 
           <View style={styles.infoCard}>
-            <Ionicons name="people-outline" size={24} color="#3498db" />
+            <Ionicons name="people-outline" size={24} color="#14b8a6" />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Searching</Text>
               <Text style={styles.infoValue}>Nearby Couriers</Text>
@@ -280,34 +278,39 @@ const FindingCourierScreen: React.FC = () => {
   );
 };
 
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: BG_DARK,
   },
   bgCircle: {
     position: 'absolute',
     borderRadius: 1000,
-    opacity: 0.05,
+    opacity: 0.04,
   },
   bgCircle1: {
     width: width * 1.5,
     height: width * 1.5,
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     top: -width * 0.5,
     left: -width * 0.25,
   },
   bgCircle2: {
     width: width * 1.2,
     height: width * 1.2,
-    backgroundColor: '#3498db',
+    backgroundColor: ACCENT,
     bottom: -width * 0.4,
     right: -width * 0.3,
   },
   bgCircle3: {
     width: width * 0.8,
     height: width * 0.8,
-    backgroundColor: '#2ecc71',
+    backgroundColor: ACCENT,
     top: '40%',
     right: -width * 0.2,
   },
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     marginBottom: 40,
-    shadowColor: '#14b8a6',
+    shadowColor: ACCENT,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -338,9 +341,9 @@ const styles = StyleSheet.create({
   radarRing: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#14b8a6',
+    borderColor: ACCENT,
     borderRadius: 1000,
-    opacity: 0.2,
+    opacity: 0.15,
   },
   radarRing1: {
     width: 200,
@@ -364,13 +367,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#000',
+    color: '#fff',
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: TEXT_DIM,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
@@ -402,7 +405,7 @@ const styles = StyleSheet.create({
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: CARD_DARK,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 24,
@@ -411,7 +414,7 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#666',
+    color: ACCENT,
     marginLeft: 8,
   },
   dotsContainer: {
@@ -423,11 +426,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#353A4A',
     marginHorizontal: 4,
   },
   dotActive: {
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     width: 24,
   },
   infoSection: {
@@ -437,10 +440,10 @@ const styles = StyleSheet.create({
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: CARD_DARK,
     padding: 20,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 10,
   },
   infoContent: {
     marginLeft: 16,
@@ -448,50 +451,51 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#999',
+    color: TEXT_DIM,
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
   },
   tipsContainer: {
     width: '100%',
-    backgroundColor: '#e3f2fd',
+    backgroundColor: 'rgba(20,184,166,0.06)',
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(20,184,166,0.12)',
   },
   tipsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1976d2',
+    color: ACCENT,
     marginBottom: 12,
   },
   tipText: {
     fontSize: 14,
-    color: '#1976d2',
+    color: '#94a3b8',
     marginBottom: 6,
     lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    paddingBottom: 36,
   },
   cancelButton: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(239,68,68,0.1)',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e74c3c',
+    borderColor: 'rgba(239,68,68,0.3)',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#e74c3c',
+    color: '#ef4444',
   },
 });
 

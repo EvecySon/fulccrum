@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
 
 interface PackageDeliverySettings {
@@ -26,8 +27,10 @@ interface PackageDeliverySettings {
 }
 
 const PackageDeliverySettingsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [settings, setSettings] = useState<PackageDeliverySettings>({
     basePackagePrice: 500,
     perKmPackageRate: 100,
@@ -40,6 +43,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
     peakHourSurgeMultiplier: 1.3,
     weekendSurgeMultiplier: 1.2,
   });
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadSettings();
@@ -48,12 +52,24 @@ const PackageDeliverySettingsScreen: React.FC = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/fees/package-delivery/settings');
-      if (response.data) {
-        setSettings(response.data);
+      console.log('📥 Loading settings from backend...');
+      const data = await api.get('/fees/package-delivery/settings');
+      console.log('📦 Received data:', data);
+      
+      if (data && typeof data === 'object' && data.basePackagePrice !== undefined) {
+        setSettings(data);
+        // Sync string input values from loaded data
+        const strings: Record<string, string> = {};
+        for (const [key, val] of Object.entries(data)) {
+          if (typeof val === 'number') strings[key] = val.toString();
+        }
+        setInputValues(strings);
+        console.log('✅ Settings loaded successfully');
+      } else {
+        console.warn('⚠️ Invalid settings data');
       }
     } catch (error: any) {
-      console.error('Failed to load settings:', error);
+      console.error('❌ Failed to load settings:', error);
       Alert.alert('Error', 'Failed to load package delivery settings');
     } finally {
       setLoading(false);
@@ -61,21 +77,46 @@ const PackageDeliverySettingsScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
+    console.log('🔵 Save button clicked');
     try {
       setSaving(true);
-      await api.put('/fees/package-delivery/settings', settings);
-      Alert.alert('Success', 'Package delivery settings updated successfully');
+      // Only send package delivery pricing fields, exclude currency
+      const payload = {
+        basePackagePrice: settings.basePackagePrice,
+        perKmPackageRate: settings.perKmPackageRate,
+        packageSizeSmallMultiplier: settings.packageSizeSmallMultiplier,
+        packageSizeMediumMultiplier: settings.packageSizeMediumMultiplier,
+        packageSizeLargeMultiplier: settings.packageSizeLargeMultiplier,
+        expressSpeedMultiplier: settings.expressSpeedMultiplier,
+        sameDaySpeedMultiplier: settings.sameDaySpeedMultiplier,
+        scheduledSpeedMultiplier: settings.scheduledSpeedMultiplier,
+        peakHourSurgeMultiplier: settings.peakHourSurgeMultiplier,
+        weekendSurgeMultiplier: settings.weekendSurgeMultiplier,
+      };
+      console.log('📦 Payload:', payload);
+      await api.put('/fees/package-delivery/settings', payload);
+      console.log('✅ Save successful');
+      setShowSuccess(true);
+      Alert.alert('Success! ✅', 'Package delivery settings saved successfully');
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
     } catch (error: any) {
-      console.error('Failed to save settings:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save settings');
+      console.error('❌ Failed to save settings:', error);
+      Alert.alert('Error', 'Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   const updateSetting = (key: keyof PackageDeliverySettings, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setSettings((prev) => ({ ...prev, [key]: numValue }));
+    // Allow typing decimals by storing raw string
+    setInputValues((prev) => ({ ...prev, [key]: value }));
+    // Only update numeric state if it's a valid number
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      setSettings((prev) => ({ ...prev, [key]: numValue }));
+    }
   };
 
   const calculateExamplePrice = () => {
@@ -102,9 +143,24 @@ const PackageDeliverySettingsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Package Delivery Pricing</Text>
-        <Text style={styles.headerSubtitle}>Configure pricing parameters</Text>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>{"<"}</Text>
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Package Delivery Pricing</Text>
+            <Text style={styles.headerSubtitle}>Configure pricing parameters</Text>
+          </View>
+        </View>
       </View>
+
+      {/* Success Banner */}
+      {showSuccess && (
+        <View style={styles.successBanner}>
+          <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+          <Text style={styles.successText}>Settings saved successfully!</Text>
+        </View>
+      )}
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         {/* Base Pricing */}
@@ -118,9 +174,9 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Base Package Price (₦)</Text>
             <TextInput
               style={styles.input}
-              value={settings.basePackagePrice.toString()}
+              value={inputValues.basePackagePrice ?? settings.basePackagePrice.toString()}
               onChangeText={(val) => updateSetting('basePackagePrice', val)}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="500"
             />
             <Text style={styles.hint}>Starting price for any package delivery</Text>
@@ -130,9 +186,9 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Per Kilometer Rate (₦)</Text>
             <TextInput
               style={styles.input}
-              value={settings.perKmPackageRate.toString()}
+              value={inputValues.perKmPackageRate ?? settings.perKmPackageRate.toString()}
               onChangeText={(val) => updateSetting('perKmPackageRate', val)}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="100"
             />
             <Text style={styles.hint}>Additional cost per kilometer traveled</Text>
@@ -150,7 +206,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Small Package (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.packageSizeSmallMultiplier.toString()}
+              value={inputValues.packageSizeSmallMultiplier ?? settings.packageSizeSmallMultiplier.toString()}
               onChangeText={(val) => updateSetting('packageSizeSmallMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.0"
@@ -161,7 +217,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Medium Package (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.packageSizeMediumMultiplier.toString()}
+              value={inputValues.packageSizeMediumMultiplier ?? settings.packageSizeMediumMultiplier.toString()}
               onChangeText={(val) => updateSetting('packageSizeMediumMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.5"
@@ -172,7 +228,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Large Package (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.packageSizeLargeMultiplier.toString()}
+              value={inputValues.packageSizeLargeMultiplier ?? settings.packageSizeLargeMultiplier.toString()}
               onChangeText={(val) => updateSetting('packageSizeLargeMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="2.0"
@@ -191,7 +247,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Express (30-60 min) (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.expressSpeedMultiplier.toString()}
+              value={inputValues.expressSpeedMultiplier ?? settings.expressSpeedMultiplier.toString()}
               onChangeText={(val) => updateSetting('expressSpeedMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.3"
@@ -202,7 +258,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Same Day (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.sameDaySpeedMultiplier.toString()}
+              value={inputValues.sameDaySpeedMultiplier ?? settings.sameDaySpeedMultiplier.toString()}
               onChangeText={(val) => updateSetting('sameDaySpeedMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.0"
@@ -213,7 +269,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Scheduled (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.scheduledSpeedMultiplier.toString()}
+              value={inputValues.scheduledSpeedMultiplier ?? settings.scheduledSpeedMultiplier.toString()}
               onChangeText={(val) => updateSetting('scheduledSpeedMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="0.8"
@@ -232,7 +288,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Peak Hours (7-9am, 5-8pm weekdays) (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.peakHourSurgeMultiplier.toString()}
+              value={inputValues.peakHourSurgeMultiplier ?? settings.peakHourSurgeMultiplier.toString()}
               onChangeText={(val) => updateSetting('peakHourSurgeMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.3"
@@ -243,7 +299,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
             <Text style={styles.label}>Weekend (6-10pm Fri-Sun) (×)</Text>
             <TextInput
               style={styles.input}
-              value={settings.weekendSurgeMultiplier.toString()}
+              value={inputValues.weekendSurgeMultiplier ?? settings.weekendSurgeMultiplier.toString()}
               onChangeText={(val) => updateSetting('weekendSurgeMultiplier', val)}
               keyboardType="decimal-pad"
               placeholder="1.2"
@@ -449,6 +505,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginLeft: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    marginRight: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  backButtonText: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#10b981',
+  },
+  successText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#065f46',
+    marginLeft: 12,
   },
 });
 

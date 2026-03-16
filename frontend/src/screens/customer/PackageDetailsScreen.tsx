@@ -8,36 +8,23 @@ import {
   TextInput,
   Image,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
+
+const STEPS = ['Route', 'Details', 'Confirm'];
+
 const DELIVERY_SPEEDS = [
-  {
-    id: 'express',
-    title: 'Express',
-    subtitle: '30-60 minutes',
-    icon: 'flash',
-    color: '#f39c12',
-    multiplier: 1.3,
-  },
-  {
-    id: 'same_day',
-    title: 'Same Day',
-    subtitle: '2-4 hours',
-    icon: 'time',
-    color: '#3498db',
-    multiplier: 1.0,
-  },
-  {
-    id: 'scheduled',
-    title: 'Scheduled',
-    subtitle: 'Pick a time',
-    icon: 'calendar',
-    color: '#9b59b6',
-    multiplier: 1.0,
-  },
+  { id: 'express', title: 'Express', subtitle: '30-60 min', icon: 'flash', multiplier: 1.3 },
+  { id: 'same_day', title: 'Same Day', subtitle: '2-4 hours', icon: 'time', multiplier: 1.0 },
+  { id: 'scheduled', title: 'Scheduled', subtitle: 'Pick a time', icon: 'calendar', multiplier: 1.0 },
 ];
 
 const PackageDetailsScreen: React.FC = () => {
@@ -53,19 +40,16 @@ const PackageDetailsScreen: React.FC = () => {
 
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
     if (status !== 'granted') {
       Alert.alert('Permission Denied', 'We need camera permission to take photos');
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setPackagePhoto(result.assets[0].uri);
     }
@@ -73,19 +57,16 @@ const PackageDetailsScreen: React.FC = () => {
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
     if (status !== 'granted') {
       Alert.alert('Permission Denied', 'We need gallery permission to select photos');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setPackagePhoto(result.assets[0].uri);
     }
@@ -96,7 +77,6 @@ const PackageDetailsScreen: React.FC = () => {
       Alert.alert('Missing Information', 'Please describe what you\'re sending');
       return;
     }
-
     (navigation as any).navigate('PriceEstimate', {
       packageSize,
       pickupLocation,
@@ -113,21 +93,43 @@ const PackageDetailsScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Package Details</Text>
-        <View style={styles.placeholder} />
+        <View style={{ width: 38 }} />
+      </View>
+
+      {/* Step Indicator */}
+      <View style={styles.stepRow}>
+        {STEPS.map((step, i) => (
+          <React.Fragment key={step}>
+            <View style={styles.stepItem}>
+              <View style={[
+                styles.stepCircle,
+                i < 2 && styles.stepCircleDone,
+                i === 1 && styles.stepCircleActive,
+              ]}>
+                {i < 1 ? (
+                  <Ionicons name="checkmark" size={14} color={BG_DARK} />
+                ) : (
+                  <Text style={[styles.stepNum, i <= 1 && styles.stepNumDone]}>{i + 1}</Text>
+                )}
+              </View>
+              <Text style={[styles.stepLabel, i <= 1 && styles.stepLabelActive]}>{step}</Text>
+            </View>
+            {i < STEPS.length - 1 && (
+              <View style={[styles.stepLine, i < 1 && styles.stepLineDone]} />
+            )}
+          </React.Fragment>
+        ))}
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Delivery Speed */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Speed</Text>
-          <View style={styles.speedContainer}>
+          <View style={styles.speedRow}>
             {DELIVERY_SPEEDS.map((speed) => (
               <TouchableOpacity
                 key={speed.id}
@@ -137,10 +139,19 @@ const PackageDetailsScreen: React.FC = () => {
                 ]}
                 onPress={() => setDeliverySpeed(speed.id as any)}
               >
-                <View style={[styles.speedIcon, { backgroundColor: `${speed.color}15` }]}>
-                  <Ionicons name={speed.icon as any} size={24} color={speed.color} />
+                <View style={[
+                  styles.speedIcon,
+                  deliverySpeed === speed.id && styles.speedIconSelected,
+                ]}>
+                  <Ionicons
+                    name={speed.icon as any}
+                    size={22}
+                    color={deliverySpeed === speed.id ? BG_DARK : ACCENT}
+                  />
                 </View>
-                <Text style={styles.speedTitle}>{speed.title}</Text>
+                <Text style={[styles.speedTitle, deliverySpeed === speed.id && styles.speedTitleSelected]}>
+                  {speed.title}
+                </Text>
                 <Text style={styles.speedSubtitle}>{speed.subtitle}</Text>
                 {speed.multiplier > 1 && (
                   <View style={styles.speedBadge}>
@@ -154,102 +165,95 @@ const PackageDetailsScreen: React.FC = () => {
 
         {/* Package Photo */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Package Photo (Optional)</Text>
-          <Text style={styles.sectionSubtitle}>
-            Take a photo of your package for reference
-          </Text>
-          
+          <Text style={styles.sectionTitle}>Package Photo</Text>
+          <Text style={styles.sectionSub}>Optional - helps courier identify your package</Text>
           {packagePhoto ? (
             <View style={styles.photoPreview}>
               <Image source={{ uri: packagePhoto }} style={styles.photoImage} />
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={() => setPackagePhoto(null)}
-              >
-                <Ionicons name="close-circle" size={28} color="#e74c3c" />
+              <TouchableOpacity style={styles.removePhotoBtn} onPress={() => setPackagePhoto(null)}>
+                <Ionicons name="close-circle" size={28} color="#ef4444" />
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.photoButtons}>
-              <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                <Ionicons name="camera" size={24} color="#ff6b35" />
-                <Text style={styles.photoButtonText}>Take Photo</Text>
+            <View style={styles.photoRow}>
+              <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto}>
+                <Ionicons name="camera-outline" size={24} color={ACCENT} />
+                <Text style={styles.photoBtnText}>Camera</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.photoButton} onPress={handlePickImage}>
-                <Ionicons name="images" size={24} color="#ff6b35" />
-                <Text style={styles.photoButtonText}>Choose from Gallery</Text>
+              <TouchableOpacity style={styles.photoBtn} onPress={handlePickImage}>
+                <Ionicons name="images-outline" size={24} color={ACCENT} />
+                <Text style={styles.photoBtnText}>Gallery</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Package Description */}
+        {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you sending? *</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="e.g., Documents, laptop, clothes, food..."
+            placeholder="e.g., Documents, laptop, clothes..."
             value={packageDescription}
             onChangeText={setPackageDescription}
             multiline
             numberOfLines={3}
-            placeholderTextColor="#999"
+            placeholderTextColor={TEXT_DIM}
           />
         </View>
 
-        {/* Package Weight */}
+        {/* Weight */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Estimated Weight (Optional)</Text>
-          <View style={styles.inputContainer}>
+          <Text style={styles.sectionTitle}>Estimated Weight</Text>
+          <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
               placeholder="Enter weight"
               value={packageWeight}
               onChangeText={setPackageWeight}
               keyboardType="decimal-pad"
-              placeholderTextColor="#999"
+              placeholderTextColor={TEXT_DIM}
             />
             <Text style={styles.inputSuffix}>kg</Text>
           </View>
         </View>
 
-        {/* Special Instructions */}
+        {/* Instructions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Special Instructions (Optional)</Text>
+          <Text style={styles.sectionTitle}>Special Instructions</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="e.g., Handle with care, fragile items, call on arrival..."
+            placeholder="e.g., Handle with care, fragile..."
             value={specialInstructions}
             onChangeText={setSpecialInstructions}
             multiline
             numberOfLines={3}
-            placeholderTextColor="#999"
+            placeholderTextColor={TEXT_DIM}
           />
         </View>
 
-        {/* Info Card */}
+        {/* Info */}
         <View style={styles.infoCard}>
-          <Ionicons name="information-circle" size={20} color="#3498db" />
+          <Ionicons name="shield-checkmark" size={18} color={ACCENT} />
           <Text style={styles.infoText}>
-            All packages are insured up to ₦50,000. For higher value items, please contact support.
+            All packages insured up to ₦50,000. Contact support for higher value items.
           </Text>
         </View>
 
-        <View style={styles.bottomPadding} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Continue Button */}
+      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[
-            styles.continueButton,
-            !packageDescription.trim() && styles.continueButtonDisabled,
-          ]}
+          style={[styles.continueBtn, !packageDescription.trim() && styles.continueBtnDisabled]}
           onPress={handleContinue}
           disabled={!packageDescription.trim()}
         >
-          <Text style={styles.continueButtonText}>Get Price Estimate</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
+          <Text style={[styles.continueBtnText, !packageDescription.trim() && { color: TEXT_DIM }]}>
+            Get Price Estimate
+          </Text>
+          <Ionicons name="arrow-forward" size={20} color={!packageDescription.trim() ? TEXT_DIM : BG_DARK} />
         </TouchableOpacity>
       </View>
     </View>
@@ -259,211 +263,269 @@ const PackageDetailsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BG_DARK,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 12,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#fff',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: '700',
+    color: '#fff',
   },
-  placeholder: {
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 16,
+  },
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: CARD_DARK,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#353A4A',
+    marginBottom: 6,
+  },
+  stepCircleDone: {
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
+  },
+  stepCircleActive: {
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
+  },
+  stepNum: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT_DIM,
+  },
+  stepNumDone: {
+    color: '#fff',
+  },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TEXT_DIM,
+  },
+  stepLabelActive: {
+    color: ACCENT,
+  },
+  stepLine: {
     width: 40,
+    height: 2,
+    backgroundColor: '#353A4A',
+    marginBottom: 20,
+    marginHorizontal: 8,
+  },
+  stepLineDone: {
+    backgroundColor: ACCENT,
   },
   scrollView: {
     flex: 1,
   },
   section: {
     paddingHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 22,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
+    color: '#fff',
+    marginBottom: 6,
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+  sectionSub: {
+    fontSize: 13,
+    color: TEXT_DIM,
+    marginBottom: 12,
   },
-  speedContainer: {
+  speedRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
+    marginTop: 6,
   },
   speedCard: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    padding: 14,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: 'transparent',
   },
   speedCardSelected: {
-    backgroundColor: '#fff5f2',
-    borderColor: '#ff6b35',
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.06)',
   },
   speedIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(20,184,166,0.1)',
     justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  speedIconSelected: {
+    backgroundColor: ACCENT,
   },
   speedTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 2,
+  },
+  speedTitleSelected: {
+    color: ACCENT,
   },
   speedSubtitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: TEXT_DIM,
     textAlign: 'center',
   },
   speedBadge: {
-    marginTop: 8,
-    paddingVertical: 4,
+    marginTop: 6,
+    paddingVertical: 3,
     paddingHorizontal: 8,
-    backgroundColor: '#fff3e0',
+    backgroundColor: 'rgba(20,184,166,0.12)',
     borderRadius: 6,
   },
   speedBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#f39c12',
+    fontWeight: '700',
+    color: ACCENT,
   },
   photoPreview: {
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
-    marginTop: 8,
   },
   photoImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 12,
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#fff',
+    height: 180,
     borderRadius: 14,
   },
-  photoButtons: {
+  removePhotoBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: BG_DARK,
+    borderRadius: 14,
+  },
+  photoRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
   },
-  photoButton: {
+  photoBtn: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#353A4A',
     borderStyle: 'dashed',
   },
-  photoButtonText: {
-    fontSize: 14,
+  photoBtnText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#ff6b35',
-    marginTop: 8,
+    color: ACCENT,
+    marginTop: 6,
   },
   textArea: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
     padding: 16,
     fontSize: 15,
-    color: '#000',
-    minHeight: 100,
+    color: '#fff',
+    minHeight: 90,
     textAlignVertical: 'top',
+    marginTop: 4,
   },
-  inputContainer: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
     paddingHorizontal: 16,
     height: 50,
+    marginTop: 4,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#000',
+    color: '#fff',
   },
   inputSuffix: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: TEXT_DIM,
     marginLeft: 8,
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#e3f2fd',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: 'rgba(20,184,166,0.06)',
+    padding: 14,
+    borderRadius: 14,
     marginHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 20,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(20,184,166,0.15)',
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#1976d2',
-    marginLeft: 12,
+    color: '#94a3b8',
     lineHeight: 18,
-  },
-  bottomPadding: {
-    height: 100,
   },
   footer: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  continueButton: {
-    backgroundColor: '#ff6b35',
     paddingVertical: 16,
-    borderRadius: 12,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 16,
+    backgroundColor: BG_DARK,
+  },
+  continueBtn: {
+    backgroundColor: ACCENT,
+    paddingVertical: 16,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
-  continueButtonDisabled: {
-    backgroundColor: '#ccc',
+  continueBtnDisabled: {
+    backgroundColor: CARD_DARK,
   },
-  continueButtonText: {
+  continueBtnText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
-    marginRight: 8,
   },
 });
 
