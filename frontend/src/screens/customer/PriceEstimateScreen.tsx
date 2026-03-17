@@ -62,7 +62,7 @@ const PriceEstimateScreen: React.FC = () => {
         size: packageSize,
         speed: deliverySpeed,
       });
-      setPricing(response);
+      setPricing(response?.data || response);
     } catch (error) {
       console.error('Price calculation error:', error);
       Alert.alert('Error', 'Failed to calculate price. Please try again.');
@@ -83,11 +83,12 @@ const PriceEstimateScreen: React.FC = () => {
         packageWeight,
         specialInstructions,
       });
+      const result = response?.data || response;
       (navigation as any).navigate('FindingCourier', {
-        orderId: response.orderId,
-        requestId: response.requestId,
-        estimatedPrice: response.estimatedPrice,
-        expiresAt: response.expiresAt,
+        orderId: result.orderId,
+        requestId: result.requestId,
+        estimatedPrice: result.estimatedPrice,
+        expiresAt: result.expiresAt,
       });
     } catch (error: any) {
       console.error('Request delivery error:', error);

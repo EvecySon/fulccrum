@@ -8,11 +8,16 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
+
+const ACCENT = '#14b8a6';
+const BG_DARK = '#1A1D2E';
+const CARD_DARK = '#262B3C';
+const TEXT_DIM = '#7B8494';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -133,12 +138,12 @@ const TrackDeliveryScreen: React.FC = () => {
     switch (status) {
       case 'PENDING': return '#f59e0b';
       case 'SEARCHING': return '#3b82f6';
-      case 'ACCEPTED': return '#14b8a6';
+      case 'ACCEPTED': return ACCENT;
       case 'PICKED_UP': return '#8b5cf6';
       case 'IN_TRANSIT': return '#06b6d4';
       case 'DELIVERED': return '#10b981';
       case 'CANCELLED': return '#ef4444';
-      default: return '#6b7280';
+      default: return TEXT_DIM;
     }
   };
 
@@ -160,13 +165,13 @@ const TrackDeliveryScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Track Delivery</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 38 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#14b8a6" />
+          <ActivityIndicator size="large" color={ACCENT} />
           <Text style={styles.loadingText}>Loading delivery status...</Text>
         </View>
       </View>
@@ -178,17 +183,22 @@ const TrackDeliveryScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Track Delivery</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 38 }} />
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={64} color="#ef4444" />
+          <View style={styles.errorIconWrap}>
+            <Ionicons name="alert-circle" size={64} color="#ef4444" />
+          </View>
           <Text style={styles.errorTitle}>Unable to Load</Text>
           <Text style={styles.errorText}>{error || 'Delivery not found'}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadDeliveryStatus}>
             <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.goBackButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.goBackButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -200,36 +210,33 @@ const TrackDeliveryScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Track Delivery</Text>
         <TouchableOpacity onPress={handleShareTracking} style={styles.shareButton}>
-          <Ionicons name="share-outline" size={24} color="#14b8a6" />
+          <Ionicons name="share-outline" size={22} color={ACCENT} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Status Banner */}
-        <LinearGradient
-          colors={[getStatusColor(delivery.status), getStatusColor(delivery.status) + 'CC']}
-          style={styles.statusBanner}
-        >
-          <Ionicons name={getStatusIcon(delivery.status) as any} size={40} color="#fff" />
+        <View style={[styles.statusBanner, { backgroundColor: getStatusColor(delivery.status) }]}>
+          <Ionicons name={getStatusIcon(delivery.status) as any} size={36} color="#fff" />
           <View style={styles.statusInfo}>
             <Text style={styles.statusText}>{delivery.status.replace('_', ' ')}</Text>
             <Text style={styles.orderNumber}>Order #{delivery.deliveryNumber}</Text>
           </View>
           {eta && (
             <View style={styles.etaBadge}>
-              <Ionicons name="time-outline" size={16} color="#fff" />
+              <Ionicons name="time-outline" size={14} color="#fff" />
               <Text style={styles.etaText}>{eta} min</Text>
             </View>
           )}
-        </LinearGradient>
+        </View>
 
         {/* Map Placeholder */}
         <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={48} color="#14b8a6" />
+          <Ionicons name="map-outline" size={40} color={ACCENT} />
           <Text style={styles.mapText}>Live map tracking available on mobile app</Text>
           {delivery.courierLocation && (
             <Text style={styles.mapSubtext}>
@@ -244,7 +251,7 @@ const TrackDeliveryScreen: React.FC = () => {
             <Text style={styles.cardTitle}>Your Courier</Text>
             <View style={styles.courierInfo}>
               <View style={styles.courierAvatar}>
-                <Ionicons name="person" size={32} color="#14b8a6" />
+                <Ionicons name="person" size={28} color={ACCENT} />
               </View>
               <View style={styles.courierDetails}>
                 <Text style={styles.courierName}>{delivery.courier.name}</Text>
@@ -257,11 +264,11 @@ const TrackDeliveryScreen: React.FC = () => {
             </View>
             <View style={styles.courierActions}>
               <TouchableOpacity style={styles.actionButton} onPress={handleCallCourier}>
-                <Ionicons name="call" size={20} color="#fff" />
+                <Ionicons name="call" size={18} color="#fff" />
                 <Text style={styles.actionButtonText}>Call</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.actionButtonSecondary]} onPress={handleMessageCourier}>
-                <Ionicons name="chatbubble" size={20} color="#14b8a6" />
+                <Ionicons name="chatbubble" size={18} color={ACCENT} />
                 <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>Message</Text>
               </TouchableOpacity>
             </View>
@@ -274,7 +281,7 @@ const TrackDeliveryScreen: React.FC = () => {
           
           <View style={styles.routeItem}>
             <View style={styles.routeIcon}>
-              <Ionicons name="location" size={20} color="#10b981" />
+              <Ionicons name="location" size={18} color={ACCENT} />
             </View>
             <View style={styles.routeContent}>
               <Text style={styles.routeLabel}>Pickup</Text>
@@ -287,7 +294,7 @@ const TrackDeliveryScreen: React.FC = () => {
 
           <View style={styles.routeItem}>
             <View style={styles.routeIcon}>
-              <Ionicons name="location" size={20} color="#ef4444" />
+              <Ionicons name="flag" size={18} color="#ef4444" />
             </View>
             <View style={styles.routeContent}>
               <Text style={styles.routeLabel}>Dropoff</Text>
@@ -302,19 +309,19 @@ const TrackDeliveryScreen: React.FC = () => {
           <Text style={styles.cardTitle}>Package Details</Text>
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
-              <Ionicons name="cube-outline" size={24} color="#14b8a6" />
+              <Ionicons name="cube-outline" size={22} color={ACCENT} />
               <Text style={styles.detailLabel}>Size</Text>
               <Text style={styles.detailValue}>{delivery.packageSize}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Ionicons name="flash-outline" size={24} color="#14b8a6" />
+              <Ionicons name="flash-outline" size={22} color={ACCENT} />
               <Text style={styles.detailLabel}>Speed</Text>
               <Text style={styles.detailValue}>{delivery.deliverySpeed}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Ionicons name="cash-outline" size={24} color="#14b8a6" />
+              <Ionicons name="cash-outline" size={22} color={ACCENT} />
               <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>₦{delivery.price.toLocaleString()}</Text>
+              <Text style={styles.detailValue}>₦{delivery.price?.toLocaleString()}</Text>
             </View>
           </View>
         </View>
@@ -350,28 +357,36 @@ const TrackDeliveryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: BG_DARK,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 14,
   },
   backButton: {
-    padding: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
   },
   shareButton: {
-    padding: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -384,7 +399,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    color: TEXT_DIM,
   },
   errorContainer: {
     flex: 1,
@@ -392,36 +407,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  errorIconWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: TEXT_DIM,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#14b8a6',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+    backgroundColor: ACCENT,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 14,
   },
   retryButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
   },
+  goBackButton: {
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  goBackButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TEXT_DIM,
+  },
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: 20,
+    marginTop: 8,
     borderRadius: 16,
   },
   statusInfo: {
@@ -429,13 +462,13 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   statusText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#fff',
     textTransform: 'uppercase',
   },
   orderNumber: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#fff',
     opacity: 0.9,
     marginTop: 4,
@@ -447,52 +480,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    gap: 4,
   },
   etaText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#fff',
-    marginLeft: 4,
   },
   mapPlaceholder: {
-    backgroundColor: '#f0fdfa',
-    marginHorizontal: 16,
+    backgroundColor: 'rgba(20,184,166,0.06)',
+    marginHorizontal: 20,
     marginTop: 16,
-    padding: 40,
+    padding: 32,
     borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#14b8a6',
+    borderWidth: 1.5,
+    borderColor: 'rgba(20,184,166,0.15)',
     borderStyle: 'dashed',
   },
   mapText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#14b8a6',
+    color: ACCENT,
     marginTop: 12,
     textAlign: 'center',
   },
   mapSubtext: {
     fontSize: 12,
-    color: '#6b7280',
+    color: TEXT_DIM,
     marginTop: 8,
   },
   card: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
+    backgroundColor: CARD_DARK,
+    marginHorizontal: 20,
     marginTop: 16,
     padding: 20,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
     marginBottom: 16,
   },
   courierInfo: {
@@ -501,10 +529,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   courierAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f0fdfa',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(20,184,166,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -515,7 +543,7 @@ const styles = StyleSheet.create({
   courierName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
     marginBottom: 4,
   },
   ratingContainer: {
@@ -526,12 +554,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: '#fff',
   },
   deliveries: {
     marginLeft: 4,
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: TEXT_DIM,
   },
   courierActions: {
     flexDirection: 'row',
@@ -542,33 +570,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     paddingVertical: 12,
     borderRadius: 12,
+    gap: 6,
   },
   actionButtonSecondary: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#14b8a6',
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: ACCENT,
   },
   actionButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
-    marginLeft: 8,
   },
   actionButtonTextSecondary: {
-    color: '#14b8a6',
+    color: ACCENT,
   },
   routeItem: {
     flexDirection: 'row',
     marginBottom: 16,
   },
   routeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20,184,166,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -579,47 +607,48 @@ const styles = StyleSheet.create({
   routeLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: TEXT_DIM,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   routeAddress: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: '#fff',
     marginBottom: 4,
   },
   routeContact: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: TEXT_DIM,
   },
   routeDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#353A4A',
     marginVertical: 8,
   },
   detailsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   detailItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    padding: 16,
+    backgroundColor: BG_DARK,
+    padding: 14,
     borderRadius: 12,
   },
   detailLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
+    color: TEXT_DIM,
     marginTop: 8,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
+    textTransform: 'capitalize',
   },
   timelineItem: {
     flexDirection: 'row',
@@ -630,7 +659,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#14b8a6',
+    backgroundColor: ACCENT,
     marginTop: 4,
     marginRight: 12,
     zIndex: 2,
@@ -641,7 +670,7 @@ const styles = StyleSheet.create({
     top: 16,
     bottom: -8,
     width: 2,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#353A4A',
   },
   timelineContent: {
     flex: 1,
@@ -649,20 +678,21 @@ const styles = StyleSheet.create({
   timelineTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: '#fff',
     marginBottom: 2,
   },
   timelineTime: {
     fontSize: 13,
-    color: '#6b7280',
+    color: TEXT_DIM,
   },
   cancelButton: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 16,
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ef4444',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(239,68,68,0.4)',
+    backgroundColor: 'rgba(239,68,68,0.08)',
     alignItems: 'center',
   },
   cancelButtonText: {
