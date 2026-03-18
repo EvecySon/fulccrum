@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { uploadAPI, usersAPI } from '../../services/api';
+import { documentsAPI, uploadAPI, usersAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 import { nigerianStatesLgas, nigerianStates } from '../../data/nigerianStatesLgas';
 import { MERCHANT_DOCUMENTS } from '../../config/documentRequirements';
@@ -158,8 +158,10 @@ export default function BusinessVerificationScreen({ navigation }: any) {
       if (cacDocUri) {
         const formData = new FormData();
         formData.append('file', { uri: cacDocUri, name: 'cac_document.jpg', type: 'image/jpeg' } as any);
-        const res = await uploadAPI.uploadDocument(formData);
-        cacDocUrl = res.url;
+        formData.append('type', 'business_license');
+        formData.append('name', 'CAC Registration Certificate');
+        const res = await documentsAPI.upload(formData);
+        cacDocUrl = res.fileUrl;
       }
 
       await usersAPI.updateBusinessProfile({

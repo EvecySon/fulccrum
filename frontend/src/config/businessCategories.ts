@@ -6,13 +6,12 @@
  *  - Merchant: Business setup & verification (select category)
  *  - Customer: Home screen browse + CategoryBrowseScreen
  *
- * To add a new category:
- *  1. Add an entry to BUSINESS_CATEGORIES below
- *  2. That's it — all screens auto-update
- *
- * Once the backend serves categories dynamically, replace this
- * with an API call. The shape stays the same.
+ * NOTE: Categories are now fetched from the backend API.
+ * The static BUSINESS_CATEGORIES below is kept as a fallback.
+ * Use fetchActiveCategories() to get categories from API.
  */
+
+import { categoriesAPI } from '../services/api';
 
 export interface BusinessCategory {
   key: string;
@@ -20,7 +19,7 @@ export interface BusinessCategory {
   icon: string;        // Ionicons name (without -outline)
   description: string;
   color: string;       // accent color for UI
-  active: boolean;     // admin can deactivate a category
+  active?: boolean;    // admin can deactivate a category
   sortOrder: number;   // display order
 }
 
@@ -109,7 +108,21 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
 ];
 
 /**
- * Get only active categories, sorted by sortOrder.
+ * Fetch active categories from API (preferred method).
+ * Falls back to static categories if API fails.
+ */
+export async function fetchActiveCategories(): Promise<BusinessCategory[]> {
+  try {
+    const response = await categoriesAPI.getActive();
+    return response.data || response;
+  } catch (error) {
+    console.warn('Failed to fetch categories from API, using static fallback:', error);
+    return getActiveCategories();
+  }
+}
+
+/**
+ * Get only active categories from static config (fallback).
  */
 export function getActiveCategories(): BusinessCategory[] {
   return BUSINESS_CATEGORIES
@@ -118,7 +131,7 @@ export function getActiveCategories(): BusinessCategory[] {
 }
 
 /**
- * Get a category by key.
+ * Get a category by key from static config.
  */
 export function getCategoryByKey(key: string): BusinessCategory | undefined {
   return BUSINESS_CATEGORIES.find(c => c.key === key);

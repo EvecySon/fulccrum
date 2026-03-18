@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { uploadAPI, usersAPI } from '../../services/api';
+import { documentsAPI, usersAPI } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 import { getCourierDocuments } from '../../config/documentRequirements';
 
@@ -67,18 +67,19 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
           name: `${doc.key}.jpg`,
           type: 'image/jpeg',
         } as any);
+        formData.append('type', doc.key);
+        formData.append('name', doc.label);
 
-        const uploadFn = doc.key === 'profile_photo'
-          ? uploadAPI.uploadAvatar
-          : uploadAPI.uploadDocument;
-
-        const res = await uploadFn(formData);
-        uploadedDocs[doc.key] = res.url;
+        const res = await documentsAPI.upload(formData);
+        uploadedDocs[doc.key] = res.fileUrl;
       }
 
-      await usersAPI.updateProfile({
-        avatar: uploadedDocs.profile_photo,
-      });
+      // Update profile with avatar if uploaded
+      if (uploadedDocs.profile_photo) {
+        await usersAPI.updateProfile({
+          avatar: uploadedDocs.profile_photo,
+        });
+      }
 
       Alert.alert(
         'Documents Submitted',

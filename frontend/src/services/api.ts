@@ -572,6 +572,17 @@ export const adminAPI = {
   getScheduleNoShows: (resolved = false) => api.get(`/admin/schedule/no-shows?resolved=${resolved}`),
   resolveNoShow: (id: string) => api.patch(`/admin/schedule/no-shows/${id}/resolve`),
   markNoShow: (courierId: string, bookingId: string) => api.post(`/admin/schedule/no-shows/${courierId}/${bookingId}`),
+  // Document verification (Merchant & Courier)
+  getMerchantDocuments: (merchantId: string) => api.get(`/admin/merchants/${merchantId}/documents`),
+  verifyMerchantDocument: (merchantId: string, docId: string) => api.patch(`/admin/merchants/${merchantId}/documents/${docId}/verify`),
+  rejectMerchantDocument: (merchantId: string, docId: string, reason: string) => 
+    api.patch(`/admin/merchants/${merchantId}/documents/${docId}/reject`, { reason }),
+  requestMerchantDocuments: (merchantId: string, documentTypes: string[]) => 
+    api.post(`/admin/merchants/${merchantId}/request-documents`, { documentTypes }),
+  getCourierDocuments: (courierId: string) => api.get(`/admin/couriers/${courierId}/documents`),
+  verifyCourierDocument: (courierId: string, docId: string) => api.patch(`/admin/couriers/${courierId}/documents/${docId}/verify`),
+  rejectCourierDocument: (courierId: string, docId: string, reason: string) => 
+    api.patch(`/admin/couriers/${courierId}/documents/${docId}/reject`, { reason }),
 };
 
 // ─── Finance API ───
@@ -783,6 +794,29 @@ export const uploadAPI = {
   uploadBusinessCover: (formData: FormData) => api.upload('/upload/business/cover', formData),
   getFiles: (page = 1) => api.get(`/upload/files?page=${page}`),
   deleteFile: (id: string) => api.delete(`/upload/files/${id}`),
+};
+
+// ─── Documents API (Merchant/Courier Document Management) ───
+export const documentsAPI = {
+  upload: (formData: FormData) => api.upload('/documents/upload', formData),
+  getMyDocuments: () => api.get('/documents/my-documents'),
+  delete: (id: string) => api.delete(`/documents/${id}`),
+  getUserDocuments: (userId: string) => api.get(`/documents/user/${userId}`),
+  verify: (id: string) => api.post(`/documents/${id}/verify`, {}),
+  reject: (id: string, reason: string) => api.post(`/documents/${id}/reject`, { reason }),
+  getPending: () => api.get('/documents/pending'),
+};
+
+// ─── Categories API (Business Category Management) ───
+export const categoriesAPI = {
+  getActive: () => api.get('/categories'),
+  getAll: () => api.get('/categories/admin/all'),
+  getByKey: (key: string) => api.get(`/categories/admin/${key}`),
+  create: (data: { key: string; label: string; icon: string; description?: string; color?: string; active?: boolean; sortOrder?: number }) =>
+    api.post('/categories/admin', data),
+  update: (key: string, data: { label?: string; icon?: string; description?: string; color?: string; active?: boolean; sortOrder?: number }) =>
+    api.patch(`/categories/admin/${key}`, data),
+  delete: (key: string) => api.delete(`/categories/admin/${key}`),
 };
 
 // ─── Messaging / Chat API ───
