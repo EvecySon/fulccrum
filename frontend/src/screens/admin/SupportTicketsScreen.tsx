@@ -36,6 +36,12 @@ export default function SupportTicketsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [showAssignSheet, setShowAssignSheet] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState({
+    open: 0,
+    inProgress: 0,
+    resolved: 0,
+    avgResponseTime: 'N/A',
+  });
 
   // Load tickets from backend
   const loadTickets = async () => {
@@ -52,6 +58,23 @@ export default function SupportTicketsScreen({ navigation }: any) {
     }
   };
 
+  // Load metrics from backend
+  const loadMetrics = async () => {
+    try {
+      const response = await ticketsAPI.getMetrics();
+      if (response) {
+        setMetrics({
+          open: response.open || 0,
+          inProgress: response.inProgress || 0,
+          resolved: response.resolved || 0,
+          avgResponseTime: response.avgResponseTime || 'N/A',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading metrics:', error);
+    }
+  };
+
   // Load available agents (users with admin role)
   const loadAgents = async () => {
     try {
@@ -65,16 +88,19 @@ export default function SupportTicketsScreen({ navigation }: any) {
   useEffect(() => {
     loadTickets();
     loadAgents();
+    loadMetrics();
 
     // Set up WebSocket listeners for real-time updates
     websocketService.onTicketAssigned((data) => {
       console.log('Ticket assigned:', data);
-      loadTickets(); // Reload tickets when assignment happens
+      loadTickets();
+      loadMetrics();
     });
 
     websocketService.onTicketUpdated((data) => {
       console.log('Ticket updated:', data);
-      loadTickets(); // Reload tickets when updated
+      loadTickets();
+      loadMetrics();
     });
 
     return () => {
@@ -93,10 +119,10 @@ export default function SupportTicketsScreen({ navigation }: any) {
   );
 
   const stats = {
-    open: tickets.filter(t => t.status === 'OPEN').length,
-    inProgress: tickets.filter(t => t.status === 'IN_PROGRESS').length,
-    resolved: tickets.filter(t => t.status === 'RESOLVED').length,
-    avgResponseTime: '12 min', // TODO: Calculate from backend metrics
+    open: metrics.open,
+    inProgress: metrics.inProgress,
+    resolved: metrics.resolved,
+    avgResponseTime: metrics.avgResponseTime,
   };
 
   const getPriorityStyle = (p: string) => {

@@ -731,6 +731,17 @@ export const adminAnalyticsAPI = {
     api.get(`/admin/analytics/funnels?startDate=${startDate}&endDate=${endDate}`),
 };
 
+// ─── Provider API ───
+export const providerAPI = {
+  registerRestaurant: (data: any) => api.post('/provider/register/restaurant', data),
+  registerServiceProvider: (data: any) => api.post('/provider/register/service', data),
+  registerHealthService: (data: any) => api.post('/provider/register/health', data),
+  registerSeller: (data: any) => api.post('/provider/register/seller', data),
+  registerHomeService: (data: any) => api.post('/provider/register/home-service', data),
+  getProfile: () => api.get('/provider/profile'),
+  addMenuItem: (data: any) => api.post('/provider/menu-items', data),
+};
+
 // ─── Support API ───
 export const supportAPI = {
   createTicket: (data: any) => api.post('/support/tickets', data),
@@ -741,6 +752,7 @@ export const supportAPI = {
     api.patch(`/support/tickets/${ticketId}/status`, { status, ...data }),
   assignTicket: (ticketId: string, assignedToId: string) =>
     api.patch(`/support/tickets/${ticketId}/assign`, { assignedToId }),
+  getMetrics: () => api.get('/tickets/metrics/stats'),
   rateTicket: (ticketId: string, rating: number) =>
     api.post(`/support/tickets/${ticketId}/rate`, { rating }),
   getStats: (filters?: any) => api.get(`/support/stats${filters ? `?${new URLSearchParams(filters)}` : ''}`),

@@ -14,34 +14,111 @@ export class ProviderService {
       throw new BadRequestException('Restaurant profile already exists');
     }
 
-    const profile = await this.prisma.restaurantProfile.create({
-      data: {
-        userId,
-        businessName: data.businessName,
-        restaurantType: data.restaurantType,
-        cuisineTypes: data.cuisineTypes || [],
-        description: data.description,
-        businessEmail: data.businessEmail,
-        businessPhone: data.businessPhone,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        deliveryRadius: data.deliveryRadius || 5,
-        operatingHours: data.operatingHours || {},
-        foodLicense: data.foodLicense,
-        businessRegNumber: data.businessRegNumber,
-        kitchenPhotos: data.kitchenPhotos || [],
-      },
+    // Create restaurant profile and business profile in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create restaurant profile
+      const profile = await tx.restaurantProfile.create({
+        data: {
+          userId,
+          businessName: data.businessName,
+          restaurantType: data.restaurantType,
+          cuisineTypes: data.cuisineTypes || [],
+          description: data.description,
+          businessEmail: data.businessEmail,
+          businessPhone: data.businessPhone,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          deliveryRadius: data.deliveryRadius || 5,
+          operatingHours: data.operatingHours || {},
+          foodLicense: data.foodLicense,
+          businessRegNumber: data.businessRegNumber,
+          kitchenPhotos: data.kitchenPhotos || [],
+        },
+      });
+
+      // Create or update business profile
+      const businessProfile = await tx.businessProfile.upsert({
+        where: { userId },
+        create: {
+          userId,
+          businessName: data.businessName,
+          businessType: 'RESTAURANT',
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          isApproved: false,
+          isActive: false,
+        },
+        update: {
+          businessName: data.businessName,
+          businessType: 'RESTAURANT',
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          latitude: data.latitude,
+          longitude: data.longitude,
+        },
+      });
+
+      // Create menu categories and items if provided
+      if (data.menuItems && data.menuItems.length > 0) {
+        // Group menu items by category
+        const categoriesMap = new Map<string, typeof data.menuItems>();
+        data.menuItems.forEach((item: any) => {
+          const category = item.category || 'Main Course';
+          if (!categoriesMap.has(category)) {
+            categoriesMap.set(category, []);
+          }
+          categoriesMap.get(category)!.push(item);
+        });
+
+        // Create categories and their menu items
+        for (const [categoryName, items] of categoriesMap) {
+          const category = await tx.menuCategory.create({
+            data: {
+              businessId: userId,
+              name: categoryName,
+              isActive: true,
+            },
+          });
+
+          // Create menu items for this category
+          await tx.menuItem.createMany({
+            data: items.map((item: any) => ({
+              businessId: userId,
+              categoryId: category.id,
+              name: item.name,
+              description: item.description || '',
+              price: parseFloat(item.price) || 0,
+              isAvailable: true,
+              preparationTime: 15,
+            })),
+          });
+        }
+      }
+
+      // Update user role
+      await tx.user.update({
+        where: { id: userId },
+        data: { 
+          role: 'business_owner',
+          status: 'pending_approval',
+        },
+      });
+
+      return profile;
     });
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { role: 'business_owner' },
-    });
-
-    return profile;
+    return {
+      success: true,
+      message: 'Restaurant registration submitted successfully. Your application will be reviewed within 24-48 hours.',
+      profile: result,
+    };
   }
 
   async registerServiceProvider(userId: string, data: any) {

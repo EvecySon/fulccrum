@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { ProviderService } from './provider.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RegisterRestaurantDto } from './dto/register-restaurant.dto';
 
 @Controller('provider')
 @UseGuards(JwtAuthGuard)
@@ -8,7 +9,7 @@ export class ProviderController {
   constructor(private providerService: ProviderService) {}
 
   @Post('register/restaurant')
-  async registerRestaurant(@Request() req: any, @Body() data: any) {
+  async registerRestaurant(@Request() req: any, @Body() data: RegisterRestaurantDto) {
     return this.providerService.registerRestaurant(req.user.sub, data);
   }
 

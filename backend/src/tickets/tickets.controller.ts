@@ -67,6 +67,11 @@ export class TicketsController {
     return this.ticketsService.getTickets(query);
   }
 
+  @Get('metrics/stats')
+  async getTicketMetrics() {
+    return this.ticketsService.getTicketMetrics();
+  }
+
   @Get(':ticketId')
   async getTicket(@Param('ticketId') ticketId: string) {
     return this.ticketsService.getTicketById(ticketId);

@@ -363,6 +363,65 @@ export class TicketsService {
     };
   }
 
+  async getTicketMetrics() {
+    // Get ticket counts by status
+    const [open, inProgress, resolved, closed] = await Promise.all([
+      this.prisma.ticket.count({ where: { status: 'OPEN' } }),
+      this.prisma.ticket.count({ where: { status: 'IN_PROGRESS' } }),
+      this.prisma.ticket.count({ where: { status: 'RESOLVED' } }),
+      this.prisma.ticket.count({ where: { status: 'CLOSED' } }),
+    ]);
+
+    // Calculate average response time for resolved tickets
+    const resolvedTickets = await this.prisma.ticket.findMany({
+      where: {
+        status: { in: ['RESOLVED', 'CLOSED'] },
+        firstResponseAt: { not: null },
+      },
+      select: {
+        createdAt: true,
+        firstResponseAt: true,
+      },
+      take: 100, // Sample last 100 resolved tickets
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let avgResponseTimeMinutes = 0;
+    let avgResponseTimeFormatted = 'N/A';
+
+    if (resolvedTickets.length > 0) {
+      const totalResponseTime = resolvedTickets.reduce((sum, ticket) => {
+        if (ticket.firstResponseAt) {
+          const responseTime = ticket.firstResponseAt.getTime() - ticket.createdAt.getTime();
+          return sum + responseTime;
+        }
+        return sum;
+      }, 0);
+
+      avgResponseTimeMinutes = Math.round(totalResponseTime / resolvedTickets.length / 1000 / 60);
+
+      // Format response time
+      if (avgResponseTimeMinutes < 60) {
+        avgResponseTimeFormatted = `${avgResponseTimeMinutes} min`;
+      } else if (avgResponseTimeMinutes < 1440) {
+        const hours = Math.round(avgResponseTimeMinutes / 60);
+        avgResponseTimeFormatted = `${hours} hr`;
+      } else {
+        const days = Math.round(avgResponseTimeMinutes / 1440);
+        avgResponseTimeFormatted = `${days} day${days > 1 ? 's' : ''}`;
+      }
+    }
+
+    return {
+      open,
+      inProgress,
+      resolved,
+      closed,
+      avgResponseTime: avgResponseTimeFormatted,
+      avgResponseTimeMinutes,
+    };
+  }
+
   private calculateSLADeadline(priority: string): Date {
     const now = new Date();
     const hours = {

@@ -8,10 +8,12 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { providerAPI } from '../../../../services/api';
 
 interface MenuItem {
   id: string;
@@ -37,6 +39,7 @@ const RestaurantMenuScreen: React.FC = () => {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const [itemName, setItemName] = useState('');
   const [itemCategory, setItemCategory] = useState('Main Course');
@@ -68,7 +71,7 @@ const RestaurantMenuScreen: React.FC = () => {
     setMenuItems(menuItems.filter(item => item.id !== id));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (menuItems.length === 0) {
       Alert.alert('Required', 'Please add at least one menu item');
       return;
@@ -81,19 +84,63 @@ const RestaurantMenuScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Submit',
-          onPress: () => {
-            // TODO: Submit to backend
-            console.log('Registration data:', {
-              selectedTypes,
-              basicInfo,
-              locationInfo,
-              documents,
-              menuItems,
-            });
-            
-            (navigation as any).navigate('PendingApproval', {
-              providerType: 'RESTAURANT',
-            });
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+
+              const registrationData = {
+                businessName: basicInfo?.businessName || '',
+                restaurantType: selectedTypes?.[0] || 'RESTAURANT',
+                cuisineTypes: basicInfo?.cuisineTypes || [],
+                description: basicInfo?.description || '',
+                businessEmail: basicInfo?.businessEmail || '',
+                businessPhone: basicInfo?.businessPhone || '',
+                address: locationInfo?.address || '',
+                city: locationInfo?.city || '',
+                state: locationInfo?.state || '',
+                latitude: locationInfo?.latitude || 0,
+                longitude: locationInfo?.longitude || 0,
+                deliveryRadius: locationInfo?.deliveryRadius || 5,
+                operatingHours: basicInfo?.operatingHours || {},
+                foodLicense: documents?.foodLicense || '',
+                businessRegNumber: documents?.businessRegNumber || '',
+                kitchenPhotos: documents?.kitchenPhotos || [],
+                menuItems: menuItems.map(item => ({
+                  name: item.name,
+                  category: item.category,
+                  price: item.price,
+                  description: item.description || '',
+                })),
+              };
+
+              const response = await providerAPI.registerRestaurant(registrationData);
+
+              setSubmitting(false);
+
+              if (response.success) {
+                Alert.alert(
+                  'Success!',
+                  response.message || 'Your restaurant registration has been submitted successfully.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        (navigation as any).navigate('PendingApproval', {
+                          providerType: 'RESTAURANT',
+                        });
+                      },
+                    },
+                  ]
+                );
+              }
+            } catch (error: any) {
+              setSubmitting(false);
+              Alert.alert(
+                'Submission Failed',
+                error?.response?.data?.message || error?.message || 'Failed to submit registration. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
           },
         },
       ]
@@ -247,10 +294,23 @@ const RestaurantMenuScreen: React.FC = () => {
 
       {menuItems.length > 0 && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <TouchableOpacity 
+            style={styles.submitButton} 
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
             <LinearGradient colors={['#ef4444', '#dc2626']} style={styles.submitGradient}>
-              <Text style={styles.submitButtonText}>Submit for Approval</Text>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+              {submitting ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>Submitting...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.submitButtonText}>Submit for Approval</Text>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>

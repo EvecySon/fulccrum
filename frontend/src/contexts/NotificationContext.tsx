@@ -4,6 +4,7 @@ import websocketService from '../services/websocketService';
 import { agentAPI } from '../services/agentAPI';
 import { useAuth } from './AuthContext';
 import { getAccessToken } from '../services/api';
+import { navigateFromNotification } from '../services/navigationService';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
@@ -100,9 +101,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const handleNotificationTapped = (response: Notifications.NotificationResponse) => {
-    const data = response.notification.request.content.data;
-    // TODO: Navigate to ticket detail
-    console.log('Notification tapped:', data);
+    const data = response.notification.request.content.data as any;
+    const notificationType = data?.type || 'ticket_assigned';
+    
+    // Navigate to appropriate screen based on notification type
+    navigateFromNotification(notificationType, data || {});
+    
+    // Mark notification as read if it exists in our list
+    if (data?.notificationId) {
+      markAsRead(String(data.notificationId));
+    }
   };
 
   const handleTicketAssigned = useCallback((data: any) => {

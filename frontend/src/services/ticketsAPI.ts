@@ -160,4 +160,16 @@ export const ticketsAPI = {
       body: JSON.stringify(refundData),
     });
   },
+
+  // Get ticket metrics
+  getMetrics: async () => {
+    return apiRequest<{
+      open: number;
+      inProgress: number;
+      resolved: number;
+      closed: number;
+      avgResponseTime: string;
+      avgResponseTimeMinutes: number;
+    }>('/tickets/metrics/stats');
+  },
 };
