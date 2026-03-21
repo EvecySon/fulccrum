@@ -18,77 +18,81 @@ const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
 const CARD_DARK = '#262B3C';
 const TEXT_DIM = '#7B8494';
+const GREEN = '#10b981';
+const RED = '#ef4444';
+
+const ACTIVE_STATUSES = ['PENDING', 'SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+
+const ACTIVE_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Finding a courier...',
+  SEARCHING: 'Searching nearby couriers',
+  ACCEPTED: 'Courier on the way',
+  PICKED_UP: 'Package picked up',
+  IN_TRANSIT: 'Out for delivery',
+};
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { orderId, deliveryId, courier } = (route.params as any) || {};
+  const { orderId, deliveryId } = (route.params as any) || {};
   const actualOrderId = orderId || deliveryId;
 
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [error, setError] = useState('');
   const [eta, setEta] = useState<number | null>(null);
+  const [courierRating, setCourierRating] = useState(0);
 
   useEffect(() => {
-    console.log('TrackDeliveryScreen.web mounted with:', { orderId, deliveryId, courier });
-    
     if (!actualOrderId) {
       setError('No order ID provided');
       setLoading(false);
       return;
     }
-    
     loadDeliveryStatus();
-    const interval = setInterval(loadDeliveryStatus, 10000);
+    // Only poll for active orders
+    const interval = setInterval(() => {
+      if (delivery && ACTIVE_STATUSES.includes(delivery.status)) {
+        loadDeliveryStatus();
+      }
+    }, 10000);
     return () => clearInterval(interval);
   }, [actualOrderId]);
 
   const loadDeliveryStatus = async () => {
     try {
-      console.log('Loading delivery status for:', actualOrderId);
       const response = await mockGetDeliveryStatus(actualOrderId);
-      
       if (response.success) {
-        console.log('Delivery status loaded:', response.data);
+        const o = response.data.order as any;
+        const c = o.courier as any;
         setDelivery({
-          status: response.data.order.status,
-          deliveryNumber: response.data.order.id,
-          courier: response.data.order.courier ? (() => {
-            const c = response.data.order.courier as any;
-            return {
-              name: `${c.firstName} ${c.lastName}`,
-              phone: c.phoneNumber,
-              rating: c.rating ?? null,
-              totalDeliveries: c.totalDeliveries ?? null,
-              avatarUrl: c.avatarUrl,
-            };
-          })() : null,
+          status: o.status,
+          orderNumber: o.id,
+          courier: c ? {
+            name: `${c.firstName} ${c.lastName}`,
+            phone: c.phoneNumber,
+            rating: c.rating ?? 4.8,
+            totalDeliveries: c.totalDeliveries ?? 0,
+            avatarUrl: c.avatarUrl,
+          } : null,
           courierLocation: response.data.courierLocation,
-          pickupAddress: response.data.order.pickupLocation.address,
-          pickupContact: 'Pickup Contact',
-          dropoffAddress: response.data.order.dropoffLocation.address,
-          dropoffContact: 'Dropoff Contact',
-          packageSize: response.data.order.packageSize,
-          deliverySpeed: response.data.order.deliverySpeed,
-          price: response.data.order.totalAmount,
+          pickupAddress: o.pickupLocation.address,
+          dropoffAddress: o.dropoffLocation.address,
+          packageSize: o.packageSize,
+          deliverySpeed: o.deliverySpeed,
+          price: o.totalAmount,
+          createdAt: o.createdAt,
+          acceptedAt: o.acceptedAt,
+          pickedUpAt: o.pickedUpAt,
+          deliveredAt: o.deliveredAt,
+          cancelledAt: o.cancelledAt,
+          cancellationReason: o.cancellationReason,
           timeline: [
-            response.data.order.createdAt && {
-              title: 'Order Created',
-              timestamp: response.data.order.createdAt,
-            },
-            response.data.order.acceptedAt && {
-              title: 'Courier Assigned',
-              timestamp: response.data.order.acceptedAt,
-            },
-            response.data.order.pickedUpAt && {
-              title: 'Package Picked Up',
-              timestamp: response.data.order.pickedUpAt,
-            },
-            response.data.order.deliveredAt && {
-              title: 'Package Delivered',
-              timestamp: response.data.order.deliveredAt,
-            },
+            o.createdAt && { title: 'Order Created', timestamp: o.createdAt, icon: 'receipt-outline', color: ACCENT },
+            o.acceptedAt && { title: 'Courier Assigned', timestamp: o.acceptedAt, icon: 'person-circle-outline', color: '#3b82f6' },
+            o.pickedUpAt && { title: 'Package Picked Up', timestamp: o.pickedUpAt, icon: 'cube-outline', color: '#8b5cf6' },
+            o.deliveredAt && { title: 'Package Delivered', timestamp: o.deliveredAt, icon: 'checkmark-done-circle', color: GREEN },
+            o.cancelledAt && { title: 'Order Cancelled', timestamp: o.cancelledAt, icon: 'close-circle', color: RED },
           ].filter(Boolean),
         });
         setEta(response.data.eta ?? null);
@@ -96,7 +100,6 @@ const TrackDeliveryScreen: React.FC = () => {
         setError('Failed to load delivery status');
       }
     } catch (err: any) {
-      console.error('Load delivery status error:', err);
       setError(err.message || 'Failed to load delivery status');
     } finally {
       setLoading(false);
@@ -104,608 +107,618 @@ const TrackDeliveryScreen: React.FC = () => {
   };
 
   const handleCallCourier = () => {
-    if (delivery?.courier?.phone) {
-      Linking.openURL(`tel:${delivery.courier.phone}`);
-    }
+    if (delivery?.courier?.phone) Linking.openURL(`tel:${delivery.courier.phone}`);
   };
 
   const handleMessageCourier = () => {
-    if (delivery?.courier?.phone) {
-      Linking.openURL(`sms:${delivery.courier.phone}`);
-    }
-  };
-
-  const handleShareTracking = () => {
-    Alert.alert('Share Tracking', `Share this link: https://fulccrum.com/track/${actualOrderId}`);
+    if (delivery?.courier?.phone) Linking.openURL(`sms:${delivery.courier.phone}`);
   };
 
   const handleCancelDelivery = () => {
-    Alert.alert(
-      'Cancel Delivery',
-      'Are you sure you want to cancel this delivery?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Delivery cancelled successfully');
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    Alert.alert('Cancel Delivery', 'Are you sure you want to cancel this delivery?', [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes, Cancel', style: 'destructive', onPress: () => {
+        Alert.alert('Cancelled', 'Your delivery has been cancelled.');
+        navigation.goBack();
+      }},
+    ]);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return '#f59e0b';
-      case 'SEARCHING': return '#3b82f6';
-      case 'ACCEPTED': return ACCENT;
-      case 'PICKED_UP': return '#8b5cf6';
-      case 'IN_TRANSIT': return '#06b6d4';
-      case 'DELIVERED': return '#10b981';
-      case 'CANCELLED': return '#ef4444';
-      default: return TEXT_DIM;
-    }
+  const handleRateCourier = (rating: number) => {
+    setCourierRating(rating);
+    Alert.alert('Thank you!', `You rated ${delivery?.courier?.name} ${rating} stars.`);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'time-outline';
-      case 'SEARCHING': return 'search-outline';
-      case 'ACCEPTED': return 'checkmark-circle-outline';
-      case 'PICKED_UP': return 'cube-outline';
-      case 'IN_TRANSIT': return 'bicycle-outline';
-      case 'DELIVERED': return 'checkmark-done-circle';
-      case 'CANCELLED': return 'close-circle-outline';
-      default: return 'help-circle-outline';
-    }
+  const getDeliveryDuration = () => {
+    if (!delivery?.createdAt || !delivery?.deliveredAt) return null;
+    const mins = Math.round((new Date(delivery.deliveredAt).getTime() - new Date(delivery.createdAt).getTime()) / 60000);
+    return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins} min`;
   };
 
+  // ─── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Track Delivery</Text>
+          <Text style={styles.headerTitle}>Order Details</Text>
           <View style={{ width: 38 }} />
         </View>
-        <View style={styles.loadingContainer}>
+        <View style={styles.centered}>
           <ActivityIndicator size="large" color={ACCENT} />
-          <Text style={styles.loadingText}>Loading delivery status...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
     );
   }
 
+  // ─── Error ──────────────────────────────────────────────────────────────────
   if (error || !delivery) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Track Delivery</Text>
+          <Text style={styles.headerTitle}>Order Details</Text>
           <View style={{ width: 38 }} />
         </View>
-        <View style={styles.errorContainer}>
-          <View style={styles.errorIconWrap}>
-            <Ionicons name="alert-circle" size={64} color="#ef4444" />
-          </View>
+        <View style={styles.centered}>
+          <Ionicons name="alert-circle" size={64} color={RED} />
           <Text style={styles.errorTitle}>Unable to Load</Text>
-          <Text style={styles.errorText}>{error || 'Delivery not found'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadDeliveryStatus}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.goBackButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.goBackButtonText}>Go Back</Text>
+          <Text style={styles.errorText}>{error || 'Order not found'}</Text>
+          <TouchableOpacity style={styles.ctaBtn} onPress={loadDeliveryStatus}>
+            <Text style={styles.ctaBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
+  const isActive = ACTIVE_STATUSES.includes(delivery.status);
+  const isDelivered = delivery.status === 'DELIVERED';
+  const isCancelled = delivery.status === 'CANCELLED';
+
+  // ─── DELIVERED VIEW ─────────────────────────────────────────────────────────
+  if (isDelivered) {
+    const duration = getDeliveryDuration();
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Delivery Complete</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Hero */}
+          <View style={styles.deliveredHero}>
+            <View style={styles.deliveredCircle}>
+              <Ionicons name="checkmark-done" size={48} color="#fff" />
+            </View>
+            <Text style={styles.deliveredTitle}>Delivered!</Text>
+            <Text style={styles.deliveredSub}>
+              {delivery.deliveredAt
+                ? new Date(delivery.deliveredAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : ''}
+            </Text>
+            {duration && (
+              <View style={styles.durationBadge}>
+                <Ionicons name="time-outline" size={14} color={GREEN} />
+                <Text style={styles.durationText}>Delivered in {duration}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Route Summary */}
+          <View style={styles.card}>
+            <View style={styles.routeCompact}>
+              <View style={styles.routeCompactItem}>
+                <View style={[styles.routeDot, { backgroundColor: ACCENT }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.routeCompactLabel}>PICKED UP FROM</Text>
+                  <Text style={styles.routeCompactAddr}>{delivery.pickupAddress}</Text>
+                </View>
+              </View>
+              <View style={styles.routeVertLine} />
+              <View style={styles.routeCompactItem}>
+                <View style={[styles.routeDot, { backgroundColor: GREEN }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.routeCompactLabel}>DELIVERED TO</Text>
+                  <Text style={styles.routeCompactAddr}>{delivery.dropoffAddress}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Receipt */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Receipt</Text>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Package size</Text>
+              <Text style={styles.receiptValue}>{delivery.packageSize?.charAt(0).toUpperCase() + delivery.packageSize?.slice(1)}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Delivery speed</Text>
+              <Text style={styles.receiptValue}>{delivery.deliverySpeed?.replace('_', ' ')}</Text>
+            </View>
+            <View style={[styles.receiptRow, styles.receiptTotal]}>
+              <Text style={styles.receiptTotalLabel}>Total paid</Text>
+              <Text style={styles.receiptTotalValue}>₦{delivery.price?.toLocaleString()}</Text>
+            </View>
+          </View>
+
+          {/* Rate Courier */}
+          {delivery.courier && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Rate your courier</Text>
+              <View style={styles.courierRow}>
+                <View style={styles.courierAvatar}>
+                  <Ionicons name="person" size={28} color={ACCENT} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.courierName}>{delivery.courier.name}</Text>
+                  <Text style={styles.courierSub}>{delivery.courier.totalDeliveries.toLocaleString()} deliveries</Text>
+                </View>
+              </View>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <TouchableOpacity key={s} onPress={() => handleRateCourier(s)}>
+                    <Ionicons
+                      name={s <= courierRating ? 'star' : 'star-outline'}
+                      size={36}
+                      color={s <= courierRating ? '#f59e0b' : TEXT_DIM}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {courierRating > 0 && (
+                <Text style={styles.ratingThanks}>Thanks for your feedback!</Text>
+              )}
+            </View>
+          )}
+
+          {/* Timeline */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Delivery Timeline</Text>
+            {delivery.timeline?.map((event: any, i: number) => (
+              <View key={i} style={styles.tlRow}>
+                <View style={styles.tlLeft}>
+                  <View style={[styles.tlDot, { backgroundColor: event.color }]}>
+                    <Ionicons name={event.icon} size={12} color="#fff" />
+                  </View>
+                  {i < delivery.timeline.length - 1 && <View style={styles.tlLine} />}
+                </View>
+                <View style={styles.tlContent}>
+                  <Text style={styles.tlTitle}>{event.title}</Text>
+                  <Text style={styles.tlTime}>{new Date(event.timestamp).toLocaleString()}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* CTA */}
+          <TouchableOpacity
+            style={[styles.ctaBtn, { marginHorizontal: 20, marginBottom: 8 }]}
+            onPress={() => (navigation as any).navigate('SendPackageHome')}
+          >
+            <Ionicons name="cube-outline" size={18} color="#fff" />
+            <Text style={styles.ctaBtnText}>Send Another Package</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ctaBtnOutline, { marginHorizontal: 20, marginBottom: 32 }]}
+            onPress={() => (navigation as any).navigate('Support')}
+          >
+            <Text style={styles.ctaBtnOutlineText}>Report an Issue</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // ─── CANCELLED VIEW ─────────────────────────────────────────────────────────
+  if (isCancelled) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Order Details</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Hero */}
+          <View style={styles.cancelledHero}>
+            <View style={styles.cancelledCircle}>
+              <Ionicons name="close" size={48} color="#fff" />
+            </View>
+            <Text style={styles.cancelledTitle}>Order Cancelled</Text>
+            <Text style={styles.cancelledSub}>
+              {delivery.cancelledAt
+                ? new Date(delivery.cancelledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : ''}
+            </Text>
+          </View>
+
+          {/* Cancellation reason */}
+          {delivery.cancellationReason && (
+            <View style={[styles.card, styles.reasonCard]}>
+              <Ionicons name="information-circle-outline" size={20} color={RED} />
+              <Text style={styles.reasonText}>{delivery.cancellationReason}</Text>
+            </View>
+          )}
+
+          {/* Route */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Order Details</Text>
+            <View style={styles.routeCompact}>
+              <View style={styles.routeCompactItem}>
+                <View style={[styles.routeDot, { backgroundColor: ACCENT }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.routeCompactLabel}>PICKUP</Text>
+                  <Text style={styles.routeCompactAddr}>{delivery.pickupAddress}</Text>
+                </View>
+              </View>
+              <View style={styles.routeVertLine} />
+              <View style={styles.routeCompactItem}>
+                <View style={[styles.routeDot, { backgroundColor: RED }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.routeCompactLabel}>DROPOFF</Text>
+                  <Text style={styles.routeCompactAddr}>{delivery.dropoffAddress}</Text>
+                </View>
+              </View>
+            </View>
+            <View style={[styles.receiptRow, { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#353A4A' }]}>
+              <Text style={styles.receiptLabel}>Package size</Text>
+              <Text style={styles.receiptValue}>{delivery.packageSize?.charAt(0).toUpperCase() + delivery.packageSize?.slice(1)}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Order placed</Text>
+              <Text style={styles.receiptValue}>
+                {delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : '—'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Timeline */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Timeline</Text>
+            {delivery.timeline?.map((event: any, i: number) => (
+              <View key={i} style={styles.tlRow}>
+                <View style={styles.tlLeft}>
+                  <View style={[styles.tlDot, { backgroundColor: event.color }]}>
+                    <Ionicons name={event.icon} size={12} color="#fff" />
+                  </View>
+                  {i < delivery.timeline.length - 1 && <View style={styles.tlLine} />}
+                </View>
+                <View style={styles.tlContent}>
+                  <Text style={styles.tlTitle}>{event.title}</Text>
+                  <Text style={styles.tlTime}>{new Date(event.timestamp).toLocaleString()}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* CTAs */}
+          <TouchableOpacity
+            style={[styles.ctaBtn, { marginHorizontal: 20, marginBottom: 8 }]}
+            onPress={() => (navigation as any).navigate('SendPackageHome')}
+          >
+            <Ionicons name="refresh-outline" size={18} color="#fff" />
+            <Text style={styles.ctaBtnText}>Book Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ctaBtnOutline, { marginHorizontal: 20, marginBottom: 32 }]}
+            onPress={() => (navigation as any).navigate('Support')}
+          >
+            <Text style={styles.ctaBtnOutlineText}>Contact Support</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // ─── ACTIVE VIEW ─────────────────────────────────────────────────────────────
+  const statusLabel = ACTIVE_STATUS_LABEL[delivery.status] ?? delivery.status.replace(/_/g, ' ');
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Track Delivery</Text>
-        <TouchableOpacity onPress={handleShareTracking} style={styles.shareButton}>
-          <Ionicons name="share-outline" size={22} color={ACCENT} />
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => Alert.alert('Share', `https://fulccrum.com/track/${actualOrderId}`)}
+        >
+          <Ionicons name="share-outline" size={20} color={ACCENT} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Status Banner */}
-        <View style={[styles.statusBanner, { backgroundColor: getStatusColor(delivery.status) }]}>
-          <Ionicons name={getStatusIcon(delivery.status) as any} size={36} color="#fff" />
-          <View style={styles.statusInfo}>
-            <Text style={styles.statusText}>{delivery.status.replace('_', ' ')}</Text>
-            <Text style={styles.orderNumber}>Order #{delivery.deliveryNumber}</Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Live Status Bar */}
+        <View style={styles.liveStatusBar}>
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.liveStatusLabel}>{statusLabel}</Text>
+            <Text style={styles.liveOrderNum}>Order #{delivery.orderNumber}</Text>
           </View>
           {eta && (
             <View style={styles.etaBadge}>
-              <Ionicons name="time-outline" size={14} color="#fff" />
-              <Text style={styles.etaText}>{eta} min</Text>
+              <Text style={styles.etaNum}>{eta}</Text>
+              <Text style={styles.etaUnit}>min</Text>
             </View>
           )}
         </View>
 
         {/* Map Placeholder */}
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={40} color={ACCENT} />
-          <Text style={styles.mapText}>Live map tracking available on mobile app</Text>
-          {delivery.courierLocation && (
-            <Text style={styles.mapSubtext}>
-              Courier at: {delivery.courierLocation.latitude.toFixed(4)}, {delivery.courierLocation.longitude.toFixed(4)}
-            </Text>
-          )}
+        <View style={styles.mapArea}>
+          <View style={styles.mapInner}>
+            <Ionicons name="navigate-circle" size={48} color={ACCENT} />
+            <Text style={styles.mapLabel}>Live tracking on mobile app</Text>
+            {delivery.courierLocation && (
+              <Text style={styles.mapCoords}>
+                Courier: {delivery.courierLocation.latitude.toFixed(3)}, {delivery.courierLocation.longitude.toFixed(3)}
+              </Text>
+            )}
+          </View>
         </View>
 
-        {/* Courier Info */}
+        {/* Courier Card */}
         {delivery.courier && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Your Courier</Text>
-            <View style={styles.courierInfo}>
+            <View style={styles.courierRow}>
               <View style={styles.courierAvatar}>
                 <Ionicons name="person" size={28} color={ACCENT} />
               </View>
-              <View style={styles.courierDetails}>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.courierName}>{delivery.courier.name}</Text>
-                <View style={styles.ratingContainer}>
-                  <Ionicons name="star" size={16} color="#f59e0b" />
-                  <Text style={styles.rating}>{delivery.courier.rating.toFixed(1)}</Text>
-                  <Text style={styles.deliveries}>• {delivery.courier.totalDeliveries} deliveries</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="star" size={14} color="#f59e0b" />
+                  <Text style={styles.courierRating}>{delivery.courier.rating.toFixed(1)}</Text>
+                  <Text style={styles.courierSub}> · {delivery.courier.totalDeliveries.toLocaleString()} trips</Text>
                 </View>
               </View>
             </View>
-            <View style={styles.courierActions}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleCallCourier}>
+            <View style={styles.courierBtns}>
+              <TouchableOpacity style={styles.courierBtn} onPress={handleCallCourier}>
                 <Ionicons name="call" size={18} color="#fff" />
-                <Text style={styles.actionButtonText}>Call</Text>
+                <Text style={styles.courierBtnText}>Call</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.actionButtonSecondary]} onPress={handleMessageCourier}>
-                <Ionicons name="chatbubble" size={18} color={ACCENT} />
-                <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>Message</Text>
+              <TouchableOpacity style={[styles.courierBtn, styles.courierBtnOutline]} onPress={handleMessageCourier}>
+                <Ionicons name="chatbubble-outline" size={18} color={ACCENT} />
+                <Text style={[styles.courierBtnText, { color: ACCENT }]}>Message</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Route Info */}
+        {/* Route */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Delivery Route</Text>
-          
-          <View style={styles.routeItem}>
-            <View style={styles.routeIcon}>
-              <Ionicons name="location" size={18} color={ACCENT} />
+          <Text style={styles.cardTitle}>Route</Text>
+          <View style={styles.routeCompact}>
+            <View style={styles.routeCompactItem}>
+              <View style={[styles.routeDot, { backgroundColor: ACCENT }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.routeCompactLabel}>PICKUP</Text>
+                <Text style={styles.routeCompactAddr}>{delivery.pickupAddress}</Text>
+              </View>
             </View>
-            <View style={styles.routeContent}>
-              <Text style={styles.routeLabel}>Pickup</Text>
-              <Text style={styles.routeAddress}>{delivery.pickupAddress}</Text>
-              <Text style={styles.routeContact}>{delivery.pickupContact}</Text>
-            </View>
-          </View>
-
-          <View style={styles.routeDivider} />
-
-          <View style={styles.routeItem}>
-            <View style={styles.routeIcon}>
-              <Ionicons name="flag" size={18} color="#ef4444" />
-            </View>
-            <View style={styles.routeContent}>
-              <Text style={styles.routeLabel}>Dropoff</Text>
-              <Text style={styles.routeAddress}>{delivery.dropoffAddress}</Text>
-              <Text style={styles.routeContact}>{delivery.dropoffContact}</Text>
+            <View style={styles.routeVertLine} />
+            <View style={styles.routeCompactItem}>
+              <View style={[styles.routeDot, { backgroundColor: RED }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.routeCompactLabel}>DROPOFF</Text>
+                <Text style={styles.routeCompactAddr}>{delivery.dropoffAddress}</Text>
+              </View>
             </View>
           </View>
         </View>
 
         {/* Package Details */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Package Details</Text>
+          <Text style={styles.cardTitle}>Package</Text>
           <View style={styles.detailsGrid}>
-            <View style={styles.detailItem}>
-              <Ionicons name="cube-outline" size={22} color={ACCENT} />
-              <Text style={styles.detailLabel}>Size</Text>
-              <Text style={styles.detailValue}>{delivery.packageSize}</Text>
+            <View style={styles.detailCell}>
+              <Ionicons name="cube-outline" size={20} color={ACCENT} />
+              <Text style={styles.detailCellLabel}>Size</Text>
+              <Text style={styles.detailCellVal}>{delivery.packageSize}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="flash-outline" size={22} color={ACCENT} />
-              <Text style={styles.detailLabel}>Speed</Text>
-              <Text style={styles.detailValue}>{delivery.deliverySpeed}</Text>
+            <View style={styles.detailCell}>
+              <Ionicons name="flash-outline" size={20} color={ACCENT} />
+              <Text style={styles.detailCellLabel}>Speed</Text>
+              <Text style={styles.detailCellVal}>{delivery.deliverySpeed?.replace('_', ' ')}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="cash-outline" size={22} color={ACCENT} />
-              <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>₦{delivery.price?.toLocaleString()}</Text>
+            <View style={styles.detailCell}>
+              <Ionicons name="cash-outline" size={20} color={ACCENT} />
+              <Text style={styles.detailCellLabel}>Price</Text>
+              <Text style={styles.detailCellVal}>₦{delivery.price?.toLocaleString()}</Text>
             </View>
           </View>
         </View>
 
         {/* Timeline */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Delivery Timeline</Text>
-          {delivery.timeline?.map((event: any, index: number) => (
-            <View key={index} style={styles.timelineItem}>
-              <View style={styles.timelineDot} />
-              {index < delivery.timeline.length - 1 && <View style={styles.timelineLine} />}
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>{event.title}</Text>
-                <Text style={styles.timelineTime}>{new Date(event.timestamp).toLocaleString()}</Text>
+          <Text style={styles.cardTitle}>Timeline</Text>
+          {delivery.timeline?.map((event: any, i: number) => (
+            <View key={i} style={styles.tlRow}>
+              <View style={styles.tlLeft}>
+                <View style={[styles.tlDot, { backgroundColor: event.color }]}>
+                  <Ionicons name={event.icon} size={12} color="#fff" />
+                </View>
+                {i < delivery.timeline.length - 1 && <View style={styles.tlLine} />}
+              </View>
+              <View style={styles.tlContent}>
+                <Text style={styles.tlTitle}>{event.title}</Text>
+                <Text style={styles.tlTime}>{new Date(event.timestamp).toLocaleString()}</Text>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Cancel Button — only before courier picks up */}
+        {/* Cancel */}
         {['PENDING', 'SEARCHING', 'ACCEPTED'].includes(delivery.status) && (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
-            <Text style={styles.cancelButtonText}>Cancel Delivery</Text>
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelDelivery}>
+            <Text style={styles.cancelBtnText}>Cancel Delivery</Text>
           </TouchableOpacity>
         )}
-
-        <View style={styles.bottomPadding} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BG_DARK,
-  },
+  container: { flex: 1, backgroundColor: BG_DARK },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 56 : 36,
-    paddingBottom: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 56 : 36, paddingBottom: 14,
   },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: CARD_DARK,
-    alignItems: 'center',
-    justifyContent: 'center',
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: CARD_DARK, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  loadingText: { marginTop: 12, fontSize: 15, color: TEXT_DIM },
+  errorTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginTop: 16, marginBottom: 8 },
+  errorText: { fontSize: 14, color: TEXT_DIM, textAlign: 'center', marginBottom: 24 },
+  card: { backgroundColor: CARD_DARK, marginHorizontal: 20, marginTop: 16, padding: 20, borderRadius: 16 },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: '#fff', marginBottom: 16 },
+
+  // CTA buttons
+  ctaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ACCENT, paddingVertical: 16, borderRadius: 14, gap: 8,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+  ctaBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  ctaBtnOutline: {
+    alignItems: 'center', paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)',
   },
-  shareButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: CARD_DARK,
-    alignItems: 'center',
-    justifyContent: 'center',
+  ctaBtnOutlineText: { fontSize: 15, fontWeight: '600', color: TEXT_DIM },
+
+  // Delivered hero
+  deliveredHero: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 20 },
+  deliveredCircle: {
+    width: 96, height: 96, borderRadius: 48, backgroundColor: GREEN,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
-  content: {
-    flex: 1,
+  deliveredTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 6 },
+  deliveredSub: { fontSize: 14, color: TEXT_DIM, marginBottom: 12 },
+  durationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  durationText: { fontSize: 13, fontWeight: '600', color: GREEN },
+
+  // Cancelled hero
+  cancelledHero: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 20 },
+  cancelledCircle: {
+    width: 96, height: 96, borderRadius: 48, backgroundColor: RED,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: TEXT_DIM,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorIconWrap: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: TEXT_DIM,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: ACCENT,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 14,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  goBackButton: {
-    marginTop: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  goBackButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: TEXT_DIM,
-  },
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 8,
-    borderRadius: 16,
-  },
-  statusInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
-    textTransform: 'uppercase',
-  },
-  orderNumber: {
-    fontSize: 13,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 4,
-  },
-  etaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
-  },
-  etaText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  mapPlaceholder: {
-    backgroundColor: 'rgba(20,184,166,0.06)',
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(20,184,166,0.15)',
-    borderStyle: 'dashed',
-  },
-  mapText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: ACCENT,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  mapSubtext: {
-    fontSize: 12,
-    color: TEXT_DIM,
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: CARD_DARK,
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 16,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  courierInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
+  cancelledTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 6 },
+  cancelledSub: { fontSize: 14, color: TEXT_DIM },
+  reasonCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  reasonText: { flex: 1, fontSize: 14, color: '#fca5a5', lineHeight: 20 },
+
+  // Route compact
+  routeCompact: { gap: 0 },
+  routeCompactItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 6 },
+  routeDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  routeCompactLabel: { fontSize: 11, fontWeight: '700', color: TEXT_DIM, textTransform: 'uppercase', marginBottom: 2 },
+  routeCompactAddr: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  routeVertLine: { width: 2, height: 16, backgroundColor: '#353A4A', marginLeft: 4, marginVertical: 2 },
+
+  // Receipt
+  receiptRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#353A4A' },
+  receiptLabel: { fontSize: 14, color: TEXT_DIM },
+  receiptValue: { fontSize: 14, fontWeight: '600', color: '#fff', textTransform: 'capitalize' },
+  receiptTotal: { borderBottomWidth: 0, marginTop: 4 },
+  receiptTotalLabel: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  receiptTotalValue: { fontSize: 22, fontWeight: '800', color: ACCENT },
+
+  // Courier
+  courierRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   courierAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(20,184,166,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: 'rgba(20,184,166,0.12)', justifyContent: 'center', alignItems: 'center',
   },
-  courierDetails: {
-    flex: 1,
+  courierName: { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 3 },
+  courierRating: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  courierSub: { fontSize: 13, color: TEXT_DIM },
+  courierBtns: { flexDirection: 'row', gap: 12 },
+  courierBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ACCENT, paddingVertical: 12, borderRadius: 12, gap: 6,
   },
-  courierName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
+  courierBtnOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: ACCENT },
+  courierBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  // Star rating
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginVertical: 12 },
+  ratingThanks: { textAlign: 'center', fontSize: 14, color: GREEN, fontWeight: '600' },
+
+  // Timeline
+  tlRow: { flexDirection: 'row', paddingVertical: 8 },
+  tlLeft: { width: 28, alignItems: 'center' },
+  tlDot: {
+    width: 24, height: 24, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  tlLine: { flex: 1, width: 2, backgroundColor: '#353A4A', marginVertical: 2 },
+  tlContent: { flex: 1, paddingLeft: 12, paddingBottom: 8 },
+  tlTitle: { fontSize: 15, fontWeight: '600', color: '#fff', marginBottom: 2 },
+  tlTime: { fontSize: 12, color: TEXT_DIM },
+
+  // Live status (active view)
+  liveStatusBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: CARD_DARK, marginHorizontal: 20, marginTop: 8,
+    padding: 16, borderRadius: 16, gap: 0,
   },
-  rating: {
-    marginLeft: 4,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981' },
+  liveText: { fontSize: 10, fontWeight: '800', color: '#10b981', letterSpacing: 1 },
+  liveStatusLabel: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  liveOrderNum: { fontSize: 12, color: TEXT_DIM, marginTop: 2 },
+  etaBadge: {
+    alignItems: 'center', backgroundColor: ACCENT,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
-  deliveries: {
-    marginLeft: 4,
-    fontSize: 13,
-    color: TEXT_DIM,
+  etaNum: { fontSize: 20, fontWeight: '800', color: '#fff', lineHeight: 22 },
+  etaUnit: { fontSize: 10, fontWeight: '600', color: '#fff', opacity: 0.8 },
+
+  // Map area (active view)
+  mapArea: {
+    marginHorizontal: 20, marginTop: 16, borderRadius: 16, overflow: 'hidden',
+    backgroundColor: 'rgba(20,184,166,0.06)', borderWidth: 1.5,
+    borderColor: 'rgba(20,184,166,0.15)',
   },
-  courierActions: {
-    flexDirection: 'row',
-    gap: 12,
+  mapInner: { padding: 32, alignItems: 'center' },
+  mapLabel: { fontSize: 14, fontWeight: '600', color: ACCENT, marginTop: 10, textAlign: 'center' },
+  mapCoords: { fontSize: 11, color: TEXT_DIM, marginTop: 6 },
+
+  // Package detail cells (active view)
+  detailsGrid: { flexDirection: 'row', gap: 10 },
+  detailCell: { flex: 1, alignItems: 'center', backgroundColor: BG_DARK, padding: 14, borderRadius: 12 },
+  detailCellLabel: { fontSize: 11, fontWeight: '600', color: TEXT_DIM, marginTop: 6, marginBottom: 3 },
+  detailCellVal: { fontSize: 14, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
+
+  // Cancel button (active view)
+  cancelBtn: {
+    marginHorizontal: 20, marginTop: 16, paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.4)',
+    backgroundColor: 'rgba(239,68,68,0.08)', alignItems: 'center',
   },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: ACCENT,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-  },
-  actionButtonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: ACCENT,
-  },
-  actionButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  actionButtonTextSecondary: {
-    color: ACCENT,
-  },
-  routeItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  routeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(20,184,166,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  routeContent: {
-    flex: 1,
-  },
-  routeLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: TEXT_DIM,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  routeAddress: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  routeContact: {
-    fontSize: 13,
-    color: TEXT_DIM,
-  },
-  routeDivider: {
-    height: 1,
-    backgroundColor: '#353A4A',
-    marginVertical: 8,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  detailItem: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: BG_DARK,
-    padding: 14,
-    borderRadius: 12,
-  },
-  detailLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: TEXT_DIM,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-    textTransform: 'capitalize',
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    position: 'relative',
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: ACCENT,
-    marginTop: 4,
-    marginRight: 12,
-    zIndex: 2,
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 5,
-    top: 16,
-    bottom: -8,
-    width: 2,
-    backgroundColor: '#353A4A',
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 2,
-  },
-  timelineTime: {
-    fontSize: 13,
-    color: TEXT_DIM,
-  },
-  cancelButton: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(239,68,68,0.4)',
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ef4444',
-  },
-  bottomPadding: {
-    height: 40,
-  },
+  cancelBtnText: { fontSize: 16, fontWeight: '700', color: RED },
 });
 
 export default TrackDeliveryScreen;
