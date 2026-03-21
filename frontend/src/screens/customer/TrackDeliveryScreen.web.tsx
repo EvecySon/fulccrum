@@ -54,13 +54,16 @@ const TrackDeliveryScreen: React.FC = () => {
         setDelivery({
           status: response.data.order.status,
           deliveryNumber: response.data.order.id,
-          courier: response.data.order.courier ? {
-            name: `${response.data.order.courier.firstName} ${response.data.order.courier.lastName}`,
-            phone: response.data.order.courier.phoneNumber,
-            rating: response.data.order.courier.rating,
-            totalDeliveries: response.data.order.courier.totalDeliveries,
-            avatarUrl: response.data.order.courier.avatarUrl,
-          } : null,
+          courier: response.data.order.courier ? (() => {
+            const c = response.data.order.courier as any;
+            return {
+              name: `${c.firstName} ${c.lastName}`,
+              phone: c.phoneNumber,
+              rating: c.rating ?? null,
+              totalDeliveries: c.totalDeliveries ?? null,
+              avatarUrl: c.avatarUrl,
+            };
+          })() : null,
           courierLocation: response.data.courierLocation,
           pickupAddress: response.data.order.pickupLocation.address,
           pickupContact: 'Pickup Contact',
@@ -88,7 +91,7 @@ const TrackDeliveryScreen: React.FC = () => {
             },
           ].filter(Boolean),
         });
-        setEta(response.data.eta);
+        setEta(response.data.eta ?? null);
       } else {
         setError('Failed to load delivery status');
       }
@@ -341,8 +344,8 @@ const TrackDeliveryScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* Cancel Button */}
-        {delivery.status !== 'DELIVERED' && delivery.status !== 'CANCELLED' && (
+        {/* Cancel Button — only before courier picks up */}
+        {['PENDING', 'SEARCHING', 'ACCEPTED'].includes(delivery.status) && (
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
             <Text style={styles.cancelButtonText}>Cancel Delivery</Text>
           </TouchableOpacity>

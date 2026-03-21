@@ -200,7 +200,7 @@ export class AgentService {
     }));
 
     try {
-      const response = await messaging.sendEach(messages);
+      const response = await messaging.sendAll(messages);
       console.log('[AGENT] Notifications sent:', response.successCount);
 
       const failedTokens: string[] = [];

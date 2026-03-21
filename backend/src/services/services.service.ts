@@ -93,8 +93,8 @@ export class ServicesService {
         const distance = this.calculateDistance(
           dto.location.lat,
           dto.location.lng,
-          provider.serviceArea.lat,
-          provider.serviceArea.lng,
+          (provider.serviceArea as any).lat,
+          (provider.serviceArea as any).lng,
         );
         return distance <= dto.maxDistance;
       });

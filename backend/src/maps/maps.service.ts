@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client, DistanceMatrixResponse } from '@googlemaps/google-maps-services-js';
+import { Client, DistanceMatrixResponse, TravelMode, UnitSystem } from '@googlemaps/google-maps-services-js';
 
 interface DistanceCache {
   [key: string]: {
@@ -57,8 +57,8 @@ export class MapsService {
           origins: [`${origin.lat},${origin.lng}`],
           destinations: [`${destination.lat},${destination.lng}`],
           key: this.apiKey,
-          mode: 'driving',
-          units: 'metric',
+          mode: TravelMode.driving,
+          units: UnitSystem.metric,
         },
       });
 

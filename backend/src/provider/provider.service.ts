@@ -49,10 +49,8 @@ export class ProviderService {
           address: data.address,
           city: data.city,
           state: data.state,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          isApproved: false,
-          isActive: false,
+          verificationStatus: 'pending',
+          isOpen: false,
         },
         update: {
           businessName: data.businessName,
@@ -60,8 +58,6 @@ export class ProviderService {
           address: data.address,
           city: data.city,
           state: data.state,
-          latitude: data.latitude,
-          longitude: data.longitude,
         },
       });
 
@@ -107,7 +103,7 @@ export class ProviderService {
         where: { id: userId },
         data: { 
           role: 'business_owner',
-          status: 'pending_approval',
+          status: 'inactive',
         },
       });
 

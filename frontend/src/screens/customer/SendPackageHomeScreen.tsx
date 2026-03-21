@@ -25,7 +25,7 @@ const QUICK_ACTIONS = [
   { id: 'send', icon: 'cube-outline', label: 'Send\nParcel', screen: 'LocationPicker' },
   { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'TrackDelivery' },
   { id: 'history', icon: 'time-outline', label: 'My\nOrders', screen: 'PackageHistory' },
-  { id: 'support', icon: 'headset-outline', label: 'Support', screen: 'Feedback' },
+  { id: 'support', icon: 'headset-outline', label: 'Support', screen: 'Support' },
 ];
 
 const PACKAGE_SIZES = [

@@ -17,10 +17,12 @@ const BG_DARK = '#1A1D2E';
 const CARD_DARK = '#262B3C';
 const TEXT_DIM = '#7B8494';
 
+const ACTIVE_STATUSES = ['PENDING', 'SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+
 interface DeliveryHistoryItem {
   id: string;
   orderNumber: string;
-  status: 'DELIVERED' | 'CANCELLED';
+  status: 'DELIVERED' | 'CANCELLED' | 'PENDING' | 'SEARCHING' | 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT';
   pickupAddress: string;
   dropoffAddress: string;
   packageSize: string;
@@ -39,7 +41,7 @@ const PackageHistoryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deliveries, setDeliveries] = useState<DeliveryHistoryItem[]>([]);
-  const [filter, setFilter] = useState<'all' | 'delivered' | 'cancelled'>('all');
+  const [filter, setFilter] = useState<'active' | 'all' | 'delivered' | 'cancelled'>('active');
 
   useEffect(() => {
     loadHistory();
@@ -50,6 +52,17 @@ const PackageHistoryScreen: React.FC = () => {
       setLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1000));
       const mockHistory: DeliveryHistoryItem[] = [
+        {
+          id: 'PKG1773635247769',
+          orderNumber: 'PKG1773635247769',
+          status: 'IN_TRANSIT',
+          pickupAddress: 'Victoria Island, Lagos',
+          dropoffAddress: 'Lekki Phase 1, Lagos',
+          packageSize: 'medium',
+          totalAmount: 2500,
+          createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          courier: { name: 'David Okafor', rating: 4.9 },
+        },
         {
           id: 'PKG1773535247769',
           orderNumber: 'PKG1773535247769',
@@ -115,6 +128,11 @@ const PackageHistoryScreen: React.FC = () => {
     switch (status) {
       case 'DELIVERED': return ACCENT;
       case 'CANCELLED': return '#ef4444';
+      case 'IN_TRANSIT': return '#06b6d4';
+      case 'PICKED_UP': return '#8b5cf6';
+      case 'ACCEPTED': return '#3b82f6';
+      case 'SEARCHING': return '#f59e0b';
+      case 'PENDING': return '#f59e0b';
       default: return TEXT_DIM;
     }
   };
@@ -123,21 +141,30 @@ const PackageHistoryScreen: React.FC = () => {
     switch (status) {
       case 'DELIVERED': return 'checkmark-done-circle';
       case 'CANCELLED': return 'close-circle';
+      case 'IN_TRANSIT': return 'bicycle-outline';
+      case 'PICKED_UP': return 'cube-outline';
+      case 'ACCEPTED': return 'checkmark-circle-outline';
+      case 'SEARCHING': return 'search-outline';
+      case 'PENDING': return 'time-outline';
       default: return 'time';
     }
   };
 
   const filteredDeliveries = deliveries.filter(delivery => {
     if (filter === 'all') return true;
-    return delivery.status.toLowerCase() === filter;
+    if (filter === 'active') return ACTIVE_STATUSES.includes(delivery.status);
+    if (filter === 'delivered') return delivery.status === 'DELIVERED';
+    if (filter === 'cancelled') return delivery.status === 'CANCELLED';
+    return true;
   });
 
   const handleViewDetails = (delivery: DeliveryHistoryItem) => {
     (navigation as any).navigate('TrackDelivery', { orderId: delivery.id });
   };
 
+  const activeCount = deliveries.filter(d => ACTIVE_STATUSES.includes(d.status)).length;
   const completedCount = deliveries.filter(d => d.status === 'DELIVERED').length;
-  const totalSpent = deliveries.reduce((sum, d) => sum + d.totalAmount, 0);
+  const totalSpent = deliveries.reduce((sum, d) => d.status === 'DELIVERED' ? sum + d.totalAmount : sum, 0);
 
   const renderDeliveryItem = ({ item }: { item: DeliveryHistoryItem }) => (
     <TouchableOpacity
@@ -256,16 +283,19 @@ const PackageHistoryScreen: React.FC = () => {
 
       {/* Filters */}
       <View style={styles.filterRow}>
-        {(['all', 'delivered', 'cancelled'] as const).map((f) => (
+        {([
+          { key: 'active', label: `Active (${activeCount})` },
+          { key: 'all', label: `All (${deliveries.length})` },
+          { key: 'delivered', label: `Delivered (${completedCount})` },
+          { key: 'cancelled', label: `Cancelled (${deliveries.filter(d => d.status === 'CANCELLED').length})` },
+        ] as const).map((f) => (
           <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, filter === f && styles.filterTabActive]}
-            onPress={() => setFilter(f)}
+            key={f.key}
+            style={[styles.filterTab, filter === f.key && styles.filterTabActive]}
+            onPress={() => setFilter(f.key)}
           >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f === 'all' ? `All (${deliveries.length})`
-                : f === 'delivered' ? `Delivered (${completedCount})`
-                : `Cancelled (${deliveries.filter(d => d.status === 'CANCELLED').length})`}
+            <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>
+              {f.label}
             </Text>
           </TouchableOpacity>
         ))}

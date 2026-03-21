@@ -43,8 +43,8 @@ export class PackageDeliveryService {
         orderNumber,
         orderType: 'package_delivery',
         customerId,
-        pickupLocation: dto.pickupLocation,
-        dropoffLocation: dto.dropoffLocation,
+        pickupLocation: dto.pickupLocation as any,
+        dropoffLocation: dto.dropoffLocation as any,
         packageSize: dto.packageSize as any,
         packageWeight: dto.packageWeight,
         packageDescription: dto.packageDescription,
@@ -70,8 +70,8 @@ export class PackageDeliveryService {
     const deliveryRequest = await this.prisma.deliveryRequest.create({
       data: {
         orderId: order.id,
-        pickupLocation: dto.pickupLocation,
-        dropoffLocation: dto.dropoffLocation,
+        pickupLocation: dto.pickupLocation as any,
+        dropoffLocation: dto.dropoffLocation as any,
         packageSize: dto.packageSize as any,
         estimatedPrice: pricing.totalPrice,
         estimatedDistance: pricing.distance,
