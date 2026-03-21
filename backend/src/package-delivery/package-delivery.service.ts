@@ -178,7 +178,7 @@ export class PackageDeliveryService {
         customerRating: rating,
         customerFeedback: feedback ?? null,
         ratedAt: new Date(),
-      } as any,
+      },
     });
 
     // Recalculate and persist rolling average on the courier's profile

@@ -515,6 +515,11 @@ model Order {
   sizeMultiplier Float?   @map("size_multiplier")
   surgeFactor    Float?   @map("surge_factor")
 
+  // Customer rating for package delivery
+  customerRating   Int?      @map("customer_rating")
+  customerFeedback String?   @map("customer_feedback") @db.Text
+  ratedAt          DateTime? @map("rated_at")
+
   scheduledFor    DateTime? @map("scheduled_for")
   fulfillmentType String    @default("delivery") @map("fulfillment_type") @db.VarChar(20)
   deliveryOption  String?   @map("delivery_option") @db.VarChar(30)
