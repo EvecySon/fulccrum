@@ -20,8 +20,9 @@ const FindingCourierScreen: React.FC = () => {
   const route = useRoute();
   const { orderId, requestId, estimatedPrice, expiresAt } = (route.params as any) || {};
 
-  const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(300);
   const [courierFound, setCourierFound] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -52,6 +53,21 @@ const FindingCourierScreen: React.FC = () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
+
+  // Trigger timeout when countdown hits 0
+  useEffect(() => {
+    if (timeRemaining === 0 && !courierFound) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+      setTimedOut(true);
+    }
+  }, [timeRemaining, courierFound]);
 
   const startAnimations = () => {
     // Pulse animation
@@ -113,33 +129,15 @@ const FindingCourierScreen: React.FC = () => {
 
   const startCountdown = () => {
     countdownRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current!);
-          countdownRef.current = null;
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-          handleTimeout();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeRemaining((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
   };
 
-  const handleTimeout = () => {
-    Alert.alert(
-      'No Courier Available',
-      'Sorry, we couldn\'t find a courier at this time. Please try again later.',
-      [
-        {
-          text: 'OK',
-          onPress: () => (navigation as any).navigate('HomeTabs'),
-        },
-      ]
-    );
+  const handleSearchAgain = () => {
+    setTimedOut(false);
+    setTimeRemaining(300);
+    startPolling();
+    startCountdown();
   };
 
   const handleCancel = () => {
@@ -175,6 +173,29 @@ const FindingCourierScreen: React.FC = () => {
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
+
+  if (timedOut) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Ionicons name="time-outline" size={80} color="#ef4444" />
+          <Text style={[styles.title, { marginTop: 24, color: '#ef4444' }]}>No Courier Available</Text>
+          <Text style={[styles.subtitle, { marginBottom: 32 }]}>
+            We couldn't find a courier nearby within 5 minutes.
+          </Text>
+          <TouchableOpacity style={styles.searchAgainBtn} onPress={handleSearchAgain}>
+            <Ionicons name="refresh" size={20} color="#fff" />
+            <Text style={styles.searchAgainText}>Search Again</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <Text style={styles.cancelButtonText}>Cancel Request</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (courierFound) {
     return (
@@ -505,6 +526,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#ef4444',
+  },
+  searchAgainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ACCENT,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    gap: 10,
+  },
+  searchAgainText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 
