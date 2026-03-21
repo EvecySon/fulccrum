@@ -131,6 +131,14 @@ export const packageDeliveryAPI = {
     api.get(`/package-delivery/${orderId}/status`),
 
   /**
+   * Accept a delivery request (called by courier/driver)
+   */
+  acceptDelivery: (
+    requestId: string
+  ): Promise<{ success: boolean; message: string }> =>
+    api.post(`/package-delivery/requests/${requestId}/accept`, {}),
+
+  /**
    * Cancel delivery
    */
   cancelDelivery: (

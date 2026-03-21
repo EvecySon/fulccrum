@@ -121,7 +121,13 @@ const SupportScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={22} color="#0f172a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Support</Text>
-        <View style={{ width: 38 }} />
+        <TouchableOpacity
+          style={styles.myTicketsBtn}
+          onPress={() => (navigation as any).navigate('MyTickets')}
+        >
+          <Ionicons name="chatbubbles-outline" size={18} color="#14b8a6" />
+          <Text style={styles.myTicketsBtnText}>My Tickets</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
@@ -283,6 +289,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  myTicketsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f0fdfa',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  myTicketsBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#14b8a6',
   },
   headerTitle: {
     fontSize: 18,

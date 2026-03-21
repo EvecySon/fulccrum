@@ -10,10 +10,12 @@ import {
   Platform,
   TextInput,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiBaseUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const ACCENT = '#14b8a6';
@@ -23,7 +25,7 @@ const TEXT_DIM = '#7B8494';
 
 const QUICK_ACTIONS = [
   { id: 'send', icon: 'cube-outline', label: 'Send\nParcel', screen: 'LocationPicker' },
-  { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'TrackDelivery' },
+  { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'PackageHistory' },
   { id: 'history', icon: 'time-outline', label: 'My\nOrders', screen: 'PackageHistory' },
   { id: 'support', icon: 'headset-outline', label: 'Support', screen: 'Support' },
 ];
@@ -57,9 +59,16 @@ const SendPackageHomeScreen: React.FC = () => {
   const { user } = useAuth();
   const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large' | null>(null);
   const [searchCode, setSearchCode] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  const resolveAvatarUrl = (url?: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${getApiBaseUrl()}${url}`;
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -73,9 +82,25 @@ const SendPackageHomeScreen: React.FC = () => {
     (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
   };
 
+  const handleSendNow = () => {
+    if (selectedSize) {
+      (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
+    } else {
+      // Default to small but make user aware
+      setSelectedSize('small');
+      scrollRef.current?.scrollToEnd({ animated: true });
+      Alert.alert(
+        'Package size selected',
+        'We\'ve defaulted to "Small" for you. You can change it in the list below, then tap Continue.',
+        [{ text: 'OK' }],
+      );
+    }
+  };
+
   const handleQuickAction = (screen: string) => {
     if (screen === 'LocationPicker') {
-      (navigation as any).navigate('LocationPicker', { packageSize: 'small' });
+      const size = selectedSize || 'small';
+      (navigation as any).navigate('LocationPicker', { packageSize: size });
     } else {
       (navigation as any).navigate(screen);
     }
@@ -92,12 +117,16 @@ const SendPackageHomeScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>{"<"}</Text>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.userAvatar}>
             {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+              <Image
+                source={{ uri: resolveAvatarUrl(user.avatarUrl) || '' }}
+                style={styles.avatarImg}
+                onError={() => {}}
+              />
             ) : (
               <Text style={styles.avatarInitial}>
                 {user?.firstName?.[0]?.toUpperCase() || 'U'}
@@ -117,7 +146,7 @@ const SendPackageHomeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
@@ -169,7 +198,7 @@ const SendPackageHomeScreen: React.FC = () => {
             <Text style={styles.promoSubtitle}>Fast & secure delivery across the city</Text>
             <TouchableOpacity
               style={styles.promoBtn}
-              onPress={() => (navigation as any).navigate('LocationPicker', { packageSize: 'small' })}
+              onPress={handleSendNow}
             >
               <Text style={styles.promoBtnText}>Send Now</Text>
             </TouchableOpacity>

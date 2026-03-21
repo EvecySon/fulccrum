@@ -42,7 +42,7 @@ export class PackageDeliveryController {
     @Body() dto: RequestDeliveryDto,
   ) {
     const delivery = await this.packageDeliveryService.requestDelivery(
-      req.user.id,
+      req.user.sub,
       dto,
     );
     
@@ -63,12 +63,27 @@ export class PackageDeliveryController {
     };
   }
 
+  @Post('requests/:requestId/accept')
+  async acceptDelivery(
+    @Param('requestId') requestId: string,
+    @Request() req: any,
+  ) {
+    const result = await this.packageDeliveryService.acceptDelivery(
+      requestId,
+      req.user.sub,
+    );
+    return {
+      success: result.success,
+      message: result.message || 'Delivery accepted',
+    };
+  }
+
   @Post(':id/cancel')
   async cancelDelivery(
     @Param('id') id: string,
     @Request() req: any,
   ) {
-    await this.packageDeliveryService.cancelDelivery(id, req.user.id);
+    await this.packageDeliveryService.cancelDelivery(id, req.user.sub);
     
     return {
       success: true,
@@ -100,7 +115,7 @@ export class PackageDeliveryController {
     @Query('limit') limit: string = '20',
   ) {
     const history = await this.packageDeliveryService.getHistory(
-      req.user.id,
+      req.user.sub,
       parseInt(page),
       parseInt(limit),
     );

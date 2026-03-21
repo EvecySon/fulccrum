@@ -14,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 @WebSocketGateway({
-  path: '/support',
+  path: '/ws',
   cors: {
     origin: process.env.FRONTEND_URL || '*',
     credentials: true,

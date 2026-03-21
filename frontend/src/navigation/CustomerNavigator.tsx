@@ -46,6 +46,8 @@ import TrackDeliveryScreen from '../screens/customer/TrackDeliveryScreen';
 import WalletScreen from '../screens/customer/WalletScreen';
 import ReferralsScreen from '../screens/customer/ReferralsScreen';
 import SupportScreen from '../screens/customer/SupportScreen';
+import MyTicketsScreen from '../screens/customer/MyTicketsScreen';
+import CustomerTicketDetailScreen from '../screens/customer/CustomerTicketDetailScreen';
 import DeliveryCompleteScreen from '../screens/customer/DeliveryCompleteScreen';
 import PackageHistoryScreen from '../screens/customer/PackageHistoryScreen';
 import ActiveOrdersScreen from '../screens/customer/ActiveOrdersScreen';
@@ -159,6 +161,8 @@ export default function CustomerNavigator() {
       <Stack.Screen name="WalletDetails" component={WalletScreen} />
       <Stack.Screen name="Referrals" component={ReferralsScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
+      <Stack.Screen name="CustomerTicketDetail" component={CustomerTicketDetailScreen} />
       <Stack.Screen name="Bills" component={BillsScreen} />
       <Stack.Screen name="SendPackageHome" component={SendPackageHomeScreen} />
       <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />

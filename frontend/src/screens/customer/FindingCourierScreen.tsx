@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
-import { mockFindCourier } from '../../services/mockPackageDelivery';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +25,8 @@ const FindingCourierScreen: React.FC = () => {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     console.log('FindingCourierScreen mounted with params:', {
@@ -47,7 +48,8 @@ const FindingCourierScreen: React.FC = () => {
     startCountdown();
 
     return () => {
-      // Cleanup
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
 
@@ -78,41 +80,48 @@ const FindingCourierScreen: React.FC = () => {
     ).start();
   };
 
-  const startPolling = async () => {
-    try {
-      console.log('Starting courier search for orderId:', orderId);
-      
-      // Use mock service to find courier
-      const response = await mockFindCourier(orderId);
-      
-      console.log('Courier search response:', response);
-      
-      if (response.success) {
-        setCourierFound(true);
-        
-        setTimeout(() => {
-          console.log('Navigating to TrackDelivery with:', {
-            orderId,
-            courier: response.courier,
-          });
-          
-          (navigation as any).replace('TrackDelivery', {
-            orderId,
-            courier: response.courier,
-          });
-        }, 2000);
+  const startPolling = () => {
+    console.log('Polling delivery status for orderId:', orderId);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res: any = await packageDeliveryAPI.getDeliveryStatus(orderId);
+        const order = res?.data?.order || res?.order;
+
+        if (!order) return;
+
+        if (
+          (order.status === 'accepted' || order.status === 'assigned') &&
+          order.driver
+        ) {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          setCourierFound(true);
+
+          setTimeout(() => {
+            (navigation as any).replace('TrackDelivery', {
+              orderId,
+              courier: order.driver,
+            });
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Poll status error:', error);
       }
-    } catch (error) {
-      console.error('Finding courier error:', error);
-      handleTimeout();
-    }
+    }, 3000);
   };
 
   const startCountdown = () => {
-    const countdownInterval = setInterval(() => {
+    countdownRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          clearInterval(countdownInterval);
+          clearInterval(countdownRef.current!);
+          countdownRef.current = null;
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          handleTimeout();
           return 0;
         }
         return prev - 1;

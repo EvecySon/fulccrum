@@ -1,9 +1,13 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SupportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async createTicket(userId: string, data: any) {
     const ticketNumber = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -177,6 +181,20 @@ export class SupportService {
         where: { id: ticketId },
         data: { status: 'open' },
       });
+    }
+
+    // Notify customer when an agent/admin replies (sender is not the ticket owner)
+    if (userId !== ticket.userId) {
+      try {
+        await this.notificationsService.createNotification(ticket.userId, {
+          type: 'support_message',
+          title: 'Support reply received',
+          message: `A support agent has replied to your ticket: "${ticket.subject}"`,
+          data: { ticketId, screen: 'CustomerTicketDetail' },
+        });
+      } catch (e) {
+        console.warn('[Support] Failed to notify customer:', e);
+      }
     }
 
     return message;

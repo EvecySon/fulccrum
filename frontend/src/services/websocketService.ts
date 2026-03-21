@@ -24,7 +24,7 @@ class WebSocketService {
     const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || getApiBaseUrl();
 
     this.socket = io(SOCKET_URL, {
-      path: '/support',
+      path: '/ws',
       auth: {
         token,
         agentId,

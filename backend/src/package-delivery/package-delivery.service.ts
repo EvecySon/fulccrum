@@ -36,7 +36,7 @@ export class PackageDeliveryService {
       dto.deliverySpeed,
     );
 
-    const orderNumber = `PKG-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const orderNumber = `PKG-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
     const order = await this.prisma.order.create({
       data: {
@@ -124,6 +124,10 @@ export class PackageDeliveryService {
       courierLocation,
       eta: courierLocation ? this.calculateETA(courierLocation, order) : null,
     };
+  }
+
+  async acceptDelivery(requestId: string, courierId: string) {
+    return this.courierMatching.handleCourierAcceptance(requestId, courierId);
   }
 
   async cancelDelivery(orderId: string, customerId: string) {
