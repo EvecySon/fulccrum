@@ -8,9 +8,17 @@ import {
   TextInput,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { api } from '../../services/api';
+
+// ─── Contact constants (update here if details change) ───────────────────────
+const SUPPORT_PHONE = '+2348012345678';
+const SUPPORT_PHONE_DISPLAY = '+234 801 234 5678';
+const SUPPORT_EMAIL = 'support@fulccrum.com';
+const SUPPORT_WHATSAPP = '2348012345678';
 
 interface FAQItem {
   question: string;
@@ -19,9 +27,15 @@ interface FAQItem {
 }
 
 const SupportScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>('faq');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+  const navigation = useNavigation();
+  const route = useRoute();
+  const params = (route.params as any) || {};
+
+  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>(
+    params.initialTab === 'contact' ? 'contact' : 'faq'
+  );
+  const [subject, setSubject] = useState(params.subject || '');
+  const [message, setMessage] = useState(params.message || '');
   const [submitting, setSubmitting] = useState(false);
   const [faqs, setFaqs] = useState<FAQItem[]>([
     {
@@ -64,15 +78,15 @@ const SupportScreen: React.FC = () => {
   };
 
   const handleCall = () => {
-    Linking.openURL('tel:+2348012345678');
+    Linking.openURL(`tel:${SUPPORT_PHONE}`);
   };
 
   const handleEmail = () => {
-    Linking.openURL('mailto:support@fulccrum.com');
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}`);
   };
 
   const handleWhatsApp = () => {
-    Linking.openURL('https://wa.me/2348012345678');
+    Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`);
   };
 
   const handleSubmit = async () => {
@@ -84,13 +98,13 @@ const SupportScreen: React.FC = () => {
     try {
       setSubmitting(true);
       await api.post('/support/tickets', {
-        subject,
-        message,
+        subject: subject.trim(),
+        description: message.trim(),
+        ...(params.orderId ? { orderId: params.orderId } : {}),
       });
-      
-      Alert.alert('Success', 'Your message has been sent. We\'ll get back to you soon!');
-      setSubject('');
-      setMessage('');
+      Alert.alert('Success', "Your message has been sent. We'll get back to you soon!");
+      setSubject(params.subject || '');
+      setMessage(params.message || '');
     } catch (error) {
       console.error('Error submitting support ticket:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
@@ -101,6 +115,15 @@ const SupportScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color="#0f172a" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Support</Text>
+        <View style={{ width: 38 }} />
+      </View>
+
       {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -157,7 +180,7 @@ const SupportScreen: React.FC = () => {
                   <Ionicons name="call" size={24} color="#10b981" />
                 </View>
                 <Text style={styles.contactLabel}>Call Us</Text>
-                <Text style={styles.contactValue}>+234 801 234 5678</Text>
+                <Text style={styles.contactValue}>{SUPPORT_PHONE_DISPLAY}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.contactOption} onPress={handleEmail}>
@@ -165,7 +188,7 @@ const SupportScreen: React.FC = () => {
                   <Ionicons name="mail" size={24} color="#3b82f6" />
                 </View>
                 <Text style={styles.contactLabel}>Email</Text>
-                <Text style={styles.contactValue}>support@fulccrum.com</Text>
+                <Text style={styles.contactValue}>{SUPPORT_EMAIL}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.contactOption} onPress={handleWhatsApp}>
@@ -180,6 +203,13 @@ const SupportScreen: React.FC = () => {
             {/* Contact Form */}
             <View style={styles.formSection}>
               <Text style={styles.formTitle}>Send us a message</Text>
+
+              {params.orderId && (
+                <View style={styles.orderRefBadge}>
+                  <Ionicons name="cube-outline" size={16} color="#14b8a6" />
+                  <Text style={styles.orderRefText}>Re: Order #{params.orderId}</Text>
+                </View>
+              )}
               
               <TextInput
                 style={styles.input}
@@ -234,6 +264,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   tabs: {
     flexDirection: 'row',
@@ -404,6 +458,23 @@ const styles = StyleSheet.create({
   hoursText: {
     fontSize: 14,
     color: '#64748b',
+  },
+  orderRefBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdfa',
+    borderWidth: 1,
+    borderColor: '#99f6e4',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  orderRefText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f766e',
   },
 });
 

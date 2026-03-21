@@ -126,10 +126,17 @@ const TrackDeliveryScreen: React.FC = () => {
   const handleCancelDelivery = () => {
     Alert.alert('Cancel Delivery', 'Are you sure you want to cancel this delivery?', [
       { text: 'No', style: 'cancel' },
-      { text: 'Yes, Cancel', style: 'destructive', onPress: () => {
-        Alert.alert('Cancelled', 'Your delivery has been cancelled.');
-        navigation.goBack();
-      }},
+      {
+        text: 'Yes, Cancel', style: 'destructive', onPress: async () => {
+          try {
+            await packageDeliveryAPI.cancelDelivery(actualOrderId);
+            Alert.alert('Cancelled', 'Your delivery has been cancelled.');
+            navigation.goBack();
+          } catch (err: any) {
+            Alert.alert('Error', err?.message || 'Could not cancel delivery. Please try again.');
+          }
+        },
+      },
     ]);
   };
 
@@ -358,7 +365,12 @@ const TrackDeliveryScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.ctaBtnOutline, { marginHorizontal: 20, marginBottom: 32 }]}
-            onPress={() => (navigation as any).navigate('Support')}
+            onPress={() => (navigation as any).navigate('Support', {
+              orderId: actualOrderId,
+              initialTab: 'contact',
+              subject: `Issue with order #${delivery.orderNumber}`,
+              message: `I have an issue with my delivered order #${delivery.orderNumber} (${delivery.pickupAddress} → ${delivery.dropoffAddress}).`,
+            })}
           >
             <Text style={styles.ctaBtnOutlineText}>Report an Issue</Text>
           </TouchableOpacity>
@@ -535,7 +547,12 @@ const TrackDeliveryScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.ctaBtnOutline, { marginHorizontal: 20, marginBottom: 32 }]}
-            onPress={() => (navigation as any).navigate('Support')}
+            onPress={() => (navigation as any).navigate('Support', {
+              orderId: actualOrderId,
+              initialTab: 'contact',
+              subject: `Cancelled order #${delivery.orderNumber}`,
+              message: `My order #${delivery.orderNumber} was cancelled and I need assistance.`,
+            })}
           >
             <Text style={styles.ctaBtnOutlineText}>Contact Support</Text>
           </TouchableOpacity>
