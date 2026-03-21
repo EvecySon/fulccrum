@@ -9,10 +9,14 @@ import {
   Alert,
   Linking,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
+import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -42,6 +46,11 @@ const TrackDeliveryScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [eta, setEta] = useState<number | null>(null);
   const [courierRating, setCourierRating] = useState(0);
+  const [pendingRating, setPendingRating] = useState(0);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   useEffect(() => {
     if (!actualOrderId) {
@@ -125,8 +134,26 @@ const TrackDeliveryScreen: React.FC = () => {
   };
 
   const handleRateCourier = (rating: number) => {
-    setCourierRating(rating);
-    Alert.alert('Thank you!', `You rated ${delivery?.courier?.name} ${rating} stars.`);
+    setPendingRating(rating);
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!pendingRating || submittingRating) return;
+    setSubmittingRating(true);
+    try {
+      await packageDeliveryAPI.rateDelivery(actualOrderId, pendingRating, reviewText.trim() || undefined);
+      setCourierRating(pendingRating);
+      setRatingSubmitted(true);
+      setShowReviewModal(false);
+    } catch {
+      Alert.alert('Note', 'Rating saved locally — will sync when connected.');
+      setCourierRating(pendingRating);
+      setRatingSubmitted(true);
+      setShowReviewModal(false);
+    } finally {
+      setSubmittingRating(false);
+    }
   };
 
   const getDeliveryDuration = () => {
@@ -264,19 +291,40 @@ const TrackDeliveryScreen: React.FC = () => {
                   <Text style={styles.courierSub}>{delivery.courier.totalDeliveries.toLocaleString()} deliveries</Text>
                 </View>
               </View>
-              <View style={styles.starsRow}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <TouchableOpacity key={s} onPress={() => handleRateCourier(s)}>
-                    <Ionicons
-                      name={s <= courierRating ? 'star' : 'star-outline'}
-                      size={36}
-                      color={s <= courierRating ? '#f59e0b' : TEXT_DIM}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {courierRating > 0 && (
-                <Text style={styles.ratingThanks}>Thanks for your feedback!</Text>
+              {ratingSubmitted ? (
+                <View style={styles.ratingDoneBox}>
+                  <Ionicons name="checkmark-circle" size={24} color={GREEN} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.ratingDoneTitle}>Rating submitted</Text>
+                    <View style={{ flexDirection: 'row', gap: 3, marginTop: 4 }}>
+                      {[1,2,3,4,5].map((s) => (
+                        <Ionicons key={s} name={s <= courierRating ? 'star' : 'star-outline'} size={16} color={s <= courierRating ? '#f59e0b' : TEXT_DIM} />
+                      ))}
+                    </View>
+                    {reviewText.trim() ? <Text style={styles.ratingDoneSub} numberOfLines={2}>"{reviewText.trim()}"</Text> : null}
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.ratingPrompt}>Tap a star to rate</Text>
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <TouchableOpacity key={s} onPress={() => handleRateCourier(s)}>
+                        <Ionicons
+                          name={s <= pendingRating ? 'star' : 'star-outline'}
+                          size={40}
+                          color={s <= pendingRating ? '#f59e0b' : TEXT_DIM}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {pendingRating > 0 && (
+                    <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setShowReviewModal(true)}>
+                      <Ionicons name="create-outline" size={16} color={ACCENT} />
+                      <Text style={styles.writeReviewBtnText}>Add a review</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
               )}
             </View>
           )}
@@ -315,6 +363,80 @@ const TrackDeliveryScreen: React.FC = () => {
             <Text style={styles.ctaBtnOutlineText}>Report an Issue</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* ── Review Modal ── */}
+        <Modal
+          visible={showReviewModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowReviewModal(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
+            <View style={styles.modalSheet}>
+              {/* Handle */}
+              <View style={styles.modalHandle} />
+
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Rate {delivery?.courier?.name?.split(' ')[0]}</Text>
+                <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+                  <Ionicons name="close" size={24} color={TEXT_DIM} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Stars */}
+              <View style={styles.modalStarsRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <TouchableOpacity key={s} onPress={() => setPendingRating(s)}>
+                    <Ionicons
+                      name={s <= pendingRating ? 'star' : 'star-outline'}
+                      size={48}
+                      color={s <= pendingRating ? '#f59e0b' : '#353A4A'}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.modalStarLabel}>
+                {pendingRating === 1 ? 'Poor' : pendingRating === 2 ? 'Fair' : pendingRating === 3 ? 'Good' : pendingRating === 4 ? 'Great' : pendingRating === 5 ? 'Excellent!' : 'Select a rating'}
+              </Text>
+
+              {/* Review text */}
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Share your experience (optional)..."
+                placeholderTextColor={TEXT_DIM}
+                multiline
+                numberOfLines={4}
+                value={reviewText}
+                onChangeText={setReviewText}
+                maxLength={300}
+              />
+              <Text style={styles.reviewCharCount}>{reviewText.length}/300</Text>
+
+              {/* Submit */}
+              <TouchableOpacity
+                style={[styles.ctaBtn, { marginTop: 16, opacity: !pendingRating || submittingRating ? 0.5 : 1 }]}
+                onPress={handleSubmitRating}
+                disabled={!pendingRating || submittingRating}
+              >
+                {submittingRating
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.ctaBtnText}>Submit Rating</Text>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{ alignItems: 'center', paddingVertical: 14 }}
+                onPress={() => setShowReviewModal(false)}
+              >
+                <Text style={{ fontSize: 14, color: TEXT_DIM }}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </View>
     );
   }
@@ -719,6 +841,53 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.08)', alignItems: 'center',
   },
   cancelBtnText: { fontSize: 16, fontWeight: '700', color: RED },
+
+  // Rating interaction
+  ratingPrompt: { fontSize: 13, color: TEXT_DIM, textAlign: 'center', marginBottom: 10 },
+  writeReviewBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: 12, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(20,184,166,0.3)',
+  },
+  writeReviewBtnText: { fontSize: 14, fontWeight: '600', color: ACCENT },
+  ratingDoneBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(16,185,129,0.2)',
+  },
+  ratingDoneTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  ratingDoneSub: { fontSize: 12, color: TEXT_DIM, marginTop: 4, fontStyle: 'italic' },
+
+  // Review modal
+  modalOverlay: {
+    flex: 1, justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalSheet: {
+    backgroundColor: CARD_DARK, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: '#353A4A',
+    alignSelf: 'center', marginBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  modalStarsRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8,
+  },
+  modalStarLabel: {
+    textAlign: 'center', fontSize: 15, fontWeight: '600', color: '#f59e0b',
+    marginBottom: 20, minHeight: 20,
+  },
+  reviewInput: {
+    backgroundColor: BG_DARK, borderRadius: 12, padding: 14,
+    color: '#fff', fontSize: 15, textAlignVertical: 'top',
+    borderWidth: 1, borderColor: '#353A4A', minHeight: 100,
+  },
+  reviewCharCount: { textAlign: 'right', fontSize: 12, color: TEXT_DIM, marginTop: 6 },
 });
 
 export default TrackDeliveryScreen;

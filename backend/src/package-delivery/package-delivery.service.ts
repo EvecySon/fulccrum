@@ -162,16 +162,36 @@ export class PackageDeliveryService {
     }
   }
 
-  async rateDelivery(orderId: string, rating: number, feedback: string) {
+  async rateDelivery(orderId: string, rating: number, feedback?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
 
-    if (!order || !order.driverId) {
-      throw new NotFoundException('Delivery not found');
-    }
+    if (!order) throw new NotFoundException('Delivery not found');
+    if (!order.driverId) throw new BadRequestException('No courier assigned to this order');
+    if (order.status !== 'delivered') throw new BadRequestException('Can only rate delivered orders');
 
+    // Store rating + feedback on the order itself
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        customerRating: rating,
+        customerFeedback: feedback ?? null,
+        ratedAt: new Date(),
+      } as any,
+    });
+
+    // Recalculate and persist rolling average on the courier's profile
     await this.updateCourierRating(order.driverId, rating);
+
+    // Notify the courier they received a rating
+    await this.notifications.sendPushNotification(
+      order.driverId,
+      'New Rating Received',
+      feedback
+        ? `You received a ${rating}-star rating: "${feedback}"`
+        : `You received a ${rating}-star rating from a customer!`,
+    );
   }
 
   async getHistory(customerId: string, page: number, limit: number) {
@@ -245,6 +265,26 @@ export class PackageDeliveryService {
   }
 
   private async updateCourierRating(courierId: string, newRating: number) {
-    // Implement proper rating calculation
+    // Compute rolling average across all rated package-delivery orders for this courier
+    const ratedOrders = await this.prisma.$queryRaw<{ avg_rating: number; count: bigint }[]>`
+      SELECT AVG((customer_rating)::float) as avg_rating, COUNT(*) as count
+      FROM orders
+      WHERE driver_id = ${courierId}::uuid
+        AND order_type = 'package_delivery'
+        AND customer_rating IS NOT NULL
+    `;
+
+    const avg = ratedOrders[0]?.avg_rating ?? newRating;
+    const rounded = Math.round(avg * 10) / 10;
+
+    await this.prisma.driverProfile.upsert({
+      where: { userId: courierId },
+      update: { rating: rounded },
+      create: {
+        userId: courierId,
+        vehicleType: 'motorcycle',
+        rating: rounded,
+      },
+    });
   }
 }
