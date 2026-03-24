@@ -101,6 +101,12 @@ export class PackageDeliveryService {
             lastName: true,
             phone: true,
             avatarUrl: true,
+            driverProfile: {
+              select: {
+                rating: true,
+                totalDeliveries: true,
+              },
+            },
           },
         },
         deliveryRequest: true,

@@ -8,12 +8,13 @@ import {
   Linking,
   Alert,
   Animated,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
-import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -23,9 +24,11 @@ const TrackDeliveryScreen: React.FC = () => {
   const mapRef = useRef<MapView>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<any>(null);
   const [courierLocation, setCourierLocation] = useState<any>(null);
+  const [courierInfo, setCourierInfo] = useState<any>(courier);
   const [eta, setEta] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -70,40 +73,49 @@ const TrackDeliveryScreen: React.FC = () => {
 
   const fetchDeliveryStatus = async () => {
     try {
-      setIsLoading(true);
+      if (!hasLoadedOnce.current) setIsLoading(true);
       setError(null);
-      
-      const response = await mockGetDeliveryStatus(orderId);
-      
-      if (response.success) {
-        setDeliveryStatus(response.data);
-        setCourierLocation(response.data.courierLocation);
-        setEta(response.data.eta || null);
 
-        // Update map to show courier location
-        if (response.data.courierLocation && mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: response.data.courierLocation.latitude,
-            longitude: response.data.courierLocation.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }, 1000);
-        }
-      } else {
-        setError('Failed to load delivery status');
+      const res: any = await packageDeliveryAPI.getDeliveryStatus(orderId);
+      const data = res?.data || res;
+
+      setDeliveryStatus(data);
+      setCourierLocation(data.courierLocation || null);
+      setEta(data.eta || null);
+
+      if (data.order?.driver) {
+        setCourierInfo(data.order.driver);
       }
-    } catch (error) {
-      console.error('Fetch delivery status error:', error);
-      setError('Failed to load delivery status. Please try again.');
+
+      if (data.courierLocation && mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: data.courierLocation.latitude,
+          longitude: data.courierLocation.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }, 1000);
+      }
+
+      hasLoadedOnce.current = true;
+    } catch (err) {
+      console.error('Fetch delivery status error:', err);
+      if (!hasLoadedOnce.current) {
+        setError('Failed to load delivery status. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCallCourier = () => {
-    if (courier?.phoneNumber) {
-      Linking.openURL(`tel:${courier.phoneNumber}`);
-    }
+    const phone = courierInfo?.phone || courierInfo?.phoneNumber;
+    if (phone) Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleMessageCourier = () => {
+    const phone = courierInfo?.phone || courierInfo?.phoneNumber;
+    if (phone) Linking.openURL(`sms:${phone}`);
+    else Alert.alert('Not available', 'Courier phone number is not available.');
   };
 
   const handleCancelDelivery = () => {
@@ -311,75 +323,107 @@ const TrackDeliveryScreen: React.FC = () => {
       <View style={styles.bottomSheet}>
         <View style={styles.handle} />
 
-        {/* Courier Info */}
-        <View style={styles.courierInfo}>
-          <View style={styles.courierAvatar}>
-            {courier?.avatarUrl ? (
-              <Image source={{ uri: courier.avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <Ionicons name="person" size={32} color="#7B8494" />
-            )}
-          </View>
-          <View style={styles.courierDetails}>
-            <Text style={styles.courierName}>
-              {courier?.firstName} {courier?.lastName}
-            </Text>
-            <Text style={styles.courierRole}>Your Courier</Text>
-          </View>
-          <TouchableOpacity style={styles.callButton} onPress={handleCallCourier}>
-            <Ionicons name="call" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Delivery Timeline */}
-        <View style={styles.timeline}>
-          <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, deliveryStatus.order.acceptedAt && styles.timelineDotActive]} />
-            <View style={styles.timelineContent}>
-              <Text style={styles.timelineTitle}>Courier Assigned</Text>
-              {deliveryStatus.order.acceptedAt && (
-                <Text style={styles.timelineTime}>
-                  {new Date(deliveryStatus.order.acceptedAt).toLocaleTimeString()}
-                </Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Courier Info */}
+          <View style={styles.courierInfo}>
+            <View style={styles.courierAvatar}>
+              {courierInfo?.avatarUrl ? (
+                <Image source={{ uri: courierInfo.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={32} color="#7B8494" />
               )}
+            </View>
+            <View style={styles.courierDetails}>
+              <Text style={styles.courierName}>
+                {courierInfo?.firstName} {courierInfo?.lastName}
+              </Text>
+              {courierInfo?.driverProfile && (
+                <View style={styles.courierMeta}>
+                  <Ionicons name="star" size={13} color="#f59e0b" />
+                  <Text style={styles.courierMetaText}>
+                    {Number(courierInfo.driverProfile.rating).toFixed(1)}
+                  </Text>
+                  <Text style={styles.courierMetaDot}>•</Text>
+                  <Text style={styles.courierMetaText}>
+                    {courierInfo.driverProfile.totalDeliveries} deliveries
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.actionBtn} onPress={handleMessageCourier}>
+                <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: ACCENT }]} onPress={handleCallCourier}>
+                <Ionicons name="call" size={18} color="#fff" />
+              </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.timelineLine} />
-
-          <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, deliveryStatus.order.pickedUpAt && styles.timelineDotActive]} />
-            <View style={styles.timelineContent}>
-              <Text style={styles.timelineTitle}>Package Picked Up</Text>
-              {deliveryStatus.order.pickedUpAt && (
+          {/* Delivery Timeline */}
+          <View style={styles.timeline}>
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, styles.timelineDotActive]} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Order Created</Text>
                 <Text style={styles.timelineTime}>
-                  {new Date(deliveryStatus.order.pickedUpAt).toLocaleTimeString()}
+                  {new Date(deliveryStatus.order.createdAt).toLocaleString()}
                 </Text>
-              )}
+              </View>
+            </View>
+
+            <View style={styles.timelineLine} />
+
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, deliveryStatus.order.acceptedAt && styles.timelineDotActive]} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Courier Assigned</Text>
+                {deliveryStatus.order.acceptedAt && (
+                  <Text style={styles.timelineTime}>
+                    {new Date(deliveryStatus.order.acceptedAt).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.timelineLine} />
+
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, deliveryStatus.order.pickedUpAt && styles.timelineDotActive]} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Package Picked Up</Text>
+                {deliveryStatus.order.pickedUpAt && (
+                  <Text style={styles.timelineTime}>
+                    {new Date(deliveryStatus.order.pickedUpAt).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.timelineLine} />
+
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, deliveryStatus.order.deliveredAt && styles.timelineDotActive]} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Package Delivered</Text>
+                {deliveryStatus.order.deliveredAt && (
+                  <Text style={styles.timelineTime}>
+                    {new Date(deliveryStatus.order.deliveredAt).toLocaleString()}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
 
-          <View style={styles.timelineLine} />
+          {/* Cancel Button */}
+          {deliveryStatus.order.status !== 'delivered' && (
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
+              <Text style={styles.cancelButtonText}>Cancel Delivery</Text>
+            </TouchableOpacity>
+          )}
 
-          <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, deliveryStatus.order.deliveredAt && styles.timelineDotActive]} />
-            <View style={styles.timelineContent}>
-              <Text style={styles.timelineTitle}>Package Delivered</Text>
-              {deliveryStatus.order.deliveredAt && (
-                <Text style={styles.timelineTime}>
-                  {new Date(deliveryStatus.order.deliveredAt).toLocaleTimeString()}
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        {deliveryStatus.order.status !== 'delivered' && (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
-            <Text style={styles.cancelButtonText}>Cancel Delivery</Text>
-          </TouchableOpacity>
-        )}
+          <View style={{ height: Platform.OS === 'ios' ? 20 : 8 }} />
+        </ScrollView>
       </View>
     </View>
   );
@@ -575,15 +619,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 3,
   },
-  courierRole: {
-    fontSize: 13,
+  courierMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+    gap: 4,
+  },
+  courierMetaText: {
+    fontSize: 12,
+    color: TEXT_DIM,
+    fontWeight: '500',
+  },
+  courierMetaDot: {
+    fontSize: 12,
     color: TEXT_DIM,
   },
-  callButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: ACCENT,
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: CARD_DARK,
     alignItems: 'center',
     justifyContent: 'center',
   },
