@@ -315,8 +315,48 @@ export class SupportService {
       _count: true,
     });
 
+    // Calculate average response time from first agent reply
+    let avgResponseTime = 'N/A';
+    try {
+      const ticketsWithFirstReply = await this.prisma.$queryRaw<
+        { avg_minutes: number }[]
+      >`
+        SELECT AVG(EXTRACT(EPOCH FROM (m."created_at" - t."created_at")) / 60) as avg_minutes
+        FROM support_tickets t
+        INNER JOIN LATERAL (
+          SELECT sm."created_at"
+          FROM support_messages sm
+          INNER JOIN users u ON u.id = sm."sender_id"
+          WHERE sm."ticket_id" = t.id
+            AND u.role != 'customer'
+          ORDER BY sm."created_at" ASC
+          LIMIT 1
+        ) m ON true
+        WHERE t."created_at" > NOW() - INTERVAL '30 days'
+      `;
+      const avgMinutes = ticketsWithFirstReply?.[0]?.avg_minutes;
+      if (avgMinutes != null && !isNaN(Number(avgMinutes))) {
+        const mins = Math.round(Number(avgMinutes));
+        if (mins < 60) {
+          avgResponseTime = `${mins} min`;
+        } else {
+          const hours = Math.floor(mins / 60);
+          const remainMins = mins % 60;
+          avgResponseTime = remainMins > 0 ? `${hours}h ${remainMins}m` : `${hours}h`;
+        }
+      }
+    } catch (err) {
+      // Fallback if raw query fails
+      avgResponseTime = 'N/A';
+    }
+
     return {
       totalTickets,
+      open: openTickets,
+      inProgress: inProgressTickets,
+      resolved: resolvedTickets,
+      closed: closedTickets,
+      avgResponseTime,
       statusBreakdown: {
         open: openTickets,
         in_progress: inProgressTickets,

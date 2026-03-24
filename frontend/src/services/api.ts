@@ -763,7 +763,7 @@ export const supportAPI = {
     api.patch(`/support/tickets/${ticketId}/status`, { status, ...data }),
   assignTicket: (ticketId: string, assignedToId: string) =>
     api.patch(`/support/tickets/${ticketId}/assign`, { assignedToId }),
-  getMetrics: () => api.get('/tickets/metrics/stats'),
+  getMetrics: () => api.get('/support/stats'),
   rateTicket: (ticketId: string, rating: number) =>
     api.post(`/support/tickets/${ticketId}/rate`, { rating }),
   getStats: (filters?: any) => api.get(`/support/stats${filters ? `?${new URLSearchParams(filters)}` : ''}`),
