@@ -25,7 +25,7 @@ const TEXT_DIM = '#7B8494';
 
 const QUICK_ACTIONS = [
   { id: 'send', icon: 'cube-outline', label: 'Send\nParcel', screen: 'LocationPicker' },
-  { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'PackageHistory' },
+  { id: 'track', icon: 'locate-outline', label: 'Track\nParcel', screen: 'TrackSearch' },
   { id: 'history', icon: 'time-outline', label: 'My\nOrders', screen: 'PackageHistory' },
   { id: 'support', icon: 'headset-outline', label: 'Support', screen: 'Support' },
 ];
@@ -52,12 +52,20 @@ const PACKAGE_SIZES = [
     weight: '15-30kg',
     icon: 'cube' as const,
   },
+  {
+    id: 'extra_large' as const,
+    title: 'Extra Large',
+    subtitle: 'Furniture, appliances, bulk',
+    weight: '30kg+',
+    icon: 'archive-outline' as const,
+  },
 ];
 
 const SendPackageHomeScreen: React.FC = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large' | null>(null);
+  const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large' | 'extra_large' | null>(null);
+  const [sizeHighlight, setSizeHighlight] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
@@ -66,7 +74,7 @@ const SendPackageHomeScreen: React.FC = () => {
 
   const resolveAvatarUrl = (url?: string | null) => {
     if (!url) return null;
-    if (url.startsWith('http')) return url;
+    if (url.startsWith('http')) return url.replace(/https?:\/\/[^\/]+/, getApiBaseUrl());
     return `${getApiBaseUrl()}${url}`;
   };
 
@@ -82,25 +90,30 @@ const SendPackageHomeScreen: React.FC = () => {
     (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
   };
 
+  const promptSelectSize = () => {
+    setSizeHighlight(true);
+    scrollRef.current?.scrollTo({ y: 400, animated: true });
+    setTimeout(() => setSizeHighlight(false), 2000);
+  };
+
   const handleSendNow = () => {
     if (selectedSize) {
       (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
     } else {
-      // Default to small but make user aware
-      setSelectedSize('small');
-      scrollRef.current?.scrollToEnd({ animated: true });
-      Alert.alert(
-        'Package size selected',
-        'We\'ve defaulted to "Small" for you. You can change it in the list below, then tap Continue.',
-        [{ text: 'OK' }],
-      );
+      promptSelectSize();
     }
   };
 
   const handleQuickAction = (screen: string) => {
     if (screen === 'LocationPicker') {
-      const size = selectedSize || 'small';
-      (navigation as any).navigate('LocationPicker', { packageSize: size });
+      if (!selectedSize) { promptSelectSize(); return; }
+      (navigation as any).navigate('LocationPicker', { packageSize: selectedSize });
+    } else if (screen === 'TrackSearch') {
+      if (searchCode.trim()) {
+        (navigation as any).navigate('TrackDelivery', { orderId: searchCode.trim() });
+      } else {
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+      }
     } else {
       (navigation as any).navigate(screen);
     }
@@ -108,7 +121,7 @@ const SendPackageHomeScreen: React.FC = () => {
 
   const handleTrackSearch = () => {
     if (searchCode.trim()) {
-      (navigation as any).navigate('TrackDelivery', { trackingCode: searchCode.trim() });
+      (navigation as any).navigate('TrackDelivery', { orderId: searchCode.trim() });
     }
   };
 
@@ -209,8 +222,17 @@ const SendPackageHomeScreen: React.FC = () => {
         </Animated.View>
 
         {/* Select Package Size */}
-        <Animated.View style={[styles.sizeSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Text style={styles.sectionTitle}>Select Package Size</Text>
+        <Animated.View style={[
+          styles.sizeSection,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          sizeHighlight && styles.sizeSectionHighlight,
+        ]}>
+          <Text style={[
+            styles.sectionTitle,
+            sizeHighlight && { color: ACCENT },
+          ]}>
+            {sizeHighlight ? 'Select a size to continue' : 'Select Package Size'}
+          </Text>
 
           {PACKAGE_SIZES.map((size) => (
             <TouchableOpacity
@@ -449,6 +471,13 @@ const styles = StyleSheet.create({
   sizeSection: {
     paddingHorizontal: 20,
     marginBottom: 20,
+  },
+  sizeSectionHighlight: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.04)',
+    paddingVertical: 10,
   },
   sectionTitle: {
     fontSize: 16,

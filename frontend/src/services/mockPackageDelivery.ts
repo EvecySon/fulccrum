@@ -24,7 +24,7 @@ const calculateDistance = (
 export const mockCalculatePrice = async (data: {
   pickup: { lat: number; lng: number };
   dropoff: { lat: number; lng: number };
-  size: 'small' | 'medium' | 'large';
+  size: 'small' | 'medium' | 'large' | 'extra_large';
   speed: 'express' | 'same_day' | 'scheduled';
 }): Promise<{ success: boolean; data: PriceCalculation }> => {
   // Simulate network delay
@@ -41,7 +41,7 @@ export const mockCalculatePrice = async (data: {
   const BASE_PRICE = 500;
   const PRICE_PER_KM = 80;
   
-  const sizeMultipliers = { small: 1, medium: 1.3, large: 1.6 };
+  const sizeMultipliers: Record<string, number> = { small: 1, medium: 1.3, large: 1.6, extra_large: 2.0 };
   const speedMultipliers = { same_day: 1, express: 1.5, scheduled: 0.8 };
   
   // Random surge between 1.0 and 1.4 (simulate demand)
@@ -252,7 +252,7 @@ export const mockGetDeliveryStatus = async (
 
   const courier = orderData.courierIdx !== null && orderData.courierIdx !== undefined
     ? mockCouriers[orderData.courierIdx]
-    : null;
+    : undefined;
 
   const baseLat = 6.5244 + (Math.random() - 0.5) * 0.05;
   const baseLng = 3.3792 + (Math.random() - 0.5) * 0.05;

@@ -27,7 +27,7 @@ export default function AdminWalletManagementScreen({ navigation }: any) {
 
     setSearching(true);
     try {
-      const response = await usersAPI.searchUsers(searchQuery);
+      const response = await (usersAPI as any).searchUsers(searchQuery);
       setSearchResults(response.data || []);
     } catch (error) {
       console.error('Search error:', error);

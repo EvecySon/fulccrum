@@ -35,10 +35,11 @@ export class PricingService {
     let price = basePrice + distancePrice;
 
     // Apply size multiplier
-    const sizeMultipliers = {
+    const sizeMultipliers: Record<string, number> = {
       small: settings.packageSizeSmallMultiplier.toNumber(),
       medium: settings.packageSizeMediumMultiplier.toNumber(),
       large: settings.packageSizeLargeMultiplier.toNumber(),
+      extra_large: settings.packageSizeExtraLargeMultiplier.toNumber(),
     };
     const sizeMultiplier = sizeMultipliers[size] || 1.0;
     price *= sizeMultiplier;
@@ -98,6 +99,7 @@ export class PricingService {
           packageSizeSmallMultiplier: 1.0,
           packageSizeMediumMultiplier: 1.5,
           packageSizeLargeMultiplier: 2.0,
+          packageSizeExtraLargeMultiplier: 2.5,
           expressSpeedMultiplier: 1.3,
           sameDaySpeedMultiplier: 1.0,
           scheduledSpeedMultiplier: 0.8,

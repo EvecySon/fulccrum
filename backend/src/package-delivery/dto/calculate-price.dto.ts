@@ -9,7 +9,7 @@ export class CalculatePriceDto {
   @IsNotEmpty()
   dropoff: { lat: number; lng: number };
 
-  @IsEnum(['small', 'medium', 'large'])
+  @IsEnum(['small', 'medium', 'large', 'extra_large'])
   size: string;
 
   @IsEnum(['express', 'same_day', 'scheduled'])

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const RECENT_KEY = 'fulccrum_recent_addresses';
+const MAX_RECENT = 4;
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -47,6 +51,29 @@ const LocationPickerScreen: React.FC = () => {
   });
 
   const [activeInput, setActiveInput] = useState<'pickup' | 'dropoff'>('pickup');
+  const [recentAddresses, setRecentAddresses] = useState<string[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(RECENT_KEY).then((raw) => {
+      if (raw) setRecentAddresses(JSON.parse(raw));
+    }).catch(() => {});
+  }, []);
+
+  const saveRecentAddresses = async (pickup: string, dropoff: string) => {
+    try {
+      const existing: string[] = JSON.parse(await AsyncStorage.getItem(RECENT_KEY) || '[]');
+      const updated = [pickup, dropoff, ...existing.filter(a => a !== pickup && a !== dropoff)].slice(0, MAX_RECENT);
+      await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
+  const applyRecent = (address: string) => {
+    if (activeInput === 'pickup') {
+      setPickupLocation(prev => ({ ...prev, address }));
+    } else {
+      setDropoffLocation(prev => ({ ...prev, address }));
+    }
+  };
 
   const handleContinue = () => {
     if (!pickupLocation.address || !dropoffLocation.address) {
@@ -64,13 +91,12 @@ const LocationPickerScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate('PriceEstimate' as never, {
+    saveRecentAddresses(pickupLocation.address, dropoffLocation.address);
+    (navigation as any).navigate('PackageDetails', {
       packageSize,
-      pickupLocation: pickupLocation,
-      dropoffLocation: dropoffLocation,
-      deliverySpeed: 'same_day',
-      packageDescription: 'Package',
-    } as never);
+      pickupLocation,
+      dropoffLocation,
+    });
   };
 
   return (
@@ -117,6 +143,21 @@ const LocationPickerScreen: React.FC = () => {
           </Text>
         </View>
 
+        {/* Recent Addresses */}
+        {recentAddresses.length > 0 && (
+          <View style={styles.recentSection}>
+            <Text style={styles.recentTitle}>Recent Addresses</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {recentAddresses.map((addr, i) => (
+                <TouchableOpacity key={i} style={styles.recentChip} onPress={() => applyRecent(addr)}>
+                  <Ionicons name="time-outline" size={14} color={ACCENT} />
+                  <Text style={styles.recentChipText} numberOfLines={1}>{addr}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Pickup Location */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -133,6 +174,7 @@ const LocationPickerScreen: React.FC = () => {
               placeholder="Enter pickup address"
               placeholderTextColor={TEXT_DIM}
               value={pickupLocation.address}
+              onFocus={() => setActiveInput('pickup')}
               onChangeText={(text) => setPickupLocation({ ...pickupLocation, address: text })}
             />
           </View>
@@ -177,6 +219,7 @@ const LocationPickerScreen: React.FC = () => {
               placeholder="Enter dropoff address"
               placeholderTextColor={TEXT_DIM}
               value={dropoffLocation.address}
+              onFocus={() => setActiveInput('dropoff')}
               onChangeText={(text) => setDropoffLocation({ ...dropoffLocation, address: text })}
             />
           </View>
@@ -349,6 +392,36 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 15,
     color: '#fff',
+  },
+  recentSection: {
+    marginBottom: 18,
+  },
+  recentTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: TEXT_DIM,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  recentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: CARD_DARK,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    maxWidth: 200,
+    borderWidth: 1,
+    borderColor: 'rgba(20,184,166,0.2)',
+  },
+  recentChipText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    fontWeight: '500',
+    flexShrink: 1,
   },
   footer: {
     paddingHorizontal: 20,

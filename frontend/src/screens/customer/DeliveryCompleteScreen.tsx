@@ -56,7 +56,7 @@ const DeliveryCompleteScreen: React.FC = () => {
       setIsSubmitting(true);
       await packageDeliveryAPI.rateDelivery(orderId, rating, feedback.trim() || undefined);
       Alert.alert('Thank You!', 'Your feedback helps us improve our service', [
-        { text: 'OK', onPress: () => (navigation as any).navigate('HomeTabs') },
+        { text: 'OK', onPress: () => (navigation as any).navigate('PackageHistory') },
       ]);
     } catch (error) {
       console.error('Rating error:', error);
@@ -67,7 +67,7 @@ const DeliveryCompleteScreen: React.FC = () => {
   };
 
   const handleSkip = () => {
-    (navigation as any).navigate('HomeTabs');
+    (navigation as any).navigate('PackageHistory');
   };
 
   return (

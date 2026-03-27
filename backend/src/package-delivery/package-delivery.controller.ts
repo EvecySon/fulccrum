@@ -53,6 +53,12 @@ export class PackageDeliveryController {
     };
   }
 
+  @Get('active')
+  async getActiveOrders(@Request() req: any) {
+    const orders = await this.packageDeliveryService.getActiveOrders(req.user.sub);
+    return { success: true, data: orders };
+  }
+
   @Get(':id/status')
   async getDeliveryStatus(@Param('id') id: string) {
     const status = await this.packageDeliveryService.getDeliveryStatus(id);
@@ -76,6 +82,16 @@ export class PackageDeliveryController {
       success: result.success,
       message: result.message || 'Delivery accepted',
     };
+  }
+
+  @Post(':id/mark-picked-up')
+  async markPickedUp(@Param('id') id: string, @Request() req: any) {
+    return this.packageDeliveryService.markPickedUp(id, req.user.sub);
+  }
+
+  @Post(':id/mark-delivered')
+  async markDelivered(@Param('id') id: string, @Request() req: any) {
+    return this.packageDeliveryService.markDelivered(id, req.user.sub);
   }
 
   @Post(':id/cancel')

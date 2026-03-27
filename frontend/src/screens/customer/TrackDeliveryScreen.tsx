@@ -10,6 +10,7 @@ import {
   Animated,
   ScrollView,
   Platform,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -116,6 +117,43 @@ const TrackDeliveryScreen: React.FC = () => {
     const phone = courierInfo?.phone || courierInfo?.phoneNumber;
     if (phone) Linking.openURL(`sms:${phone}`);
     else Alert.alert('Not available', 'Courier phone number is not available.');
+  };
+
+  const handleShare = async () => {
+    try {
+      const orderNum = deliveryStatus?.order?.orderNumber || orderId?.slice(0, 8);
+      const pickup = deliveryStatus?.order?.pickupLocation?.address || 'Pickup location';
+      const dropoff = deliveryStatus?.order?.dropoffLocation?.address || 'Dropoff location';
+      const message = `📦 Tracking my delivery\nOrder: ${orderNum}\nFrom: ${pickup}\nTo: ${dropoff}\nTrack with Fulccrum`;
+
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && (navigator as any).share) {
+          await (navigator as any).share({ title: 'Track My Delivery', text: message });
+        } else if (typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+          await (navigator as any).clipboard.writeText(message);
+          Alert.alert('Copied!', 'Tracking info copied to clipboard.');
+        } else {
+          Alert.alert('Share', message);
+        }
+      } else {
+        await Share.share({ message, title: 'Track My Delivery' });
+      }
+    } catch (e) {
+      console.error('Share error:', e);
+    }
+  };
+
+  const handleCourierAvatarPress = () => {
+    if (!courierInfo) return;
+    const rating = courierInfo.driverProfile?.rating
+      ? Number(courierInfo.driverProfile.rating).toFixed(1)
+      : 'N/A';
+    const trips = courierInfo.driverProfile?.totalDeliveries ?? 'N/A';
+    Alert.alert(
+      `${courierInfo.firstName} ${courierInfo.lastName}`,
+      `⭐ Rating: ${rating}\n📦 Deliveries: ${trips}\n📞 ${courierInfo.phone || courierInfo.phoneNumber || 'N/A'}`,
+      [{ text: 'Close' }]
+    );
   };
 
   const handleCancelDelivery = () => {
@@ -304,6 +342,9 @@ const TrackDeliveryScreen: React.FC = () => {
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={handleShare}>
+          <Ionicons name="share-social-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Status Card */}
@@ -326,13 +367,13 @@ const TrackDeliveryScreen: React.FC = () => {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Courier Info */}
           <View style={styles.courierInfo}>
-            <View style={styles.courierAvatar}>
+            <TouchableOpacity style={styles.courierAvatar} onPress={handleCourierAvatarPress} activeOpacity={0.75}>
               {courierInfo?.avatarUrl ? (
                 <Image source={{ uri: courierInfo.avatarUrl }} style={styles.avatarImage} />
               ) : (
                 <Ionicons name="person" size={32} color="#7B8494" />
               )}
-            </View>
+            </TouchableOpacity>
             <View style={styles.courierDetails}>
               <Text style={styles.courierName}>
                 {courierInfo?.firstName} {courierInfo?.lastName}
@@ -493,6 +534,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     zIndex: 10,
   },
   backButton: {

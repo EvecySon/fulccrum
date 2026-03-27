@@ -29,11 +29,14 @@ export interface PriceCalculation {
 export interface DeliveryRequest {
   pickupLocation: Location;
   dropoffLocation: Location;
-  packageSize: 'small' | 'medium' | 'large';
+  packageSize: 'small' | 'medium' | 'large' | 'extra_large';
   deliverySpeed: 'express' | 'same_day' | 'scheduled';
+  scheduledTime?: string;
   packageDescription?: string;
   packageWeight?: number;
+  dimensions?: { length?: number; width?: number; height?: number };
   specialInstructions?: string;
+  paymentMethod?: string;
 }
 
 export interface DeliveryStatus {
@@ -50,12 +53,15 @@ export interface DeliveryStatus {
     acceptedAt?: string;
     pickedUpAt?: string;
     deliveredAt?: string;
+    cancelledAt?: string;
+    cancellationReason?: string;
     courier?: {
       id: string;
       firstName: string;
       lastName: string;
       phoneNumber: string;
       avatarUrl?: string;
+      rating?: number;
     };
   };
   courierLocation?: {
@@ -100,7 +106,7 @@ export const packageDeliveryAPI = {
   calculatePrice: (data: {
     pickup: { lat: number; lng: number };
     dropoff: { lat: number; lng: number };
-    size: 'small' | 'medium' | 'large';
+    size: 'small' | 'medium' | 'large' | 'extra_large';
     speed: 'express' | 'same_day' | 'scheduled';
   }): Promise<{ success: boolean; data: PriceCalculation }> =>
     api.post('/package-delivery/calculate-price', data),
@@ -139,6 +145,22 @@ export const packageDeliveryAPI = {
     api.post(`/package-delivery/requests/${requestId}/accept`, {}),
 
   /**
+   * Mark order as picked up (called by courier)
+   */
+  markPickedUp: (
+    orderId: string
+  ): Promise<{ success: boolean; message: string }> =>
+    api.post(`/package-delivery/${orderId}/mark-picked-up`, {}),
+
+  /**
+   * Mark order as delivered (called by courier)
+   */
+  markDelivered: (
+    orderId: string
+  ): Promise<{ success: boolean; message: string }> =>
+    api.post(`/package-delivery/${orderId}/mark-delivered`, {}),
+
+  /**
    * Cancel delivery
    */
   cancelDelivery: (
@@ -155,6 +177,12 @@ export const packageDeliveryAPI = {
     feedback?: string
   ): Promise<{ success: boolean; message: string }> =>
     api.post(`/package-delivery/${orderId}/rate`, { rating, feedback }),
+
+  /**
+   * Get active (in-progress) orders for the current user
+   */
+  getActiveOrders: (): Promise<{ success: boolean; data: any[] }> =>
+    api.get('/package-delivery/active'),
 
   /**
    * Get delivery history

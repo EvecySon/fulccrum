@@ -19,6 +19,7 @@ interface PackageDeliverySettings {
   packageSizeSmallMultiplier: number;
   packageSizeMediumMultiplier: number;
   packageSizeLargeMultiplier: number;
+  packageSizeExtraLargeMultiplier: number;
   expressSpeedMultiplier: number;
   sameDaySpeedMultiplier: number;
   scheduledSpeedMultiplier: number;
@@ -37,6 +38,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
     packageSizeSmallMultiplier: 1.0,
     packageSizeMediumMultiplier: 1.5,
     packageSizeLargeMultiplier: 2.0,
+    packageSizeExtraLargeMultiplier: 2.5,
     expressSpeedMultiplier: 1.3,
     sameDaySpeedMultiplier: 1.0,
     scheduledSpeedMultiplier: 0.8,
@@ -52,9 +54,9 @@ const PackageDeliverySettingsScreen: React.FC = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      console.log('📥 Loading settings from backend...');
+      console.log('Loading settings from backend...');
       const data = await api.get('/fees/package-delivery/settings');
-      console.log('📦 Received data:', data);
+      console.log('Received data:', data);
       
       if (data && typeof data === 'object' && data.basePackagePrice !== undefined) {
         setSettings(data);
@@ -64,12 +66,12 @@ const PackageDeliverySettingsScreen: React.FC = () => {
           if (typeof val === 'number') strings[key] = val.toString();
         }
         setInputValues(strings);
-        console.log('✅ Settings loaded successfully');
+        console.log('Settings loaded successfully');
       } else {
-        console.warn('⚠️ Invalid settings data');
+        console.warn('Invalid settings data');
       }
     } catch (error: any) {
-      console.error('❌ Failed to load settings:', error);
+      console.error('Failed to load settings:', error);
       Alert.alert('Error', 'Failed to load package delivery settings');
     } finally {
       setLoading(false);
@@ -77,7 +79,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    console.log('🔵 Save button clicked');
+    console.log('Save button clicked');
     try {
       setSaving(true);
       // Only send package delivery pricing fields, exclude currency
@@ -87,22 +89,23 @@ const PackageDeliverySettingsScreen: React.FC = () => {
         packageSizeSmallMultiplier: settings.packageSizeSmallMultiplier,
         packageSizeMediumMultiplier: settings.packageSizeMediumMultiplier,
         packageSizeLargeMultiplier: settings.packageSizeLargeMultiplier,
+        packageSizeExtraLargeMultiplier: settings.packageSizeExtraLargeMultiplier,
         expressSpeedMultiplier: settings.expressSpeedMultiplier,
         sameDaySpeedMultiplier: settings.sameDaySpeedMultiplier,
         scheduledSpeedMultiplier: settings.scheduledSpeedMultiplier,
         peakHourSurgeMultiplier: settings.peakHourSurgeMultiplier,
         weekendSurgeMultiplier: settings.weekendSurgeMultiplier,
       };
-      console.log('📦 Payload:', payload);
+      console.log('Payload:', payload);
       await api.put('/fees/package-delivery/settings', payload);
-      console.log('✅ Save successful');
+      console.log('Save successful');
       setShowSuccess(true);
-      Alert.alert('Success! ✅', 'Package delivery settings saved successfully');
+      Alert.alert('Success', 'Package delivery settings saved successfully');
       setTimeout(() => {
         setShowSuccess(false);
       }, 3000);
     } catch (error: any) {
-      console.error('❌ Failed to save settings:', error);
+      console.error('Failed to save settings:', error);
       Alert.alert('Error', 'Failed to save settings');
     } finally {
       setSaving(false);
@@ -145,7 +148,7 @@ const PackageDeliverySettingsScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>{"<"}</Text>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>Package Delivery Pricing</Text>
@@ -233,6 +236,18 @@ const PackageDeliverySettingsScreen: React.FC = () => {
               keyboardType="decimal-pad"
               placeholder="2.0"
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Extra Large Package (×)</Text>
+            <TextInput
+              style={styles.input}
+              value={inputValues.packageSizeExtraLargeMultiplier ?? settings.packageSizeExtraLargeMultiplier.toString()}
+              onChangeText={(val) => updateSetting('packageSizeExtraLargeMultiplier', val)}
+              keyboardType="decimal-pad"
+              placeholder="2.5"
+            />
+            <Text style={styles.hint}>30kg+, furniture and appliances</Text>
           </View>
         </View>
 

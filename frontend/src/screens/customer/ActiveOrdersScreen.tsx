@@ -11,22 +11,24 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 
 interface ActiveOrder {
   id: string;
   orderNumber: string;
-  status: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT';
-  pickupAddress: string;
-  dropoffAddress: string;
+  status: string;
+  pickupLocation: any;
+  dropoffLocation: any;
   packageSize: string;
   totalAmount: number;
   createdAt: string;
-  eta?: number;
-  courier: {
-    name: string;
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
     phone: string;
-    rating: number;
     avatarUrl?: string;
+    driverProfile?: { rating: number };
   };
 }
 
@@ -43,48 +45,12 @@ const ActiveOrdersScreen: React.FC = () => {
   const loadActiveOrders = async () => {
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockActiveOrders: ActiveOrder[] = [
-        {
-          id: 'PKG1773535247769',
-          orderNumber: 'PKG1773535247769',
-          status: 'IN_TRANSIT',
-          pickupAddress: 'Victoria Island, Lagos',
-          dropoffAddress: 'Lekki Phase 1, Lagos',
-          packageSize: 'medium',
-          totalAmount: 2500,
-          createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-          eta: 12,
-          courier: {
-            name: 'John Doe',
-            phone: '+234 801 234 5678',
-            rating: 4.8,
-          },
-        },
-        {
-          id: 'PKG1773535247770',
-          orderNumber: 'PKG1773535247770',
-          status: 'ACCEPTED',
-          pickupAddress: 'Ikeja GRA, Lagos',
-          dropoffAddress: 'Surulere, Lagos',
-          packageSize: 'small',
-          totalAmount: 1800,
-          createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          eta: 25,
-          courier: {
-            name: 'Jane Smith',
-            phone: '+234 802 345 6789',
-            rating: 4.9,
-          },
-        },
-      ];
-      
-      setActiveOrders(mockActiveOrders);
+      const res: any = await packageDeliveryAPI.getActiveOrders();
+      const orders = res?.data || res || [];
+      setActiveOrders(Array.isArray(orders) ? orders : []);
     } catch (error) {
       console.error('Load active orders error:', error);
+      setActiveOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -132,7 +98,12 @@ const ActiveOrdersScreen: React.FC = () => {
   const handleTrackOrder = (order: ActiveOrder) => {
     (navigation as any).navigate('TrackDelivery', {
       orderId: order.id,
-      courier: order.courier,
+      courier: order.driver ? {
+        name: `${order.driver.firstName} ${order.driver.lastName}`,
+        phone: order.driver.phone,
+        rating: order.driver.driverProfile?.rating ?? 0,
+        avatarUrl: order.driver.avatarUrl,
+      } : undefined,
     });
   };
 
@@ -157,10 +128,10 @@ const ActiveOrdersScreen: React.FC = () => {
               <Text style={styles.orderNumber}>#{item.orderNumber}</Text>
             </View>
           </View>
-          {item.eta && (
+          {(item as any).eta && (
             <View style={styles.etaBadge}>
               <Ionicons name="time-outline" size={16} color="#fff" />
-              <Text style={styles.etaText}>{item.eta} min</Text>
+              <Text style={styles.etaText}>{(item as any).eta} min</Text>
             </View>
           )}
         </LinearGradient>
@@ -172,7 +143,7 @@ const ActiveOrdersScreen: React.FC = () => {
             <View style={styles.routeContent}>
               <Text style={styles.routeLabel}>PICKUP</Text>
               <Text style={styles.routeAddress} numberOfLines={1}>
-                {item.pickupAddress}
+                {item.pickupLocation?.address || 'N/A'}
               </Text>
             </View>
           </View>
@@ -184,7 +155,7 @@ const ActiveOrdersScreen: React.FC = () => {
             <View style={styles.routeContent}>
               <Text style={styles.routeLabel}>DROPOFF</Text>
               <Text style={styles.routeAddress} numberOfLines={1}>
-                {item.dropoffAddress}
+                {item.dropoffLocation?.address || 'N/A'}
               </Text>
             </View>
           </View>
@@ -197,11 +168,15 @@ const ActiveOrdersScreen: React.FC = () => {
               <Ionicons name="person" size={20} color="#14b8a6" />
             </View>
             <View style={styles.courierDetails}>
-              <Text style={styles.courierName}>{item.courier.name}</Text>
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={14} color="#f59e0b" />
-                <Text style={styles.rating}>{item.courier.rating}</Text>
-              </View>
+              <Text style={styles.courierName}>
+                {item.driver ? `${item.driver.firstName} ${item.driver.lastName}` : 'Searching...'}
+              </Text>
+              {item.driver?.driverProfile?.rating != null && (
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={14} color="#f59e0b" />
+                  <Text style={styles.rating}>{item.driver.driverProfile.rating.toFixed(1)}</Text>
+                </View>
+              )}
             </View>
           </View>
           <TouchableOpacity style={styles.callButton}>

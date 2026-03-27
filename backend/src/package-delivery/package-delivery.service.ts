@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService } from './pricing.service';
 import { CourierMatchingService } from './courier-matching.service';
@@ -91,27 +92,16 @@ export class PackageDeliveryService {
   }
 
   async getDeliveryStatus(orderId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        driver: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            avatarUrl: true,
-            driverProfile: {
-              select: {
-                rating: true,
-                totalDeliveries: true,
-              },
-            },
-          },
-        },
-        deliveryRequest: true,
-      },
-    });
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    const order = isUuid
+      ? await this.prisma.order.findUnique({ where: { id: orderId }, include: {
+          driver: { select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true, driverProfile: { select: { rating: true, totalDeliveries: true } } } },
+          deliveryRequest: true,
+        }})
+      : await this.prisma.order.findFirst({ where: { orderNumber: orderId }, include: {
+          driver: { select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true, driverProfile: { select: { rating: true, totalDeliveries: true } } } },
+          deliveryRequest: true,
+        }});
 
     if (!order) {
       throw new NotFoundException('Delivery not found');
@@ -134,6 +124,53 @@ export class PackageDeliveryService {
 
   async acceptDelivery(requestId: string, courierId: string) {
     return this.courierMatching.handleCourierAcceptance(requestId, courierId);
+  }
+
+  async markPickedUp(orderId: string, courierId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Delivery not found');
+    if (order.driverId !== courierId) throw new BadRequestException('Unauthorized');
+    if (order.status !== 'accepted') throw new BadRequestException('Order is not in accepted status');
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'picked_up', pickedUpAt: new Date() },
+    });
+
+    await this.notifications.sendPushNotification(
+      order.customerId,
+      'Package Picked Up 📦',
+      'Your courier has picked up your package and is on the way!',
+    );
+
+    return { success: true, message: 'Order marked as picked up' };
+  }
+
+  async markDelivered(orderId: string, courierId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Delivery not found');
+    if (order.driverId !== courierId) throw new BadRequestException('Unauthorized');
+    if (order.status !== 'picked_up') throw new BadRequestException('Order has not been picked up yet');
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'delivered', deliveredAt: new Date() },
+    });
+
+    if (order.driverId) {
+      await this.prisma.driverProfile.update({
+        where: { userId: order.driverId },
+        data: { totalDeliveries: { increment: 1 } },
+      });
+    }
+
+    await this.notifications.sendPushNotification(
+      order.customerId,
+      'Package Delivered ✅',
+      'Your package has been delivered! Please rate your courier.',
+    );
+
+    return { success: true, message: 'Order marked as delivered' };
   }
 
   async cancelDelivery(orderId: string, customerId: string) {
@@ -202,6 +239,31 @@ export class PackageDeliveryService {
         ? `You received a ${rating}-star rating: "${feedback}"`
         : `You received a ${rating}-star rating from a customer!`,
     );
+  }
+
+  async getActiveOrders(customerId: string) {
+    const activeStatuses: OrderStatus[] = [OrderStatus.pending, OrderStatus.accepted, OrderStatus.picked_up, OrderStatus.in_transit];
+    return this.prisma.order.findMany({
+      where: {
+        customerId,
+        orderType: 'package_delivery',
+        status: { in: activeStatuses },
+      },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            avatarUrl: true,
+            driverProfile: { select: { rating: true } },
+          },
+        },
+        deliveryRequest: { select: { estimatedDistance: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async getHistory(customerId: string, page: number, limit: number) {

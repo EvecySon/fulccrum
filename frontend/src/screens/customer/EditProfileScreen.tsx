@@ -16,14 +16,20 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
-import { usersAPI, uploadAPI } from '../../services/api';
+import { usersAPI, uploadAPI, getApiBaseUrl } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten Free', 'Halal', 'Keto', 'Dairy Free'];
 const ALLERGY_OPTIONS = ['Nuts', 'Shellfish', 'Dairy', 'Eggs', 'Soy', 'Gluten', 'Fish'];
 
+const resolveUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url.replace(/https?:\/\/[^\/]+/, getApiBaseUrl());
+  return `${getApiBaseUrl()}${url}`;
+};
+
 const getAvatarUri = (user: any) => {
-  if (user?.avatarUrl) return user.avatarUrl;
+  if (user?.avatarUrl) return resolveUrl(user.avatarUrl) ?? '';
   const name = encodeURIComponent((user?.firstName || '') + ' ' + (user?.lastName || ''));
   return `https://ui-avatars.com/api/?name=${name}&background=0D1B2A&color=fff&size=200`;
 };
@@ -87,7 +93,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
       const uploaded = await uploadAPI.uploadAvatar(formData);
       if (uploaded?.url) {
-        setAvatarUri(uploaded.url);
+        setAvatarUri(resolveUrl(uploaded.url) ?? uploaded.url);
         
         // Fetch fresh user data from backend to ensure avatar persists
         try {

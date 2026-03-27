@@ -174,7 +174,7 @@ export default function UsersScreen({ navigation }: any) {
           <Text style={styles.statMiniLabel}>Suspended</Text>
         </View>
         <View style={styles.statMini}>
-          <Text style={[styles.statMiniValue, { color: colors.orange }]}>{lockedUsers.length}</Text>
+          <Text style={[styles.statMiniValue, { color: colors.warning }]}>{lockedUsers.length}</Text>
           <Text style={styles.statMiniLabel}>Locked</Text>
         </View>
       </View>

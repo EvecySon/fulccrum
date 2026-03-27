@@ -61,7 +61,7 @@ export default function CategoryManagementScreen({ navigation }: any) {
     setFormIcon(cat.icon);
     setFormDescription(cat.description);
     setFormColor(cat.color);
-    setFormActive(cat.active);
+    setFormActive(cat.active ?? false);
     setFormSortOrder(String(cat.sortOrder));
     setShowModal(true);
   };

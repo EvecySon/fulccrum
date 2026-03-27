@@ -34,11 +34,23 @@ export class RequestDeliveryDto {
   @Type(() => LocationDto)
   dropoffLocation: LocationDto;
 
-  @IsEnum(['small', 'medium', 'large'])
+  @IsEnum(['small', 'medium', 'large', 'extra_large'])
   packageSize: string;
 
   @IsEnum(['express', 'same_day', 'scheduled'])
   deliverySpeed: string;
+
+  @IsOptional()
+  @IsString()
+  scheduledTime?: string;
+
+  @IsOptional()
+  @IsObject()
+  dimensions?: { length?: number; width?: number; height?: number };
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 
   @IsOptional()
   @IsString()

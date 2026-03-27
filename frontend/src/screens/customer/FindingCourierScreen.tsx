@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  ScrollView,
+  Platform,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 
@@ -20,7 +22,13 @@ const FindingCourierScreen: React.FC = () => {
   const route = useRoute();
   const { orderId, requestId, estimatedPrice, expiresAt } = (route.params as any) || {};
 
-  const [timeRemaining, setTimeRemaining] = useState(300);
+  const [timeRemaining, setTimeRemaining] = useState(() => {
+    if (expiresAt) {
+      const secs = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+      return secs > 0 ? secs : 300;
+    }
+    return 300;
+  });
   const [courierFound, setCourierFound] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
@@ -136,29 +144,33 @@ const FindingCourierScreen: React.FC = () => {
   const handleSearchAgain = () => {
     setTimedOut(false);
     setTimeRemaining(300);
+    startAnimations();
     startPolling();
     startCountdown();
   };
 
+  const doCancel = async () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+    try {
+      if (orderId) await packageDeliveryAPI.cancelDelivery(orderId);
+    } catch (error) {
+      console.error('Cancel error:', error);
+    }
+    (navigation as any).navigate('SendPackageHome');
+  };
+
   const handleCancel = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Cancel this delivery request?')) doCancel();
+      return;
+    }
     Alert.alert(
       'Cancel Request',
       'Are you sure you want to cancel this delivery request?',
       [
         { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await packageDeliveryAPI.cancelDelivery(orderId);
-              (navigation as any).navigate('HomeTabs');
-            } catch (error) {
-              console.error('Cancel error:', error);
-              Alert.alert('Error', 'Failed to cancel delivery');
-            }
-          },
-        },
+        { text: 'Yes, Cancel', style: 'destructive', onPress: doCancel },
       ]
     );
   };
@@ -176,8 +188,8 @@ const FindingCourierScreen: React.FC = () => {
 
   if (timedOut) {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.timedOutContent}>
           <Ionicons name="time-outline" size={80} color="#ef4444" />
           <Text style={[styles.title, { marginTop: 24, color: '#ef4444' }]}>No Courier Available</Text>
           <Text style={[styles.subtitle, { marginBottom: 32 }]}>
@@ -193,7 +205,7 @@ const FindingCourierScreen: React.FC = () => {
             <Text style={styles.cancelButtonText}>Cancel Request</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -208,7 +220,7 @@ const FindingCourierScreen: React.FC = () => {
               <Ionicons name="checkmark-circle" size={100} color="#14b8a6" />
             </View>
           </Animated.View>
-          <Text style={styles.successTitle}>Courier Found! 🎉</Text>
+          <Text style={styles.successTitle}>Courier Found!</Text>
           <Text style={styles.successSubtitle}>
             Connecting you to your courier...
           </Text>
@@ -223,25 +235,26 @@ const FindingCourierScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Animated Background Circles */}
       <Animated.View style={[styles.bgCircle, styles.bgCircle1, { transform: [{ scale: pulseAnim }] }]} />
       <Animated.View style={[styles.bgCircle, styles.bgCircle2, { transform: [{ scale: pulseAnim }] }]} />
       <Animated.View style={[styles.bgCircle, styles.bgCircle3, { transform: [{ rotate: spin }] }]} />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {/* Animated Icon */}
         <Animated.View
           style={[
             styles.iconContainer,
-            {
-              transform: [{ scale: pulseAnim }],
-            },
+            { transform: [{ scale: pulseAnim }] },
           ]}
         >
-          <View
-            style={[styles.iconGradient, { backgroundColor: '#14b8a6' }]}
-          >
+          <View style={[styles.iconGradient, { backgroundColor: '#14b8a6' }]}>
             <Ionicons name="bicycle" size={72} color="#fff" />
           </View>
         </Animated.View>
@@ -252,9 +265,7 @@ const FindingCourierScreen: React.FC = () => {
 
         {/* Title */}
         <Text style={styles.title}>Finding Your Courier</Text>
-        <Text style={styles.subtitle}>
-          🔍 Searching for the best courier nearby
-        </Text>
+        <Text style={styles.subtitle}>Searching for the best courier nearby...</Text>
 
         {/* Timer */}
         <View style={styles.timerContainer}>
@@ -276,10 +287,9 @@ const FindingCourierScreen: React.FC = () => {
             <Ionicons name="cash-outline" size={24} color="#14b8a6" />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Estimated Cost</Text>
-              <Text style={styles.infoValue}>₦{estimatedPrice?.toLocaleString()}</Text>
+              <Text style={styles.infoValue}>N{estimatedPrice?.toLocaleString()}</Text>
             </View>
           </View>
-
           <View style={styles.infoCard}>
             <Ionicons name="people-outline" size={24} color="#14b8a6" />
             <View style={styles.infoContent}>
@@ -291,20 +301,20 @@ const FindingCourierScreen: React.FC = () => {
 
         {/* Tips */}
         <View style={styles.tipsContainer}>
-          <Text style={styles.tipsTitle}>💡 While you wait</Text>
+          <Text style={styles.tipsTitle}>While you wait</Text>
           <Text style={styles.tipText}>• Make sure your package is ready</Text>
           <Text style={styles.tipText}>• Keep your phone nearby</Text>
           <Text style={styles.tipText}>• You'll be notified when a courier accepts</Text>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Cancel Button */}
+      {/* Cancel Button - always pinned at bottom */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
           <Text style={styles.cancelButtonText}>Cancel Request</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -317,6 +327,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG_DARK,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  timedOutContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   bgCircle: {
     position: 'absolute',
@@ -347,7 +372,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 20,
   },
   iconContainer: {
@@ -511,8 +535,11 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingBottom: 36,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 20,
+    backgroundColor: BG_DARK,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   cancelButton: {
     backgroundColor: 'rgba(239,68,68,0.1)',

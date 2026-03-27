@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 
 const ACCENT = '#14b8a6';
@@ -25,14 +24,14 @@ const TEXT_DIM = '#7B8494';
 const GREEN = '#10b981';
 const RED = '#ef4444';
 
-const ACTIVE_STATUSES = ['PENDING', 'SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+const ACTIVE_STATUSES = ['pending', 'searching', 'accepted', 'picked_up', 'in_transit'];
 
 const ACTIVE_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Finding a courier...',
-  SEARCHING: 'Searching nearby couriers',
-  ACCEPTED: 'Courier on the way',
-  PICKED_UP: 'Package picked up',
-  IN_TRANSIT: 'Out for delivery',
+  pending: 'Finding a courier...',
+  searching: 'Searching nearby couriers',
+  accepted: 'Courier on the way',
+  picked_up: 'Package picked up',
+  in_transit: 'Out for delivery',
 };
 
 const TrackDeliveryScreen: React.FC = () => {
@@ -44,6 +43,8 @@ const TrackDeliveryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [error, setError] = useState('');
+  const deliveryRef = useRef<any>(null);
+  const pollStoppedRef = useRef(false);
   const [eta, setEta] = useState<number | null>(null);
   const [courierRating, setCourierRating] = useState(0);
   const [pendingRating, setPendingRating] = useState(0);
@@ -58,58 +59,69 @@ const TrackDeliveryScreen: React.FC = () => {
       setLoading(false);
       return;
     }
+    pollStoppedRef.current = false;
     loadDeliveryStatus();
-    // Only poll for active orders
     const interval = setInterval(() => {
-      if (delivery && ACTIVE_STATUSES.includes(delivery.status)) {
+      if (pollStoppedRef.current) return;
+      const current = deliveryRef.current;
+      if (current && ACTIVE_STATUSES.includes(current.status)) {
         loadDeliveryStatus();
       }
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [actualOrderId]);
 
   const loadDeliveryStatus = async () => {
     try {
-      const response = await mockGetDeliveryStatus(actualOrderId);
-      if (response.success) {
-        const o = response.data.order as any;
-        const c = o.courier as any;
-        setDelivery({
-          status: o.status,
-          orderNumber: o.id,
-          courier: c ? {
-            name: `${c.firstName} ${c.lastName}`,
-            phone: c.phoneNumber,
-            rating: c.rating ?? 4.8,
-            totalDeliveries: c.totalDeliveries ?? 0,
-            avatarUrl: c.avatarUrl,
-          } : null,
-          courierLocation: response.data.courierLocation,
-          pickupAddress: o.pickupLocation.address,
-          dropoffAddress: o.dropoffLocation.address,
-          packageSize: o.packageSize,
-          deliverySpeed: o.deliverySpeed,
-          price: o.totalAmount,
-          createdAt: o.createdAt,
-          acceptedAt: o.acceptedAt,
-          pickedUpAt: o.pickedUpAt,
-          deliveredAt: o.deliveredAt,
-          cancelledAt: o.cancelledAt,
-          cancellationReason: o.cancellationReason,
-          timeline: [
-            o.createdAt && { title: 'Order Created', timestamp: o.createdAt, icon: 'receipt-outline', color: ACCENT },
-            o.acceptedAt && { title: 'Courier Assigned', timestamp: o.acceptedAt, icon: 'person-circle-outline', color: '#3b82f6' },
-            o.pickedUpAt && { title: 'Package Picked Up', timestamp: o.pickedUpAt, icon: 'cube-outline', color: '#8b5cf6' },
-            o.deliveredAt && { title: 'Package Delivered', timestamp: o.deliveredAt, icon: 'checkmark-done-circle', color: GREEN },
-            o.cancelledAt && { title: 'Order Cancelled', timestamp: o.cancelledAt, icon: 'close-circle', color: RED },
-          ].filter(Boolean),
-        });
-        setEta(response.data.eta ?? null);
-      } else {
+      const res: any = await packageDeliveryAPI.getDeliveryStatus(actualOrderId);
+      const data = res?.data || res;
+      const o = data?.order as any;
+
+      if (!o) {
         setError('Failed to load delivery status');
+        return;
       }
+
+      const d = o.driver as any;
+      const mapped = {
+        status: (o.status || '').toLowerCase(),
+        orderNumber: o.orderNumber || o.id?.slice(0, 8),
+        courier: d ? {
+          name: `${d.firstName} ${d.lastName}`,
+          phone: d.phone || d.phoneNumber,
+          rating: d.driverProfile?.rating ?? 0,
+          totalDeliveries: d.driverProfile?.totalDeliveries ?? 0,
+          avatarUrl: d.avatarUrl,
+        } : null,
+        courierLocation: data.courierLocation,
+        pickupAddress: o.pickupLocation?.address || `${o.pickupLocation?.lat ?? ''}, ${o.pickupLocation?.lng ?? ''}`,
+        dropoffAddress: o.dropoffLocation?.address || `${o.dropoffLocation?.lat ?? ''}, ${o.dropoffLocation?.lng ?? ''}`,
+        packageSize: o.packageSize || o.size,
+        deliverySpeed: o.deliverySpeed || o.speed,
+        price: o.totalAmount ?? o.price,
+        createdAt: o.createdAt,
+        acceptedAt: o.acceptedAt,
+        pickedUpAt: o.pickedUpAt,
+        deliveredAt: o.deliveredAt,
+        cancelledAt: o.cancelledAt,
+        cancellationReason: o.cancellationReason,
+        timeline: [
+          o.createdAt && { title: 'Order Created', timestamp: o.createdAt, icon: 'receipt-outline', color: ACCENT },
+          o.acceptedAt && { title: 'Courier Assigned', timestamp: o.acceptedAt, icon: 'person-circle-outline', color: '#3b82f6' },
+          o.pickedUpAt && { title: 'Package Picked Up', timestamp: o.pickedUpAt, icon: 'cube-outline', color: '#8b5cf6' },
+          o.deliveredAt && { title: 'Package Delivered', timestamp: o.deliveredAt, icon: 'checkmark-done-circle', color: GREEN },
+          o.cancelledAt && { title: 'Order Cancelled', timestamp: o.cancelledAt, icon: 'close-circle', color: RED },
+        ].filter(Boolean),
+      };
+
+      setDelivery(mapped);
+      deliveryRef.current = mapped;
+      setEta(data.eta ?? null);
     } catch (err: any) {
-      setError(err.message || 'Failed to load delivery status');
+      if (!deliveryRef.current) {
+        setError(err.message || 'Failed to load delivery status');
+        pollStoppedRef.current = true;
+      }
     } finally {
       setLoading(false);
     }
@@ -203,7 +215,7 @@ const TrackDeliveryScreen: React.FC = () => {
           <Ionicons name="alert-circle" size={64} color={RED} />
           <Text style={styles.errorTitle}>Unable to Load</Text>
           <Text style={styles.errorText}>{error || 'Order not found'}</Text>
-          <TouchableOpacity style={styles.ctaBtn} onPress={loadDeliveryStatus}>
+          <TouchableOpacity style={styles.ctaBtn} onPress={() => { pollStoppedRef.current = false; loadDeliveryStatus(); }}>
             <Text style={styles.ctaBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -212,8 +224,8 @@ const TrackDeliveryScreen: React.FC = () => {
   }
 
   const isActive = ACTIVE_STATUSES.includes(delivery.status);
-  const isDelivered = delivery.status === 'DELIVERED';
-  const isCancelled = delivery.status === 'CANCELLED';
+  const isDelivered = delivery.status === 'delivered';
+  const isCancelled = delivery.status === 'cancelled';
 
   // ─── DELIVERED VIEW ─────────────────────────────────────────────────────────
   if (isDelivered) {
@@ -573,7 +585,17 @@ const TrackDeliveryScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Track Delivery</Text>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => Alert.alert('Share', `https://fulccrum.com/track/${actualOrderId}`)}
+          onPress={async () => {
+            const msg = `📦 Tracking my delivery\nOrder: #${delivery?.orderNumber}\nFrom: ${delivery?.pickupAddress}\nTo: ${delivery?.dropoffAddress}\nTrack with Fulccrum`;
+            if (typeof navigator !== 'undefined' && (navigator as any).share) {
+              await (navigator as any).share({ title: 'Track My Delivery', text: msg });
+            } else if (typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+              await (navigator as any).clipboard.writeText(msg);
+              Alert.alert('Copied!', 'Tracking info copied to clipboard.');
+            } else {
+              Alert.alert('Share', msg);
+            }
+          }}
         >
           <Ionicons name="share-outline" size={20} color={ACCENT} />
         </TouchableOpacity>

@@ -86,7 +86,7 @@ export const mockSearchBusinesses = (query: string) => {
   return mockRestaurants.filter(r =>
     r.name.toLowerCase().includes(q) ||
     r.cuisine.toLowerCase().includes(q) ||
-    r.tags.some(t => t.toLowerCase().includes(q)) ||
+    r.tags.some((t: string) => t.toLowerCase().includes(q)) ||
     r.dietaryOptions?.some((d: string) => d.toLowerCase().includes(q))
   );
 };

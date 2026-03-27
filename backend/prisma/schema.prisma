@@ -163,6 +163,7 @@ enum PackageSize {
   small // < 5kg, fits in backpack
   medium // 5-15kg, small box
   large // 15-30kg, large box
+  extra_large // 30kg+, furniture/appliances
 }
 
 enum DeliverySpeed {
@@ -1176,7 +1177,8 @@ model PlatformSettings {
   perKmPackageRate              Decimal @default(100) @map("per_km_package_rate") @db.Decimal(10, 2)
   packageSizeSmallMultiplier    Decimal @default(1.0) @map("package_size_small_multiplier") @db.Decimal(5, 2)
   packageSizeMediumMultiplier   Decimal @default(1.5) @map("package_size_medium_multiplier") @db.Decimal(5, 2)
-  packageSizeLargeMultiplier    Decimal @default(2.0) @map("package_size_large_multiplier") @db.Decimal(5, 2)
+  packageSizeLargeMultiplier         Decimal @default(2.0) @map("package_size_large_multiplier") @db.Decimal(5, 2)
+  packageSizeExtraLargeMultiplier    Decimal @default(2.5) @map("package_size_extra_large_multiplier") @db.Decimal(5, 2)
   expressSpeedMultiplier        Decimal @default(1.3) @map("express_speed_multiplier") @db.Decimal(5, 2)
   sameDaySpeedMultiplier        Decimal @default(1.0) @map("same_day_speed_multiplier") @db.Decimal(5, 2)
   scheduledSpeedMultiplier      Decimal @default(0.8) @map("scheduled_speed_multiplier") @db.Decimal(5, 2)

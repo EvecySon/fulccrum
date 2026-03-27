@@ -27,8 +27,10 @@ const PriceEstimateScreen: React.FC = () => {
     pickupLocation,
     dropoffLocation,
     deliverySpeed,
+    scheduledTime,
     packageDescription,
     packageWeight,
+    dimensions,
     specialInstructions,
     packagePhoto,
   } = (route.params as any) || {};
@@ -36,6 +38,7 @@ const PriceEstimateScreen: React.FC = () => {
   const [pricing, setPricing] = useState<PriceCalculation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'cash'>('wallet');
 
   useEffect(() => {
     console.log('PriceEstimateScreen mounted with params:', {
@@ -79,9 +82,12 @@ const PriceEstimateScreen: React.FC = () => {
         dropoffLocation,
         packageSize,
         deliverySpeed,
+        scheduledTime,
         packageDescription,
         packageWeight,
+        dimensions,
         specialInstructions,
+        paymentMethod,
       });
       const result = response?.data || response;
       (navigation as any).navigate('FindingCourier', {
@@ -264,6 +270,24 @@ const PriceEstimateScreen: React.FC = () => {
                 <Text style={styles.infoValue}>{packageWeight} kg</Text>
               </View>
             )}
+            {dimensions && (dimensions.length || dimensions.width || dimensions.height) && (
+              <View style={styles.infoRow}>
+                <Ionicons name="resize-outline" size={18} color={ACCENT} />
+                <Text style={styles.infoLabel}>Dimensions</Text>
+                <Text style={styles.infoValue}>
+                  {[dimensions.length && `L${dimensions.length}`, dimensions.width && `W${dimensions.width}`, dimensions.height && `H${dimensions.height}`].filter(Boolean).join(' × ')} cm
+                </Text>
+              </View>
+            )}
+            {scheduledTime && (
+              <View style={styles.infoRow}>
+                <Ionicons name="calendar-outline" size={18} color={ACCENT} />
+                <Text style={styles.infoLabel}>Scheduled</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(scheduledTime).toLocaleString('en-NG', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            )}
             {specialInstructions && (
               <View style={styles.infoRow}>
                 <Ionicons name="chatbubble-outline" size={18} color={ACCENT} />
@@ -271,6 +295,43 @@ const PriceEstimateScreen: React.FC = () => {
                 <Text style={styles.infoValue}>{specialInstructions}</Text>
               </View>
             )}
+          </View>
+        </View>
+
+        {/* Payment Method */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Method</Text>
+          <View style={styles.paymentRow}>
+            <TouchableOpacity
+              style={[styles.paymentCard, paymentMethod === 'wallet' && styles.paymentCardSelected]}
+              onPress={() => setPaymentMethod('wallet')}
+            >
+              <View style={[styles.paymentIcon, paymentMethod === 'wallet' && styles.paymentIconSelected]}>
+                <Ionicons name="wallet-outline" size={22} color={paymentMethod === 'wallet' ? BG_DARK : ACCENT} />
+              </View>
+              <Text style={[styles.paymentTitle, paymentMethod === 'wallet' && styles.paymentTitleSelected]}>Wallet</Text>
+              <Text style={styles.paymentSub}>Pay from balance</Text>
+              {paymentMethod === 'wallet' && (
+                <View style={styles.paymentCheck}>
+                  <Ionicons name="checkmark" size={12} color={BG_DARK} />
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.paymentCard, paymentMethod === 'cash' && styles.paymentCardSelected]}
+              onPress={() => setPaymentMethod('cash')}
+            >
+              <View style={[styles.paymentIcon, paymentMethod === 'cash' && styles.paymentIconSelected]}>
+                <Ionicons name="cash-outline" size={22} color={paymentMethod === 'cash' ? BG_DARK : ACCENT} />
+              </View>
+              <Text style={[styles.paymentTitle, paymentMethod === 'cash' && styles.paymentTitleSelected]}>Cash</Text>
+              <Text style={styles.paymentSub}>Pay on delivery</Text>
+              {paymentMethod === 'cash' && (
+                <View style={styles.paymentCheck}>
+                  <Ionicons name="checkmark" size={12} color={BG_DARK} />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -565,6 +626,61 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#cbd5e1',
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentCard: {
+    flex: 1,
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  paymentCardSelected: {
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.06)',
+  },
+  paymentIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(20,184,166,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  paymentIconSelected: {
+    backgroundColor: ACCENT,
+  },
+  paymentTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 3,
+  },
+  paymentTitleSelected: {
+    color: ACCENT,
+  },
+  paymentSub: {
+    fontSize: 12,
+    color: TEXT_DIM,
+    textAlign: 'center',
+  },
+  paymentCheck: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: ACCENT,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoBanner: {
     flexDirection: 'row',

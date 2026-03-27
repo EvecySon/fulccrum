@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -35,8 +35,40 @@ const PackageDetailsScreen: React.FC = () => {
   const [deliverySpeed, setDeliverySpeed] = useState<'express' | 'same_day' | 'scheduled'>('same_day');
   const [packageDescription, setPackageDescription] = useState('');
   const [packageWeight, setPackageWeight] = useState('');
+  const [dimL, setDimL] = useState('');
+  const [dimW, setDimW] = useState('');
+  const [dimH, setDimH] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [packagePhoto, setPackagePhoto] = useState<string | null>(null);
+  const [selectedDateIdx, setSelectedDateIdx] = useState(0);
+  const [selectedHour, setSelectedHour] = useState<number | null>(null);
+
+  const scheduleDates = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      return { label: i === 0 ? 'Today' : days[d.getDay()], date: d.getDate(), full: d };
+    });
+  }, []);
+
+  const timeSlots = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+  const getScheduledTime = (): string | undefined => {
+    if (deliverySpeed !== 'scheduled' || selectedHour === null) return undefined;
+    const d = new Date(scheduleDates[selectedDateIdx].full);
+    d.setHours(selectedHour, 0, 0, 0);
+    return d.toISOString();
+  };
+
+  const getDimensions = () => {
+    if (!dimL && !dimW && !dimH) return undefined;
+    return {
+      length: dimL ? parseFloat(dimL) : undefined,
+      width: dimW ? parseFloat(dimW) : undefined,
+      height: dimH ? parseFloat(dimH) : undefined,
+    };
+  };
 
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -77,13 +109,19 @@ const PackageDetailsScreen: React.FC = () => {
       Alert.alert('Missing Information', 'Please describe what you\'re sending');
       return;
     }
+    if (deliverySpeed === 'scheduled' && selectedHour === null) {
+      Alert.alert('Pick a Time', 'Please select a delivery date and time slot');
+      return;
+    }
     (navigation as any).navigate('PriceEstimate', {
       packageSize,
       pickupLocation,
       dropoffLocation,
       deliverySpeed,
+      scheduledTime: getScheduledTime(),
       packageDescription: packageDescription.trim(),
       packageWeight: packageWeight ? parseFloat(packageWeight) : undefined,
+      dimensions: getDimensions(),
       specialInstructions: specialInstructions.trim() || undefined,
       packagePhoto,
     });
@@ -94,7 +132,7 @@ const PackageDetailsScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>{"<"}</Text>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Package Details</Text>
         <View style={{ width: 38 }} />
@@ -217,6 +255,88 @@ const PackageDetailsScreen: React.FC = () => {
             <Text style={styles.inputSuffix}>kg</Text>
           </View>
         </View>
+
+        {/* Dimensions (Optional) */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Dimensions</Text>
+            <Text style={styles.sectionOptional}>Optional</Text>
+          </View>
+          <View style={styles.dimRow}>
+            <View style={styles.dimField}>
+              <Text style={styles.dimLabel}>L (cm)</Text>
+              <TextInput
+                style={styles.dimInput}
+                placeholder="—"
+                value={dimL}
+                onChangeText={setDimL}
+                keyboardType="decimal-pad"
+                placeholderTextColor={TEXT_DIM}
+              />
+            </View>
+            <View style={styles.dimDivider} />
+            <View style={styles.dimField}>
+              <Text style={styles.dimLabel}>W (cm)</Text>
+              <TextInput
+                style={styles.dimInput}
+                placeholder="—"
+                value={dimW}
+                onChangeText={setDimW}
+                keyboardType="decimal-pad"
+                placeholderTextColor={TEXT_DIM}
+              />
+            </View>
+            <View style={styles.dimDivider} />
+            <View style={styles.dimField}>
+              <Text style={styles.dimLabel}>H (cm)</Text>
+              <TextInput
+                style={styles.dimInput}
+                placeholder="—"
+                value={dimH}
+                onChangeText={setDimH}
+                keyboardType="decimal-pad"
+                placeholderTextColor={TEXT_DIM}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Scheduled Time Picker */}
+        {deliverySpeed === 'scheduled' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Delivery Date & Time</Text>
+
+            {/* Date strip */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateStrip}>
+              {scheduleDates.map((d, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.dateChip, selectedDateIdx === i && styles.dateChipSelected]}
+                  onPress={() => { setSelectedDateIdx(i); setSelectedHour(null); }}
+                >
+                  <Text style={[styles.dateChipDay, selectedDateIdx === i && styles.dateChipTextSel]}>{d.label}</Text>
+                  <Text style={[styles.dateChipNum, selectedDateIdx === i && styles.dateChipTextSel]}>{d.date}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Time slots */}
+            <View style={styles.timeGrid}>
+              {timeSlots.map((hour) => {
+                const label = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`;
+                return (
+                  <TouchableOpacity
+                    key={hour}
+                    style={[styles.timeSlot, selectedHour === hour && styles.timeSlotSelected]}
+                    onPress={() => setSelectedHour(hour)}
+                  >
+                    <Text style={[styles.timeSlotText, selectedHour === hour && styles.timeSlotTextSel]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* Instructions */}
         <View style={styles.section}>
@@ -486,6 +606,113 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: TEXT_DIM,
     marginLeft: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  sectionOptional: {
+    fontSize: 12,
+    color: TEXT_DIM,
+    fontWeight: '500',
+    backgroundColor: CARD_DARK,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  dimRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_DARK,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  dimField: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dimLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TEXT_DIM,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dimInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    width: '100%',
+  },
+  dimDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#353A4A',
+  },
+  dateStrip: {
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  dateChip: {
+    alignItems: 'center',
+    backgroundColor: CARD_DARK,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    minWidth: 64,
+  },
+  dateChipSelected: {
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.08)',
+  },
+  dateChipDay: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TEXT_DIM,
+    marginBottom: 4,
+  },
+  dateChipNum: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  dateChipTextSel: {
+    color: ACCENT,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeSlot: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: CARD_DARK,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  timeSlotSelected: {
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.08)',
+  },
+  timeSlotText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  timeSlotTextSel: {
+    color: ACCENT,
   },
   infoCard: {
     flexDirection: 'row',

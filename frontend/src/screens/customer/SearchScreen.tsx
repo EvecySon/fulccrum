@@ -86,9 +86,9 @@ export default function SearchScreen({ navigation }: any) {
     if (text.length === 0) { setResults([]); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await searchAPI.searchBusinesses(query, { category: selectedCategory, sort: sortBy, dietary: dietaryFilters });
+        const res = await searchAPI.searchBusinesses(query);
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setResults(normalizeRestaurants(data));
+        setResults(Array.isArray(data) ? data : []);
       } catch (e: any) {
         Alert.alert('Error', e?.message || 'Something went wrong');
         setResults([]);
