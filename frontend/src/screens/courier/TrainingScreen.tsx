@@ -24,17 +24,6 @@ interface TrainingModule {
   category: 'onboarding' | 'safety' | 'skills' | 'advanced';
 }
 
-const mockModules: TrainingModule[] = [
-  { id: '1', title: 'Getting Started', description: 'Learn the basics of the Fulccrum courier app', icon: 'rocket', color: colors.teal, duration: '10 min', lessons: 5, completedLessons: 5, required: true, category: 'onboarding' },
-  { id: '2', title: 'Accepting & Managing Orders', description: 'How to accept, manage, and complete deliveries', icon: 'bag-check', color: colors.navy, duration: '15 min', lessons: 7, completedLessons: 7, required: true, category: 'onboarding' },
-  { id: '3', title: 'Navigation & Routes', description: 'Tips for efficient navigation and route optimization', icon: 'navigate', color: '#3b82f6', duration: '8 min', lessons: 4, completedLessons: 3, required: true, category: 'onboarding' },
-  { id: '4', title: 'Food Handling & Safety', description: 'Proper food handling, temperature control, and hygiene', icon: 'restaurant', color: '#f97316', duration: '12 min', lessons: 6, completedLessons: 0, required: true, category: 'safety' },
-  { id: '5', title: 'Road Safety', description: 'Safe driving practices and accident prevention', icon: 'shield-checkmark', color: colors.error, duration: '10 min', lessons: 5, completedLessons: 2, required: true, category: 'safety' },
-  { id: '6', title: 'Customer Communication', description: 'Best practices for communicating with customers', icon: 'chatbubbles', color: '#8b5cf6', duration: '8 min', lessons: 4, completedLessons: 0, required: false, category: 'skills' },
-  { id: '7', title: 'Maximizing Earnings', description: 'Strategies to earn more: surge zones, quests, tips', icon: 'trending-up', color: colors.success, duration: '10 min', lessons: 5, completedLessons: 0, required: false, category: 'skills' },
-  { id: '8', title: 'Handling Difficult Situations', description: 'What to do with missing items, wrong orders, or disputes', icon: 'help-buoy', color: colors.warning, duration: '12 min', lessons: 6, completedLessons: 0, required: false, category: 'advanced' },
-  { id: '9', title: 'Vehicle Maintenance', description: 'Keep your vehicle in top condition for deliveries', icon: 'build', color: '#6366f1', duration: '8 min', lessons: 4, completedLessons: 0, required: false, category: 'advanced' },
-];
 
 const CATEGORIES = [
   { key: 'all', label: 'All', icon: 'apps' },
@@ -45,7 +34,7 @@ const CATEGORIES = [
 ];
 
 export default function TrainingScreen({ navigation }: any) {
-  const [modules, setModules] = useState(mockModules);
+  const [modules, setModules] = useState<TrainingModule[]>([]);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
@@ -53,7 +42,7 @@ export default function TrainingScreen({ navigation }: any) {
       try {
         const res = await courierTrainingAPI.getModules();
         const data = res?.data ?? res;
-        if (Array.isArray(data) && data.length) setModules(data);
+        if (Array.isArray(data)) setModules(data);
       } catch {}
     })();
   }, []);
@@ -61,7 +50,7 @@ export default function TrainingScreen({ navigation }: any) {
   const filtered = filter === 'all' ? modules : modules.filter(m => m.category === filter);
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons, 0);
   const completedLessons = modules.reduce((acc, m) => acc + m.completedLessons, 0);
-  const overallPct = Math.round((completedLessons / totalLessons) * 100);
+  const overallPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
   const requiredComplete = modules.filter(m => m.required && m.completedLessons >= m.lessons).length;
   const requiredTotal = modules.filter(m => m.required).length;
 

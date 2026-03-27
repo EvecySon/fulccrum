@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 // Import nonce service for protected endpoints
 let nonceServiceInstance: any = null;
@@ -12,7 +13,20 @@ const getNonceService = async () => {
 };
 
 // Automatically detect the correct base URL based on platform
-const DEV_IP = '192.168.0.102';
+
+const BACKEND_PORT = 3001;
+
+const getDevIp = (): string => {
+  // Try to get the IP from Expo's dev server (works in Expo Go & dev builds)
+  const debuggerHost =
+    Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
+  if (debuggerHost) {
+    // debuggerHost is "192.168.x.x:8081" – strip the Metro port
+    return debuggerHost.split(':')[0];
+  }
+  // Fallback – update this if auto-detect fails
+  return '192.168.18.2';
+};
 
 const getBaseUrl = () => {
   // In production, use your production API URL
@@ -22,20 +36,39 @@ const getBaseUrl = () => {
   
   // For development:
   if (Platform.OS === 'web') {
-    // If opened on the same machine use localhost, otherwise use LAN IP
     const host = typeof window !== 'undefined' && window.location?.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
-      return 'http://localhost:3001';
+      return `http://localhost:${BACKEND_PORT}`;
     }
-    return `http://${DEV_IP}:3001`;
+    return `http://${getDevIp()}:${BACKEND_PORT}`;
   }
   // Mobile (iOS/Android): always use LAN IP
-  return `http://${DEV_IP}:3001`;
+  return `http://${getDevIp()}:${BACKEND_PORT}`;
 };
 
 const BASE_URL = getBaseUrl();
 
 export const getApiBaseUrl = () => BASE_URL;
+
+/**
+ * Resolve a media URL from the backend.
+ * If the URL is relative (e.g. /uploads/avatars/file.jpg), prepend BASE_URL.
+ * If it's already absolute (https://...) or a data URI, return as-is.
+ * Returns null/undefined passthrough for missing URLs.
+ */
+export const resolveMediaUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    // Fix URLs that were previously stored with localhost — replace with current BASE_URL
+    if (url.includes('localhost:') || url.includes('127.0.0.1:')) {
+      const path = url.replace(/^https?:\/\/[^/]+/, '');
+      return `${BASE_URL}${path}`;
+    }
+    return url;
+  }
+  // Relative path — prepend BASE_URL
+  return `${BASE_URL}${url}`;
+};
 
 // Token management
 let accessToken: string | null = null;
@@ -299,7 +332,7 @@ export const authAPI = {
 export const usersAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data: {
-    firstName?: string; lastName?: string; email?: string; phone?: string; avatar?: string;
+    firstName?: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string;
     dietaryPreferences?: string[]; allergies?: string[]; customAllergies?: string;
   }) => api.patch('/users/profile', data),
   updateBusinessProfile: (data: any) => api.patch('/users/business/profile', data),

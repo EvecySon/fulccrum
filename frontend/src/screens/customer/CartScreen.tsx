@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { ordersAPI, feesAPI, promosAPI, addressesAPI, walletAPI } from '../../services/api';
+import { ordersAPI, feesAPI, promosAPI, addressesAPI, walletAPI, resolveMediaUrl } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector';
 
@@ -277,7 +277,7 @@ export default function CartScreen({ navigation }: any) {
         {/* Cart Items */}
         {items.map((item, index) => (
           <View key={`${item.menuItemId}-${index}`} style={styles.cartItem}>
-            {item.image ? <Image source={{ uri: item.image }} style={styles.itemImage} /> : <View style={[styles.itemImage, { backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="fast-food" size={24} color={colors.textLight} /></View>}
+            {item.image ? <Image source={{ uri: resolveMediaUrl(item.image) || item.image }} style={styles.itemImage} /> : <View style={[styles.itemImage, { backgroundColor: colors.lightGray, justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="fast-food" size={24} color={colors.textLight} /></View>}
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
               {getItemDescription(item) !== '' && (

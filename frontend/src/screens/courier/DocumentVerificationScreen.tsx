@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,11 +22,13 @@ interface DocumentItem {
   icon: string;
   required: boolean;
   uri: string;
+  status?: string; // 'uploaded' | 'verified' | 'rejected'
 }
 
 export default function DocumentVerificationScreen({ navigation, route }: any) {
   const vehicleType = route?.params?.vehicleType || 'motorcycle';
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [documents, setDocuments] = useState<DocumentItem[]>(
@@ -39,6 +41,27 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
       uri: '',
     }))
   );
+
+  // Load already-uploaded documents from API
+  useEffect(() => {
+    const loadExisting = async () => {
+      try {
+        const existing = await documentsAPI.getMyDocuments();
+        if (existing?.length) {
+          setDocuments(prev => prev.map(doc => {
+            const found = existing.find((e: any) => e.type === doc.key);
+            if (found) {
+              return { ...doc, uri: found.fileUrl || '', status: found.status };
+            }
+            return doc;
+          }));
+        }
+      } catch {} finally {
+        setInitialLoading(false);
+      }
+    };
+    loadExisting();
+  }, []);
 
   const handlePickDocument = async (key: string) => {
     const uri = await pickImage();
@@ -60,7 +83,11 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
       const uploadedDocs: Record<string, string> = {};
 
       for (const doc of documents) {
-        if (!doc.uri) continue;
+        // Skip docs with no URI or already verified on backend
+        if (!doc.uri || doc.status === 'verified') continue;
+        // Skip docs whose URI is already a remote URL (already uploaded, not a new local pick)
+        if (doc.uri.startsWith('http') && doc.status === 'uploaded') continue;
+
         const formData = new FormData();
         formData.append('file', {
           uri: doc.uri,
@@ -77,7 +104,7 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
       // Update profile with avatar if uploaded
       if (uploadedDocs.profile_photo) {
         await usersAPI.updateProfile({
-          avatar: uploadedDocs.profile_photo,
+          avatarUrl: uploadedDocs.profile_photo,
         });
       }
 
@@ -123,15 +150,22 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
         <Text style={styles.sectionTitle}>Required Documents</Text>
         <Text style={styles.sectionSubtitle}>Upload clear photos of the following documents</Text>
 
-        {documents.map((doc) => (
+        {initialLoading ? (
+          <ActivityIndicator size="large" color={colors.teal} style={{ marginTop: 40 }} />
+        ) : documents.map((doc) => (
           <TouchableOpacity
             key={doc.key}
-            style={[styles.docCard, doc.uri ? styles.docCardUploaded : null]}
-            onPress={() => handlePickDocument(doc.key)}
+            style={[styles.docCard, doc.uri ? styles.docCardUploaded : null, doc.status === 'rejected' && { borderColor: colors.error + '40' }]}
+            onPress={() => doc.status !== 'verified' && handlePickDocument(doc.key)}
+            disabled={doc.status === 'verified'}
           >
-            <View style={[styles.docIcon, doc.uri ? styles.docIconUploaded : null]}>
-              {doc.uri ? (
-                <Ionicons name="checkmark" size={22} color={colors.textWhite} />
+            <View style={[styles.docIcon, doc.status === 'verified' ? styles.docIconUploaded : doc.uri ? { backgroundColor: colors.teal + '20' } : null]}>
+              {doc.status === 'verified' ? (
+                <Ionicons name="shield-checkmark" size={22} color={colors.textWhite} />
+              ) : doc.status === 'rejected' ? (
+                <Ionicons name="close-circle" size={22} color={colors.error} />
+              ) : doc.uri ? (
+                <Ionicons name="checkmark" size={22} color={colors.teal} />
               ) : (
                 <Ionicons name={doc.icon as any} size={22} color={colors.navy} />
               )}
@@ -139,17 +173,25 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
             <View style={styles.docInfo}>
               <View style={styles.docLabelRow}>
                 <Text style={styles.docLabel}>{doc.label}</Text>
-                {doc.required && <Text style={styles.requiredBadge}>Required</Text>}
+                {doc.required && !doc.status && <Text style={styles.requiredBadge}>Required</Text>}
+                {doc.status === 'verified' && <Text style={[styles.requiredBadge, { backgroundColor: colors.success + '15', color: colors.success }]}>Verified</Text>}
+                {doc.status === 'rejected' && <Text style={[styles.requiredBadge]}>Rejected</Text>}
               </View>
               <Text style={styles.docDesc}>{doc.description}</Text>
-              {doc.uri ? (
+              {doc.status === 'verified' ? (
+                <Text style={styles.docStatus}>✓ Verified</Text>
+              ) : doc.status === 'rejected' ? (
+                <Text style={[styles.docAction, { color: colors.error }]}>Rejected — tap to re-upload</Text>
+              ) : doc.uri ? (
                 <Text style={styles.docStatus}>✓ Uploaded — tap to replace</Text>
               ) : (
                 <Text style={styles.docAction}>Tap to upload</Text>
               )}
             </View>
-            {doc.uri ? (
+            {doc.uri && !doc.uri.startsWith('http') ? (
               <Image source={{ uri: doc.uri }} style={styles.docThumb} />
+            ) : doc.status === 'verified' ? (
+              <Ionicons name="checkmark-circle" size={24} color={colors.success} />
             ) : (
               <Ionicons name="cloud-upload-outline" size={24} color={colors.teal} />
             )}
@@ -164,14 +206,20 @@ export default function DocumentVerificationScreen({ navigation, route }: any) {
           </Text>
         </View>
 
-        {/* Continue to Payment */}
+        {/* Submit / Upload Documents */}
         <TouchableOpacity
-          style={[styles.submitBtn, !requiredComplete && styles.submitBtnDisabled]}
-          onPress={() => navigation.navigate('CourierPayment')}
-          disabled={!requiredComplete}
+          style={[styles.submitBtn, (!requiredComplete || loading) && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!requiredComplete || loading}
         >
-          <Text style={styles.submitBtnText}>Continue to Payment</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
+          {loading ? (
+            <ActivityIndicator color={colors.textWhite} />
+          ) : (
+            <>
+              <Text style={styles.submitBtnText}>Submit Documents</Text>
+              <Ionicons name="cloud-upload" size={20} color={colors.textWhite} />
+            </>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

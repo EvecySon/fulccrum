@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { menuAPI } from '../../services/api';
+import { menuAPI, resolveMediaUrl } from '../../services/api';
 
 
 export default function InventoryScreen({ navigation }: any) {
@@ -157,7 +157,7 @@ export default function InventoryScreen({ navigation }: any) {
           const status = getStockStatus(item);
           return (
             <View key={item.id} style={styles.itemCard}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <Image source={{ uri: resolveMediaUrl(item.image) || item.image }} style={styles.itemImage} />
               <View style={styles.itemInfo}>
                 <View style={styles.itemTop}>
                   <Text style={styles.itemName}>{item.name}</Text>

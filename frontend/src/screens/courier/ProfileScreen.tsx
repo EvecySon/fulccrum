@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../theme/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
-import { usersAPI } from '../../services/api';
+import { usersAPI, resolveMediaUrl } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const achievements = [
@@ -27,6 +29,8 @@ const achievements = [
 ];
 
 export default function CourierProfileScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [pushNotifs, setPushNotifs] = useState(true);
@@ -72,14 +76,16 @@ export default function CourierProfileScreen({ navigation }: any) {
     } finally { setDeleting(false); }
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await usersAPI.getProfile();
-        if (res) setProfile(res);
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
-    })();
+  const loadProfile = useCallback(async () => {
+    try {
+      const res = await usersAPI.getProfile();
+      if (res) setProfile(res);
+    } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
+
+  useEffect(() => { loadProfile(); }, []);
+
+  useFocusEffect(useCallback(() => { loadProfile(); }, [loadProfile]));
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [autoAccept, setAutoAccept] = useState(false);
 
@@ -87,7 +93,7 @@ export default function CourierProfileScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
           <Ionicons name="create-outline" size={22} color={colors.textWhite} />
         </TouchableOpacity>
       </View>
@@ -95,25 +101,27 @@ export default function CourierProfileScreen({ navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          <Image
-            source={{ uri: 'https://i.pravatar.cc/150?img=12' }}
-            style={styles.avatar}
-          />
-          <Text style={styles.profileName}>Mike Johnson</Text>
-          <Text style={styles.profileEmail}>mike.j@example.com</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} activeOpacity={0.8}>
+            <Image
+              source={{ uri: resolveMediaUrl(profile?.avatarUrl || user?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent((user?.firstName || '') + ' ' + (user?.lastName || ''))}&background=0d9488&color=fff&size=150` }}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
+          <Text style={styles.profileName}>{profile?.firstName || user?.firstName || ''} {profile?.lastName || user?.lastName || ''}</Text>
+          <Text style={styles.profileEmail}>{profile?.email || user?.email || ''}</Text>
           <View style={styles.profileStats}>
             <View style={styles.profileStat}>
-              <Text style={styles.profileStatValue}>4.9</Text>
+              <Text style={styles.profileStatValue}>{profile?.rating?.toFixed(1) || '—'}</Text>
               <Text style={styles.profileStatLabel}>Rating</Text>
             </View>
             <View style={styles.profileStatDivider} />
             <View style={styles.profileStat}>
-              <Text style={styles.profileStatValue}>342</Text>
+              <Text style={styles.profileStatValue}>{profile?.totalDeliveries ?? 0}</Text>
               <Text style={styles.profileStatLabel}>Deliveries</Text>
             </View>
             <View style={styles.profileStatDivider} />
             <View style={styles.profileStat}>
-              <Text style={styles.profileStatValue}>98%</Text>
+              <Text style={styles.profileStatValue}>{profile?.acceptanceRate ? `${profile.acceptanceRate}%` : '—'}</Text>
               <Text style={styles.profileStatLabel}>Acceptance</Text>
             </View>
           </View>
@@ -122,13 +130,13 @@ export default function CourierProfileScreen({ navigation }: any) {
         {/* Rating Breakdown */}
         <View style={styles.ratingCard}>
           <Text style={styles.cardTitle}>Rating Breakdown</Text>
-          {[
-            { stars: 5, count: 298, pct: 87 },
-            { stars: 4, count: 32, pct: 9 },
-            { stars: 3, count: 8, pct: 2 },
-            { stars: 2, count: 3, pct: 1 },
-            { stars: 1, count: 1, pct: 0.3 },
-          ].map((row) => (
+          {(profile?.ratingBreakdown || [
+            { stars: 5, count: 0, pct: 0 },
+            { stars: 4, count: 0, pct: 0 },
+            { stars: 3, count: 0, pct: 0 },
+            { stars: 2, count: 0, pct: 0 },
+            { stars: 1, count: 0, pct: 0 },
+          ]).map((row: any) => (
             <View key={row.stars} style={styles.ratingRow}>
               <Text style={styles.ratingStars}>{row.stars}★</Text>
               <View style={styles.ratingBar}>
@@ -164,9 +172,9 @@ export default function CourierProfileScreen({ navigation }: any) {
             <Ionicons name="car-outline" size={20} color={colors.navy} />
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleLabel}>Vehicle</Text>
-              <Text style={styles.vehicleValue}>Toyota Corolla 2022</Text>
+              <Text style={styles.vehicleValue}>{profile?.vehicle?.make ? `${profile.vehicle.make} ${profile.vehicle.model} ${profile.vehicle.year || ''}`.trim() : 'Not set'}</Text>
             </View>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('VehicleManagement')}>
               <Ionicons name="create-outline" size={18} color={colors.textLight} />
             </TouchableOpacity>
           </View>
@@ -175,30 +183,34 @@ export default function CourierProfileScreen({ navigation }: any) {
             <Ionicons name="document-text-outline" size={20} color={colors.navy} />
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleLabel}>License Plate</Text>
-              <Text style={styles.vehicleValue}>ABC 1234</Text>
+              <Text style={styles.vehicleValue}>{profile?.vehicle?.plate || 'Not set'}</Text>
             </View>
           </View>
           <View style={styles.vehicleDivider} />
           <View style={styles.vehicleRow}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={colors.success} />
+            <Ionicons name="shield-checkmark-outline" size={20} color={profile?.insuranceStatus === 'verified' ? colors.success : colors.textLight} />
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleLabel}>Insurance</Text>
-              <Text style={styles.vehicleValue}>Valid until Dec 2026</Text>
+              <Text style={styles.vehicleValue}>{profile?.insuranceExpiry || 'Not uploaded'}</Text>
             </View>
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
+            {profile?.insuranceStatus === 'verified' && (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
           </View>
           <View style={styles.vehicleDivider} />
           <View style={styles.vehicleRow}>
             <Ionicons name="card-outline" size={20} color={colors.navy} />
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleLabel}>Driver's License</Text>
-              <Text style={styles.vehicleValue}>Expires Mar 2028</Text>
+              <Text style={styles.vehicleValue}>{profile?.licenseExpiry || 'Not uploaded'}</Text>
             </View>
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
+            {profile?.licenseStatus === 'verified' && (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -451,7 +463,7 @@ export default function CourierProfileScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,

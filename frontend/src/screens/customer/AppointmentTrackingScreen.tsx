@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { servicesAPI, Booking } from '../../services/servicesAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const TABS = [
   { id: 'upcoming', label: 'Upcoming' },
@@ -222,9 +223,9 @@ const AppointmentTrackingScreen: React.FC = () => {
               {/* Provider Info */}
               <View style={styles.providerSection}>
                 <View style={styles.providerImageContainer}>
-                  {booking.provider.avatarUrl ? (
+                  {resolveMediaUrl(booking.provider.avatarUrl) ? (
                     <Image
-                      source={{ uri: booking.provider.avatarUrl }}
+                      source={{ uri: resolveMediaUrl(booking.provider.avatarUrl)! }}
                       style={styles.providerImage}
                     />
                   ) : (

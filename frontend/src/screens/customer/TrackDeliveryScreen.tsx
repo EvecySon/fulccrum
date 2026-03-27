@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 import { mockGetDeliveryStatus } from '../../services/mockPackageDelivery';
+import { resolveMediaUrl } from '../../services/api';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -314,8 +315,8 @@ const TrackDeliveryScreen: React.FC = () => {
         {/* Courier Info */}
         <View style={styles.courierInfo}>
           <View style={styles.courierAvatar}>
-            {courier?.avatarUrl ? (
-              <Image source={{ uri: courier.avatarUrl }} style={styles.avatarImage} />
+            {resolveMediaUrl(courier?.avatarUrl) ? (
+              <Image source={{ uri: resolveMediaUrl(courier.avatarUrl)! }} style={styles.avatarImage} />
             ) : (
               <Ionicons name="person" size={32} color="#7B8494" />
             )}

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { resolveMediaUrl } from '../services/api';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.8;
@@ -102,8 +103,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
             {/* User Profile */}
             <View style={styles.profileSection}>
               <View style={styles.avatarWrapper}>
-                {user?.avatarUrl ? (
-                  <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+                {resolveMediaUrl(user?.avatarUrl) ? (
+                  <Image source={{ uri: resolveMediaUrl(user.avatarUrl)! }} style={styles.avatarImage} />
                 ) : (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{getInitials()}</Text>

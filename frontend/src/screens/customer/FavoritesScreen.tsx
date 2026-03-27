@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { favoritesAPI } from '../../services/api';
+import { favoritesAPI, resolveMediaUrl } from '../../services/api';
 
 export default function FavoritesScreen({ navigation }: any) {
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -93,7 +93,7 @@ export default function FavoritesScreen({ navigation }: any) {
           {favorites.map((fav) => {
             const biz = fav.business;
             if (!biz) return null;
-            const imageUri = biz.coverImageUrl || biz.logoUrl;
+            const imageUri = resolveMediaUrl(biz.coverImageUrl) || resolveMediaUrl(biz.logoUrl);
             return (
               <TouchableOpacity
                 key={fav.id}
@@ -102,7 +102,7 @@ export default function FavoritesScreen({ navigation }: any) {
                 activeOpacity={0.8}
               >
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.restaurantImage} />
+                  <Image source={{ uri: imageUri! }} style={styles.restaurantImage} />
                 ) : (
                   <View style={[styles.restaurantImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
                     <Ionicons name="storefront" size={36} color={colors.navy} />

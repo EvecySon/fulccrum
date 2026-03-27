@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { courierOrdersAPI } from '../../services/api';
 
 interface PastOrder {
@@ -33,18 +33,6 @@ interface PastOrder {
   dropoffAddress: string;
 }
 
-const mockHistory: PastOrder[] = [
-  { id: 'h1', restaurant: 'Burger House', customer: 'John S.', status: 'delivered', date: 'Today', time: '2:45 PM', basePay: 1200, tip: 500, bonus: 0, total: 1700, distance: '3.2 km', duration: '18 min', items: 3, rating: 5, pickupAddress: '12 Admiralty Way, Lekki', dropoffAddress: '45 Ozumba Mbadiwe, VI' },
-  { id: 'h2', restaurant: 'Sushi Palace', customer: 'Anna D.', status: 'delivered', date: 'Today', time: '1:20 PM', basePay: 1800, tip: 800, bonus: 200, total: 2800, distance: '5.1 km', duration: '25 min', items: 5, rating: 4, pickupAddress: '8 Akin Adesola, VI', dropoffAddress: '22 Bourdillon Rd, Ikoyi' },
-  { id: 'h3', restaurant: 'Pizza Roma', customer: 'Mike L.', status: 'delivered', date: 'Today', time: '12:05 PM', basePay: 900, tip: 300, bonus: 0, total: 1200, distance: '1.8 km', duration: '12 min', items: 2, rating: 5, pickupAddress: '3 Adeola Odeku, VI', dropoffAddress: '15 Kingsway Rd, Ikoyi' },
-  { id: 'h4', restaurant: 'Chicken Republic', customer: 'Sarah K.', status: 'cancelled', date: 'Today', time: '11:30 AM', basePay: 400, tip: 0, bonus: 0, total: 400, distance: '0.5 km', duration: '5 min', items: 1, pickupAddress: '1 Admiralty Way, Lekki', dropoffAddress: '10 Fola Osibo, Lekki' },
-  { id: 'h5', restaurant: 'The Place', customer: 'David O.', status: 'delivered', date: 'Yesterday', time: '7:45 PM', basePay: 1500, tip: 600, bonus: 500, total: 2600, distance: '4.3 km', duration: '22 min', items: 4, rating: 5, pickupAddress: '25 Isaac John, GRA Ikeja', dropoffAddress: '8 Allen Ave, Ikeja' },
-  { id: 'h6', restaurant: 'Domino\'s Pizza', customer: 'Grace A.', status: 'delivered', date: 'Yesterday', time: '6:10 PM', basePay: 1100, tip: 400, bonus: 0, total: 1500, distance: '2.7 km', duration: '15 min', items: 2, rating: 4, pickupAddress: '14 Awolowo Rd, Ikoyi', dropoffAddress: '30 Glover Rd, Ikoyi' },
-  { id: 'h7', restaurant: 'KFC', customer: 'Peter N.', status: 'delivered', date: 'Yesterday', time: '1:30 PM', basePay: 1000, tip: 200, bonus: 0, total: 1200, distance: '2.1 km', duration: '14 min', items: 3, pickupAddress: '5 Adeola Hopewell, VI', dropoffAddress: '18 Sanusi Fafunwa, VI' },
-  { id: 'h8', restaurant: 'Tantalizers', customer: 'Funke B.', status: 'returned', date: '2 days ago', time: '3:15 PM', basePay: 600, tip: 0, bonus: 0, total: 600, distance: '1.2 km', duration: '8 min', items: 1, pickupAddress: '7 Opebi Rd, Ikeja', dropoffAddress: '12 Toyin St, Ikeja' },
-  { id: 'h9', restaurant: 'Kilimanjaro', customer: 'Tunde M.', status: 'delivered', date: '2 days ago', time: '12:00 PM', basePay: 2200, tip: 1000, bonus: 300, total: 3500, distance: '6.5 km', duration: '30 min', items: 6, rating: 5, pickupAddress: '2 Adetokunbo Ademola, VI', dropoffAddress: '40 Ikorodu Rd, Maryland' },
-  { id: 'h10', restaurant: 'Sweet Sensation', customer: 'Amina Y.', status: 'delivered', date: '3 days ago', time: '5:00 PM', basePay: 800, tip: 300, bonus: 0, total: 1100, distance: '1.9 km', duration: '11 min', items: 2, rating: 4, pickupAddress: '9 Broad St, Lagos Island', dropoffAddress: '20 Marina, Lagos Island' },
-];
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -53,7 +41,9 @@ const FILTERS = [
 ];
 
 export default function OrderHistoryScreen({ navigation }: any) {
-  const [orders, setOrders] = useState<PastOrder[]>(mockHistory);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [orders, setOrders] = useState<PastOrder[]>([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -70,7 +60,7 @@ export default function OrderHistoryScreen({ navigation }: any) {
         else setOrders(data);
       }
     } catch {
-      if (pageNum === 1) setOrders(mockHistory);
+      // Keep empty on error
     }
   }, [filter]);
 
@@ -315,7 +305,7 @@ export default function OrderHistoryScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

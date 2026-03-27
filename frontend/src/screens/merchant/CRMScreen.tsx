@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { merchantCrmAPI } from '../../services/api';
+import { merchantCrmAPI, resolveMediaUrl } from '../../services/api';
 
 interface CustomerProfile {
   id: string;
@@ -119,7 +119,7 @@ export default function CRMScreen({ navigation }: any) {
 
   const renderCustomer = ({ item }: { item: CustomerProfile }) => (
     <TouchableOpacity style={styles.customerCard}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image source={{ uri: resolveMediaUrl(item.avatar) || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.name || '') + '&background=0D1B2A&color=fff&size=96' }} style={styles.avatar} />
       <View style={styles.customerInfo}>
         <Text style={styles.customerName}>{item.name}</Text>
         <Text style={styles.customerMeta}>{item.totalOrders} orders · ₦{item.totalSpent.toLocaleString()} spent</Text>

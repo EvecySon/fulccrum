@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import { colors } from '../../theme/colors';
-import { ordersAPI, locationAPI } from '../../services/api';
+import { ordersAPI, locationAPI, resolveMediaUrl } from '../../services/api';
 import { joinOrderRoom, leaveOrderRoom, onDriverLocationUpdate } from '../../services/socketService';
 
 // Default coordinates (Lagos, Nigeria)
@@ -120,7 +120,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
   // Derived fields from real order data
   const restaurantName = order?.business?.businessName || 'Restaurant';
   const driverName = order?.driver ? `${order.driver.firstName} ${order.driver.lastName || ''}`.trim() : 'Awaiting driver';
-  const driverAvatar = order?.driver?.avatarUrl;
+  const driverAvatar = resolveMediaUrl(order?.driver?.avatarUrl);
   const totalAmount = order?.totalAmount ? Number(order.totalAmount) : 0;
   const orderItems = order?.items || [];
 
@@ -320,7 +320,7 @@ export default function OrderTrackingScreen({ navigation, route }: any) {
         <Text style={styles.contactLabel}>Delivery Driver</Text>
         <View style={styles.contactRow}>
           {driverAvatar ? (
-            <Image source={{ uri: driverAvatar }} style={styles.driverAvatar} />
+            <Image source={{ uri: driverAvatar! }} style={styles.driverAvatar} />
           ) : (
             <View style={[styles.contactAvatarWrap, { backgroundColor: colors.teal }]}>
               <Ionicons name="bicycle" size={20} color={colors.textWhite} />

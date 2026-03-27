@@ -27,29 +27,11 @@ interface Quest {
   claimed: boolean;
 }
 
-const mockQuests: Quest[] = [
-  { id: '1', type: 'daily', title: 'Lunch Rush', description: 'Complete 5 deliveries between 11 AM – 2 PM', icon: 'sunny', color: '#f97316', progress: 3, target: 5, reward: 2000, expiresIn: '3h left', completed: false, claimed: false },
-  { id: '2', type: 'daily', title: 'Speed Demon', description: 'Complete 3 deliveries under 20 minutes each', icon: 'flash', color: '#8b5cf6', progress: 2, target: 3, reward: 1500, expiresIn: '6h left', completed: false, claimed: false },
-  { id: '3', type: 'daily', title: 'Perfect Ratings', description: 'Get 5 five-star ratings today', icon: 'star', color: '#eab308', progress: 5, target: 5, reward: 1000, expiresIn: '8h left', completed: true, claimed: false },
-  { id: '4', type: 'daily', title: 'Night Owl', description: 'Complete 4 deliveries after 8 PM', icon: 'moon', color: '#6366f1', progress: 0, target: 4, reward: 2500, expiresIn: '12h left', completed: false, claimed: false },
-  { id: '5', type: 'weekly', title: 'Marathon Runner', description: 'Complete 50 deliveries this week', icon: 'trophy', color: '#dc2626', progress: 32, target: 50, reward: 10000, expiresIn: '4 days', completed: false, claimed: false },
-  { id: '6', type: 'weekly', title: 'Distance King', description: 'Cover 200 km in deliveries this week', icon: 'navigate', color: '#0ea5e9', progress: 142, target: 200, reward: 8000, expiresIn: '4 days', completed: false, claimed: false },
-  { id: '7', type: 'weekly', title: 'Consistency Streak', description: 'Go online every day this week', icon: 'calendar', color: colors.teal, progress: 3, target: 7, reward: 5000, expiresIn: '4 days', completed: false, claimed: false },
-  { id: '8', type: 'special', title: 'Valentine\'s Rush', description: 'Complete 20 deliveries on Feb 14', icon: 'heart', color: '#ec4899', progress: 0, target: 20, reward: 15000, expiresIn: '2 days', completed: false, claimed: false },
-  { id: '9', type: 'special', title: 'Rainy Day Hero', description: 'Complete 10 deliveries during rain', icon: 'rainy', color: '#3b82f6', progress: 7, target: 10, reward: 5000, expiresIn: '5 days', completed: false, claimed: false },
-];
-
-const mockSummary = {
-  totalEarned: 28500,
-  questsCompleted: 12,
-  activeQuests: 9,
-  streakDays: 5,
-};
 
 export default function QuestsScreen({ navigation }: any) {
-  const [quests, setQuests] = useState<Quest[]>(mockQuests);
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly' | 'special'>('all');
-  const [summary, setSummary] = useState(mockSummary);
+  const [summary, setSummary] = useState({ totalEarned: 0, questsCompleted: 0, activeQuests: 0, streakDays: 0 });
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { loadQuests(); }, []);
@@ -61,9 +43,13 @@ export default function QuestsScreen({ navigation }: any) {
       if (Array.isArray(data) && data.length && data[0]?.type) {
         setQuests(data);
       }
-    } catch {
-      // Keep existing mock data
-    }
+      // Also load summary
+      try {
+        const summRes = await courierQuestsAPI.getSummary();
+        const summData = summRes?.data ?? summRes;
+        if (summData) setSummary(prev => ({ ...prev, ...summData }));
+      } catch {}
+    } catch {}
     setRefreshing(false);
   };
 

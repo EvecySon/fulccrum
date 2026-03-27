@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { arAPI } from '../../services/api';
+import { arAPI, resolveMediaUrl } from '../../services/api';
 
 interface TourHotspot {
   id: string;
@@ -71,7 +71,7 @@ export default function VRRestaurantTourScreen({ navigation, route }: any) {
     return (
       <View style={styles.container}>
         {/* Simulated VR viewport */}
-        <Image source={{ uri: selectedTour.image }} style={styles.vrViewport} blurRadius={1} />
+        <Image source={{ uri: resolveMediaUrl(selectedTour.image) || selectedTour.image }} style={styles.vrViewport} blurRadius={1} />
         <View style={styles.vrOverlay}>
           {/* Top bar */}
           <View style={styles.vrTopBar}>
@@ -190,7 +190,7 @@ export default function VRRestaurantTourScreen({ navigation, route }: any) {
             onPress={() => handleStartTour(tour)}
             activeOpacity={0.85}
           >
-            <Image source={{ uri: tour.image }} style={styles.tourImage} />
+            <Image source={{ uri: resolveMediaUrl(tour.image) || tour.image }} style={styles.tourImage} />
             <View style={styles.tourDurationBadge}>
               <Ionicons name="time" size={12} color={colors.textWhite} />
               <Text style={styles.tourDurationText}>{tour.duration} min</Text>

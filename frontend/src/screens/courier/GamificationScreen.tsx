@@ -26,32 +26,11 @@ interface LeaderboardEntry {
   isMe: boolean;
 }
 
-const mockTier = {
-  level: 'Gold',
-  progress: 72,
-  nextTier: 'Platinum',
-  benefits: ['Priority orders', '10% bonus rate', 'Free insurance'],
-};
-
-const mockAchievements: Achievement[] = [
-  { id: '1', type: 'speed', title: 'Speed Demon', description: 'Complete 50 deliveries under 20 min', icon: 'flash', progress: 38, total: 50, bonus: 5000, unlocked: false },
-  { id: '2', type: 'reliability', title: 'Iron Streak', description: '30-day perfect attendance', icon: 'calendar', progress: 22, total: 30, bonus: 10000, unlocked: false },
-  { id: '3', type: 'customer_service', title: '5-Star Hero', description: 'Get 100 five-star ratings', icon: 'star', progress: 100, total: 100, bonus: 8000, unlocked: true },
-  { id: '4', type: 'eco_driver', title: 'Green Rider', description: '200 deliveries by bike or e-scooter', icon: 'leaf', progress: 145, total: 200, bonus: 6000, unlocked: false },
-  { id: '5', type: 'speed', title: 'Century Club', description: 'Complete 100 deliveries in one week', icon: 'trophy', progress: 67, total: 100, bonus: 15000, unlocked: false },
-];
-
-const mockLeaderboard: LeaderboardEntry[] = [
-  { rank: 1, name: 'Tunde A.', score: 2450, isMe: false },
-  { rank: 2, name: 'Blessing O.', score: 2380, isMe: false },
-  { rank: 3, name: 'Chidi E.', score: 2210, isMe: false },
-  { rank: 4, name: 'You', score: 2150, isMe: true },
-  { rank: 5, name: 'Kemi B.', score: 2080, isMe: false },
-];
 
 export default function GamificationScreen({ navigation }: any) {
-  const [achievements, setAchievements] = useState<Achievement[]>(mockAchievements);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(mockLeaderboard);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [tier, setTier] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'all'>('weekly');
@@ -66,12 +45,15 @@ export default function GamificationScreen({ navigation }: any) {
       ]);
       const achData = ach?.data ?? ach;
       const lbData = lb?.data ?? lb;
-      setAchievements(Array.isArray(achData) ? achData : mockAchievements);
-      setLeaderboard(Array.isArray(lbData) ? lbData : mockLeaderboard);
-    } catch {
-      setAchievements(mockAchievements);
-      setLeaderboard(mockLeaderboard);
-    } finally { setLoading(false); setRefreshing(false); }
+      if (Array.isArray(achData)) setAchievements(achData);
+      if (Array.isArray(lbData)) setLeaderboard(lbData);
+      // Also load tier info
+      try {
+        const tierRes = await courierGamificationAPI.getTiers();
+        const tierData = tierRes?.data ?? tierRes;
+        if (tierData) setTier(tierData);
+      } catch {}
+    } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
   const handleClaim = async (id: string) => {
@@ -95,26 +77,40 @@ export default function GamificationScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.teal} />}>
         {/* Tier Card */}
-        <View style={[styles.tierCard, { borderColor: tierColors[mockTier.level] || colors.teal }]}>
-          <View style={styles.tierHeader}>
-            <Ionicons name="shield-checkmark" size={28} color={tierColors[mockTier.level]} />
-            <View style={styles.tierInfo}>
-              <Text style={styles.tierLevel}>{mockTier.level} Tier</Text>
-              <Text style={styles.tierNext}>{mockTier.progress}% to {mockTier.nextTier}</Text>
+        {tier ? (
+          <View style={[styles.tierCard, { borderColor: tierColors[tier.level] || colors.teal }]}>
+            <View style={styles.tierHeader}>
+              <Ionicons name="shield-checkmark" size={28} color={tierColors[tier.level] || colors.teal} />
+              <View style={styles.tierInfo}>
+                <Text style={styles.tierLevel}>{tier.level} Tier</Text>
+                <Text style={styles.tierNext}>{tier.progress || 0}% to {tier.nextTier || 'Next'}</Text>
+              </View>
+            </View>
+            <View style={styles.tierProgress}>
+              <View style={[styles.tierProgressFill, { width: `${tier.progress || 0}%`, backgroundColor: tierColors[tier.level] || colors.teal }]} />
+            </View>
+            {tier.benefits?.length > 0 && (
+              <View style={styles.tierBenefits}>
+                {tier.benefits.map((b: string, i: number) => (
+                  <View key={i} style={styles.benefitChip}>
+                    <Ionicons name="checkmark" size={12} color={colors.success} />
+                    <Text style={styles.benefitText}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={[styles.tierCard, { borderColor: colors.border }]}>
+            <View style={styles.tierHeader}>
+              <Ionicons name="shield-outline" size={28} color={colors.textLight} />
+              <View style={styles.tierInfo}>
+                <Text style={styles.tierLevel}>No Tier Yet</Text>
+                <Text style={styles.tierNext}>Complete deliveries to unlock tiers</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.tierProgress}>
-            <View style={[styles.tierProgressFill, { width: `${mockTier.progress}%`, backgroundColor: tierColors[mockTier.level] }]} />
-          </View>
-          <View style={styles.tierBenefits}>
-            {mockTier.benefits.map((b, i) => (
-              <View key={i} style={styles.benefitChip}>
-                <Ionicons name="checkmark" size={12} color={colors.success} />
-                <Text style={styles.benefitText}>{b}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        )}
 
         {/* Leaderboard */}
         <View style={styles.section}>

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { promosAPI, searchAPI } from '../../services/api';
+import { promosAPI, searchAPI, resolveMediaUrl } from '../../services/api';
 import { normalizeRestaurants } from '../../services/mockApi';
 
 type Deal = {
@@ -127,7 +127,7 @@ export default function DealsScreen({ navigation }: any) {
                   style={styles.dealCard}
                   onPress={() => deal.restaurant && navigation.navigate('Restaurant', { restaurant: deal.restaurant })}
                 >
-                  {deal.image && <Image source={{ uri: deal.image }} style={styles.dealImage} />}
+                  {deal.image && <Image source={{ uri: resolveMediaUrl(deal.image) || deal.image }} style={styles.dealImage} />}
                   <View style={styles.dealInfo}>
                     <View style={styles.dealBadge}>
                       <Text style={styles.dealBadgeText}>

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { gadgetsAPI, Order } from '../../services/gadgetsAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const TABS = [
   { id: 'all', label: 'All' },
@@ -200,7 +201,7 @@ const GadgetsOrderTrackingScreen: React.FC = () => {
               <View style={styles.itemsSection}>
                 {order.items.slice(0, 2).map((item, index) => (
                   <View key={index} style={styles.orderItem}>
-                    <Image source={{ uri: item.product.images[0] }} style={styles.itemImage} />
+                    <Image source={{ uri: resolveMediaUrl(item.product.images[0]) || item.product.images[0] }} style={styles.itemImage} />
                     <View style={styles.itemInfo}>
                       <Text style={styles.itemName} numberOfLines={1}>
                         {item.product.name}

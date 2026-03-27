@@ -1,44 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { courierFleetAPI } from '../../services/api';
 
-const mockPerformance = {
-  efficiencyScore: 0.87,
-  onTimeRate: 0.94,
-  customerRating: 4.8,
-  routeOptimization: 0.82,
-  earningsPotential: 85000,
-  deliveriesToday: 12,
-  avgDeliveryTime: '22 min',
-  totalDistance: '48 km',
-};
-
-const mockPredictions = [
-  { id: '1', time: '12:00 PM', area: 'Victoria Island', expectedOrders: 15, surgeMultiplier: 1.3 },
-  { id: '2', time: '1:00 PM', area: 'Lekki Phase 1', expectedOrders: 22, surgeMultiplier: 1.5 },
-  { id: '3', time: '6:00 PM', area: 'Ikeja GRA', expectedOrders: 18, surgeMultiplier: 1.2 },
-  { id: '4', time: '7:30 PM', area: 'Surulere', expectedOrders: 10, surgeMultiplier: 1.0 },
-];
-
-const mockWeeklyStats = [
-  { day: 'Mon', deliveries: 14, earnings: 12000 },
-  { day: 'Tue', deliveries: 11, earnings: 9500 },
-  { day: 'Wed', deliveries: 16, earnings: 14200 },
-  { day: 'Thu', deliveries: 13, earnings: 11800 },
-  { day: 'Fri', deliveries: 19, earnings: 17500 },
-  { day: 'Sat', deliveries: 22, earnings: 20100 },
-  { day: 'Sun', deliveries: 8, earnings: 7200 },
-];
 
 export default function PerformanceScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [performance, setPerformance] = useState(mockPerformance);
+  const [performance, setPerformance] = useState({
+    efficiencyScore: 0, onTimeRate: 0, customerRating: 0, routeOptimization: 0,
+    earningsPotential: 0, deliveriesToday: 0, avgDeliveryTime: '--', totalDistance: '--',
+  });
+  const [predictions, setPredictions] = useState<any[]>([]);
+  const [weeklyStats, setWeeklyStats] = useState<any[]>([]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -51,7 +31,7 @@ export default function PerformanceScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  const maxDeliveries = Math.max(...mockWeeklyStats.map(s => s.deliveries));
+  const maxDeliveries = weeklyStats.length ? Math.max(...weeklyStats.map((s: any) => s.deliveries)) : 1;
 
   if (loading) return <View style={[styles.container, styles.centered]}><ActivityIndicator size="large" color={colors.teal} /></View>;
 
@@ -116,7 +96,7 @@ export default function PerformanceScreen({ navigation }: any) {
         <View style={styles.chartSection}>
           <Text style={styles.sectionTitle}>This Week</Text>
           <View style={styles.chartRow}>
-            {mockWeeklyStats.map(stat => (
+            {weeklyStats.map(stat => (
               <View key={stat.day} style={styles.chartCol}>
                 <Text style={styles.chartValue}>{stat.deliveries}</Text>
                 <View style={styles.chartBarBg}>
@@ -132,7 +112,7 @@ export default function PerformanceScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Demand Hotspots</Text>
           <Text style={styles.sectionSub}>AI-predicted high-demand areas</Text>
-          {mockPredictions.map(pred => (
+          {predictions.map(pred => (
             <View key={pred.id} style={styles.predCard}>
               <View style={styles.predTime}>
                 <Text style={styles.predTimeText}>{pred.time}</Text>
@@ -157,7 +137,7 @@ export default function PerformanceScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   centered: { justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: colors.navy },

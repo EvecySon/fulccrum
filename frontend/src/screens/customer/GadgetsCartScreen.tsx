@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { gadgetsAPI, CartItem } from '../../services/gadgetsAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const GadgetsCartScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -135,7 +136,7 @@ const GadgetsCartScreen: React.FC = () => {
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {cartItems.map((item) => (
               <View key={item.id} style={styles.cartItem}>
-                <Image source={{ uri: item.product.images[0] }} style={styles.productImage} />
+                <Image source={{ uri: resolveMediaUrl(item.product.images[0]) || item.product.images[0] }} style={styles.productImage} />
 
                 <View style={styles.productInfo}>
                   <Text style={styles.productBrand}>{item.product.brand}</Text>

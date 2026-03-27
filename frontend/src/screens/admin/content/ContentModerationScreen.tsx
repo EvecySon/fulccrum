@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme/colors';
-import { adminAPI } from '../../../services/api';
+import { adminAPI, resolveMediaUrl } from '../../../services/api';
 
 const MOCK_QUEUE_REMOVED = [
   {
@@ -167,7 +167,7 @@ export default function ContentModerationScreen({ navigation }: any) {
                   <Text style={styles.contentDescription}>{item.resourceData.description}</Text>
                 )}
                 {item.resourceData.imageUrl && (
-                  <Image source={{ uri: item.resourceData.imageUrl }} style={styles.contentImage} />
+                  <Image source={{ uri: resolveMediaUrl(item.resourceData.imageUrl) || item.resourceData.imageUrl }} style={styles.contentImage} />
                 )}
               </View>
             )}

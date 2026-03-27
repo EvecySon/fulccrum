@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,33 +9,19 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { analyticsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-const weeklyData = [
-  { day: 'Mon', amount: 85, deliveries: 8 },
-  { day: 'Tue', amount: 120, deliveries: 11 },
-  { day: 'Wed', amount: 95, deliveries: 9 },
-  { day: 'Thu', amount: 148, deliveries: 14 },
-  { day: 'Fri', amount: 175, deliveries: 16 },
-  { day: 'Sat', amount: 210, deliveries: 19 },
-  { day: 'Sun', amount: 165, deliveries: 15 },
-];
-
-const deliveryHistory = [
-  { id: '1', restaurant: 'Burger House', customer: 'John S.', pay: 8.65, tip: 3.00, distance: 1.5, time: 18, date: 'Today, 2:30 PM', rating: 5 },
-  { id: '2', restaurant: 'Sushi Sushi', customer: 'Anna D.', pay: 12.30, tip: 5.00, distance: 2.8, time: 25, date: 'Today, 1:15 PM', rating: 5 },
-  { id: '3', restaurant: 'Pizza Roma', customer: 'Mike L.', pay: 7.20, tip: 2.00, distance: 1.1, time: 15, date: 'Today, 11:45 AM', rating: 4 },
-  { id: '4', restaurant: 'Thai Garden', customer: 'Sarah K.', pay: 15.50, tip: 4.00, distance: 4.2, time: 35, date: 'Yesterday, 8:20 PM', rating: 5 },
-  { id: '5', restaurant: 'Taco Fiesta', customer: 'Emily R.', pay: 6.80, tip: 1.50, distance: 0.8, time: 12, date: 'Yesterday, 6:00 PM', rating: 5 },
-  { id: '6', restaurant: 'Urban Spoon', customer: 'David W.', pay: 18.90, tip: 8.00, distance: 5.1, time: 40, date: 'Yesterday, 4:30 PM', rating: 4 },
-];
 
 export default function EarningsScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
   const [earnings, setEarnings] = useState<any>(null);
+  const [weeklyData, setWeeklyData] = useState<{day: string; amount: number; deliveries: number}[]>([]);
+  const [deliveryHistory, setDeliveryHistory] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -227,7 +213,7 @@ export default function EarningsScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,

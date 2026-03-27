@@ -33,43 +33,11 @@ interface HourlyDemand {
   surge: number;
 }
 
-const mockSurgeZones: SurgeZone[] = [
-  { id: '1', area: 'Victoria Island', multiplier: 2.0, estimatedOrders: 35, distance: 1.2, expiresIn: 25, level: 'extreme' },
-  { id: '2', area: 'Lekki Phase 1', multiplier: 1.8, estimatedOrders: 28, distance: 2.5, expiresIn: 18, level: 'high' },
-  { id: '3', area: 'Ikeja GRA', multiplier: 1.5, estimatedOrders: 22, distance: 4.8, expiresIn: 30, level: 'high' },
-  { id: '4', area: 'Surulere', multiplier: 1.3, estimatedOrders: 15, distance: 6.1, expiresIn: 45, level: 'medium' },
-  { id: '5', area: 'Yaba', multiplier: 1.2, estimatedOrders: 12, distance: 3.4, expiresIn: 20, level: 'medium' },
-  { id: '6', area: 'Ajah', multiplier: 1.0, estimatedOrders: 8, distance: 8.2, expiresIn: 60, level: 'low' },
-];
-
-const mockHourlyDemand: HourlyDemand[] = [
-  { hour: '9AM', demand: 20, surge: 1.0 },
-  { hour: '10AM', demand: 35, surge: 1.0 },
-  { hour: '11AM', demand: 55, surge: 1.2 },
-  { hour: '12PM', demand: 85, surge: 1.5 },
-  { hour: '1PM', demand: 95, surge: 1.8 },
-  { hour: '2PM', demand: 60, surge: 1.3 },
-  { hour: '3PM', demand: 40, surge: 1.0 },
-  { hour: '4PM', demand: 30, surge: 1.0 },
-  { hour: '5PM', demand: 50, surge: 1.2 },
-  { hour: '6PM', demand: 80, surge: 1.5 },
-  { hour: '7PM', demand: 100, surge: 2.0 },
-  { hour: '8PM', demand: 90, surge: 1.8 },
-  { hour: '9PM', demand: 65, surge: 1.3 },
-  { hour: '10PM', demand: 35, surge: 1.0 },
-];
-
-const mockStats = {
-  currentSurge: 1.5,
-  activeZones: 4,
-  avgBonus: 350,
-  peakTime: '7:00 PM',
-};
 
 export default function HeatMapScreen({ navigation }: any) {
-  const [zones, setZones] = useState<SurgeZone[]>(mockSurgeZones);
-  const [hourly, setHourly] = useState<HourlyDemand[]>(mockHourlyDemand);
-  const [stats, setStats] = useState(mockStats);
+  const [zones, setZones] = useState<SurgeZone[]>([]);
+  const [hourly, setHourly] = useState<HourlyDemand[]>([]);
+  const [stats, setStats] = useState({ currentSurge: 0, activeZones: 0, avgBonus: 0, peakTime: '--' });
   const [refreshing, setRefreshing] = useState(false);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
 
@@ -82,13 +50,10 @@ export default function HeatMapScreen({ navigation }: any) {
         courierSurgeAPI.getHourlyDemand().catch(() => null),
         courierSurgeAPI.getStats().catch(() => null),
       ]);
-      if (Array.isArray(zonesRes) && zonesRes.length) setZones(zonesRes);
-      if (Array.isArray(hourlyRes) && hourlyRes.length) setHourly(hourlyRes);
+      if (Array.isArray(zonesRes)) setZones(zonesRes);
+      if (Array.isArray(hourlyRes)) setHourly(hourlyRes);
       if (statsRes) setStats(prev => ({ ...prev, ...statsRes }));
-    } catch {
-      setZones(mockSurgeZones);
-      setHourly(mockHourlyDemand);
-    }
+    } catch {}
     setRefreshing(false);
   };
 

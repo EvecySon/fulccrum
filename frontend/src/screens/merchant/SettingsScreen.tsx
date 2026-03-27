@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI } from '../../services/api';
+import { usersAPI, menuAPI, promosAPI, flashSalesAPI, walletAPI, resolveMediaUrl } from '../../services/api';
 
 export default function MerchantSettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -228,8 +228,8 @@ export default function MerchantSettingsScreen({ navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Store Profile */}
         <TouchableOpacity style={styles.profileCard} onPress={() => navigation.navigate('BusinessVerification')}>
-          {businessProfile?.businessProfile?.logoUrl ? (
-            <Image source={{ uri: businessProfile.businessProfile.logoUrl }} style={styles.storeImage} />
+          {resolveMediaUrl(businessProfile?.businessProfile?.logoUrl) ? (
+            <Image source={{ uri: resolveMediaUrl(businessProfile.businessProfile.logoUrl)! }} style={styles.storeImage} />
           ) : (
             <View style={[styles.storeImage, { backgroundColor: colors.navy + '15', justifyContent: 'center', alignItems: 'center' }]}>
               <Ionicons name="storefront" size={28} color={colors.navy} />

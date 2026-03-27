@@ -21,14 +21,21 @@ const safetyTips = [
   { icon: 'battery-charging', tip: 'Keep your phone charged above 20%' },
 ];
 
-const mockEvents = [
-  { id: '1', type: 'unsafe_location', date: '2 days ago', status: 'resolved', location: 'Ajah Roundabout' },
-  { id: '2', type: 'accident', date: '2 weeks ago', status: 'resolved', location: 'Lekki-Epe Expressway' },
-];
 
 export default function SafetyScreen({ navigation }: any) {
   const [reporting, setReporting] = useState(false);
   const [locationShared, setLocationShared] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await courierSafetyAPI.getSafetyEvents();
+        const data = res?.data ?? res;
+        if (Array.isArray(data)) setEvents(data);
+      } catch {}
+    })();
+  }, []);
 
   const handleEmergency = async (type: string) => {
     Alert.alert(
@@ -148,10 +155,10 @@ export default function SafetyScreen({ navigation }: any) {
         </View>
 
         {/* Recent Events */}
-        {mockEvents.length > 0 && (
+        {events.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Reports</Text>
-            {mockEvents.map(event => (
+            {events.map((event: any) => (
               <View key={event.id} style={styles.eventCard}>
                 <View style={styles.eventDot} />
                 <View style={styles.eventInfo}>

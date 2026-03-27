@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { servicesAPI } from '../../services/servicesAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -86,8 +87,8 @@ const ServiceProviderScreen: React.FC = () => {
         {/* Provider Header */}
         <View style={styles.providerHeader}>
           <View style={styles.providerImageContainer}>
-            {provider.avatarUrl ? (
-              <Image source={{ uri: provider.avatarUrl }} style={styles.providerImage} />
+            {resolveMediaUrl(provider.avatarUrl) ? (
+              <Image source={{ uri: resolveMediaUrl(provider.avatarUrl)! }} style={styles.providerImage} />
             ) : (
               <View style={styles.providerImagePlaceholder}>
                 <Ionicons name="person" size={48} color="#999" />

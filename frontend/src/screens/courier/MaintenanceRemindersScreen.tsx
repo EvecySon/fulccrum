@@ -24,26 +24,10 @@ interface Reminder {
   notifyEnabled: boolean;
 }
 
-const mockReminders: Reminder[] = [
-  { id: '1', type: 'insurance', title: 'Vehicle Insurance', description: 'Third-party insurance policy', icon: 'shield-checkmark', expiryDate: 'Feb 28, 2026', daysLeft: 16, status: 'warning', notifyEnabled: true },
-  { id: '2', type: 'license', title: "Driver's License", description: 'Class B driving license', icon: 'card', expiryDate: 'Mar 15, 2028', daysLeft: 762, status: 'ok', notifyEnabled: true },
-  { id: '3', type: 'document', title: 'NIN Card', description: 'National Identification Number', icon: 'finger-print', expiryDate: 'No expiry', daysLeft: 9999, status: 'ok', notifyEnabled: false },
-  { id: '4', type: 'vehicle', title: 'Vehicle Registration', description: 'Annual vehicle registration', icon: 'car', expiryDate: 'Apr 10, 2026', daysLeft: 57, status: 'ok', notifyEnabled: true },
-  { id: '5', type: 'vehicle', title: 'Last Oil Change', description: 'Recommended every 5,000 km', icon: 'water', expiryDate: '3,200 km ago', daysLeft: -1, status: 'warning', notifyEnabled: true },
-  { id: '6', type: 'vehicle', title: 'Tire Check', description: 'Inspect tires every 10,000 km', icon: 'ellipse', expiryDate: '8,500 km ago', daysLeft: -1, status: 'urgent', notifyEnabled: true },
-  { id: '7', type: 'document', title: 'Guarantor Form', description: 'Annual guarantor verification', icon: 'people', expiryDate: 'Jan 15, 2026', daysLeft: -28, status: 'expired', notifyEnabled: true },
-];
-
-const mockMaintenanceLog = [
-  { id: '1', action: 'Oil Change', date: 'Jan 20, 2026', cost: 8500, mileage: '9,250 km' },
-  { id: '2', action: 'Tire Replacement (Front)', date: 'Dec 5, 2025', cost: 15000, mileage: '6,800 km' },
-  { id: '3', action: 'Brake Pads', date: 'Nov 12, 2025', cost: 12000, mileage: '5,200 km' },
-  { id: '4', action: 'Chain & Sprocket', date: 'Oct 1, 2025', cost: 6500, mileage: '3,000 km' },
-];
 
 export default function MaintenanceRemindersScreen({ navigation }: any) {
-  const [reminders, setReminders] = useState(mockReminders);
-  const [maintenanceLogs, setMaintenanceLogs] = useState(mockMaintenanceLog);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState<any[]>([]);
   const [showLog, setShowLog] = useState(false);
 
   useEffect(() => {
@@ -53,8 +37,8 @@ export default function MaintenanceRemindersScreen({ navigation }: any) {
           courierMaintenanceAPI.getReminders().catch(() => null),
           courierMaintenanceAPI.getLogs().catch(() => null),
         ]);
-        if (Array.isArray(remRes) && remRes.length) setReminders(remRes);
-        if (Array.isArray(logRes) && logRes.length) setMaintenanceLogs(logRes);
+        if (Array.isArray(remRes)) setReminders(remRes);
+        if (Array.isArray(logRes)) setMaintenanceLogs(logRes);
       } catch {}
     })();
   }, []);

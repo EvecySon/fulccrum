@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { gadgetsAPI, Product } from '../../services/gadgetsAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest First' },
@@ -80,7 +81,7 @@ const ProductListScreen: React.FC = () => {
         onPress={() => handleProductSelect(item)}
       >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: item.images[0] }} style={styles.productImage} />
+          <Image source={{ uri: resolveMediaUrl(item.images[0]) || item.images[0] }} style={styles.productImage} />
           {discount && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>-{discount}%</Text>

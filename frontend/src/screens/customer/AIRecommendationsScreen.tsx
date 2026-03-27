@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { aiAPI } from '../../services/api';
+import { aiAPI, resolveMediaUrl } from '../../services/api';
 
 interface Recommendation {
   id: string;
@@ -108,7 +108,7 @@ export default function AIRecommendationsScreen({ navigation }: any) {
           )}
           {recommendations.map(rec => (
             <View key={rec.id} style={styles.recCard}>
-              <Image source={{ uri: rec.image }} style={styles.recImage} />
+              <Image source={{ uri: resolveMediaUrl(rec.image) || rec.image }} style={styles.recImage} />
               <View style={styles.recOverlay}>
                 <View style={styles.recTypeBadge}>
                   <Ionicons name={typeIcon(rec.type) as any} size={12} color={colors.textWhite} />

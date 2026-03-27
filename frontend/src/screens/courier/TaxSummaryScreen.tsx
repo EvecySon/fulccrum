@@ -25,26 +25,26 @@ interface TaxPeriod {
   distance: number;
 }
 
-const mockPeriods: TaxPeriod[] = [
-  { key: '2026-01', label: 'January 2026', totalEarnings: 285000, deliveryFees: 195000, tips: 62000, bonuses: 28000, deductions: 42000, netIncome: 243000, deliveries: 186, distance: 892 },
-  { key: '2025-12', label: 'December 2025', totalEarnings: 312000, deliveryFees: 215000, tips: 68000, bonuses: 29000, deductions: 45000, netIncome: 267000, deliveries: 204, distance: 978 },
-  { key: '2025-11', label: 'November 2025', totalEarnings: 268000, deliveryFees: 185000, tips: 55000, bonuses: 28000, deductions: 38000, netIncome: 230000, deliveries: 172, distance: 824 },
-  { key: '2025-10', label: 'October 2025', totalEarnings: 295000, deliveryFees: 205000, tips: 60000, bonuses: 30000, deductions: 41000, netIncome: 254000, deliveries: 192, distance: 920 },
-];
-
-const mockYearlySummary = {
-  year: 2025,
-  totalEarnings: 3420000,
-  totalDeductions: 485000,
-  netIncome: 2935000,
-  totalDeliveries: 2248,
-  totalDistance: 10780,
-  taxEstimate: 440250,
-};
 
 export default function TaxSummaryScreen({ navigation }: any) {
-  const [periods, setPeriods] = useState(mockPeriods);
-  const [yearly, setYearly] = useState(mockYearlySummary);
+  const [periods, setPeriods] = useState<TaxPeriod[]>([]);
+  const [yearly, setYearly] = useState({ year: new Date().getFullYear(), totalEarnings: 0, totalDeductions: 0, netIncome: 0, totalDeliveries: 0, totalDistance: 0, taxEstimate: 0 });
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const year = new Date().getFullYear().toString();
+        const [yearlyRes, monthlyRes] = await Promise.all([
+          courierTaxAPI.getYearly(year).catch(() => null),
+          courierTaxAPI.getMonthly(year).catch(() => null),
+        ]);
+        const yearlyData = yearlyRes?.data ?? yearlyRes;
+        if (yearlyData) setYearly(prev => ({ ...prev, ...yearlyData }));
+        const monthlyData = monthlyRes?.data ?? monthlyRes;
+        if (Array.isArray(monthlyData)) setPeriods(monthlyData);
+      } catch {}
+    })();
+  }, []);
   const [exporting, setExporting] = useState<string | null>(null);
   const [view, setView] = useState<'monthly' | 'yearly'>('monthly');
 
