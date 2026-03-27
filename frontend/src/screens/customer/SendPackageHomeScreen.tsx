@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiBaseUrl } from '../../services/api';
+import { resolveMediaUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const ACCENT = '#14b8a6';
@@ -72,11 +72,6 @@ const SendPackageHomeScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const resolveAvatarUrl = (url?: string | null) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url.replace(/https?:\/\/[^\/]+/, getApiBaseUrl());
-    return `${getApiBaseUrl()}${url}`;
-  };
 
   useEffect(() => {
     Animated.parallel([
@@ -136,7 +131,7 @@ const SendPackageHomeScreen: React.FC = () => {
           <View style={styles.userAvatar}>
             {user?.avatarUrl ? (
               <Image
-                source={{ uri: resolveAvatarUrl(user.avatarUrl) || '' }}
+                source={{ uri: resolveMediaUrl(user.avatarUrl) || '' }}
                 style={styles.avatarImg}
                 onError={() => {}}
               />

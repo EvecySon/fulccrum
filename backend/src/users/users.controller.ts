@@ -18,6 +18,8 @@ export class UsersController {
 
   @Patch('profile')
   async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    console.log('[CONTROLLER] PATCH /users/profile called by user:', req.user.sub);
+    console.log('[CONTROLLER] Body:', JSON.stringify(dto));
     return this.usersService.updateProfile(req.user.sub, dto);
   }
 

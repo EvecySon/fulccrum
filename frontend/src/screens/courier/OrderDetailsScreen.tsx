@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { courierOrdersAPI } from '../../services/api';
 
 interface OrderItem {
@@ -22,46 +22,13 @@ interface OrderItem {
   allergens?: string[];
 }
 
-const mockOrder = {
-  id: '#3242',
-  status: 'picked_up',
-  restaurant: 'Burger House',
-  restaurantAddress: '456 Restaurant Ave, Victoria Island',
-  restaurantPhone: '+2348012345678',
-  customer: 'John Smith',
-  customerAddress: '123 Main St, Apt 4B, Lekki Phase 1',
-  customerPhone: '+2348098765432',
-  deliveryType: 'leave_at_door' as const,
-  deliveryInstructions: 'Please ring the doorbell. Leave at door if no answer. Gate code: 4521',
-  floor: '4th Floor',
-  apartmentNumber: '4B',
-  items: [
-    { id: '1', name: 'Gourmet Cheeseburger', quantity: 1, price: 4500, modifiers: ['Extra cheese', 'No onions'], specialInstructions: 'Well done patty', allergens: ['Dairy', 'Gluten'] },
-    { id: '2', name: 'Classic Fries (Large)', quantity: 1, price: 1800, modifiers: ['Extra salt'], allergens: ['Gluten'] },
-    { id: '3', name: 'Chocolate Milkshake', quantity: 1, price: 2500, modifiers: ['Extra thick'], allergens: ['Dairy'] },
-    { id: '4', name: 'Chicken Wings (6pc)', quantity: 2, price: 3200, modifiers: ['BBQ sauce'], specialInstructions: 'Extra napkins please' },
-  ] as OrderItem[],
-  subtotal: 15200,
-  deliveryFee: 1500,
-  serviceFee: 450,
-  tip: 3000,
-  total: 20150,
-  basePay: 1500,
-  distanceBonus: 300,
-  surgeBonus: 500,
-  tipAmount: 3000,
-  totalEarnings: 5300,
-  distance: 3.2,
-  estimatedTime: 25,
-  placedAt: '2:15 PM',
-  pickedUpAt: '2:28 PM',
-  estimatedDelivery: '2:43 PM',
-};
 
 export default function OrderDetailsScreen({ navigation, route }: any) {
-  const orderId = route?.params?.orderId || mockOrder.id;
-  const [order, setOrder] = useState(mockOrder);
-  const [loading, setLoading] = useState(false);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const orderId = route?.params?.orderId;
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadOrder();
@@ -70,9 +37,11 @@ export default function OrderDetailsScreen({ navigation, route }: any) {
   const loadOrder = async () => {
     try {
       const res = await courierOrdersAPI.getDetails(orderId);
-      if (res) setOrder(prev => ({ ...prev, ...res }));
+      if (res) setOrder(res);
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to load order');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,6 +66,16 @@ export default function OrderDetailsScreen({ navigation, route }: any) {
   const dtInfo = deliveryTypeIcons[order.deliveryType] || deliveryTypeIcons.hand_to_customer;
 
   if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={colors.teal} /></View>;
+
+  if (!order) return (
+    <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <Ionicons name="alert-circle-outline" size={48} color={colors.textLight} />
+      <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 16 }}>Order not found</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16, padding: 12 }}>
+        <Text style={{ color: colors.teal, fontWeight: '600' }}>Go Back</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -310,7 +289,7 @@ export default function OrderDetailsScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

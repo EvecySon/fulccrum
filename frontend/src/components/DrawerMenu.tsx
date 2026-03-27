@@ -14,16 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import { getApiBaseUrl } from '../services/api';
-
-const resolveAvatarUrl = (url?: string | null): string | null => {
-  if (!url) return null;
-  if (url.startsWith('http')) {
-    // Replace any hardcoded localhost/IP with the current API base
-    return url.replace(/https?:\/\/[^\/]+/, getApiBaseUrl());
-  }
-  return `${getApiBaseUrl()}${url}`;
-};
+import { resolveMediaUrl } from '../services/api';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.8;
@@ -112,8 +103,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
             {/* User Profile */}
             <View style={styles.profileSection}>
               <View style={styles.avatarWrapper}>
-                {user?.avatarUrl ? (
-                  <Image source={{ uri: resolveAvatarUrl(user.avatarUrl) || '' }} style={styles.avatarImage} />
+                {resolveMediaUrl(user?.avatarUrl) ? (
+                  <Image source={{ uri: resolveMediaUrl(user?.avatarUrl)! }} style={styles.avatarImage} />
                 ) : (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{getInitials()}</Text>

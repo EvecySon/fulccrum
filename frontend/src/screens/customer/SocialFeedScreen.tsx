@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { socialAPI } from '../../services/api';
+import { socialAPI, resolveMediaUrl } from '../../services/api';
 
 interface FoodPost {
   id: string;
@@ -60,7 +60,7 @@ export default function SocialFeedScreen({ navigation }: any) {
   const renderPost = ({ item }: { item: FoodPost }) => (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <Image source={{ uri: item.userAvatar }} style={styles.avatar} />
+        <Image source={{ uri: resolveMediaUrl(item.userAvatar) || item.userAvatar }} style={styles.avatar} />
         <View style={styles.postUserInfo}>
           <Text style={styles.userName}>{item.userName}</Text>
           <Text style={styles.postMeta}>{item.restaurant} · {item.timeAgo}</Text>
@@ -73,7 +73,7 @@ export default function SocialFeedScreen({ navigation }: any) {
           </View>
         )}
       </View>
-      <Image source={{ uri: item.image }} style={styles.postImage} />
+      <Image source={{ uri: resolveMediaUrl(item.image) || item.image }} style={styles.postImage} />
       <View style={styles.postBody}>
         <View style={styles.postActions}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>

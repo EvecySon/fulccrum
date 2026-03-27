@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsPhoneNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsArray, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -14,7 +14,8 @@ export class UpdateProfileDto {
   email?: string;
 
   @IsOptional()
-  @IsPhoneNumber()
+  @IsString()
+  @Matches(/^\+?[0-9\s\-()]{7,20}$/, { message: 'Invalid phone number format' })
   phone?: string;
 
   @IsOptional()

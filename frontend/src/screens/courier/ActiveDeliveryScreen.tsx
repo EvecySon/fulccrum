@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/MapView';
 import * as Location from 'expo-location';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { locationAPI } from '../../services/api';
 import SwipeToConfirm from '../../components/courier/SwipeToConfirm';
 import DeliveryProofModal from '../../components/courier/DeliveryProofModal';
@@ -36,6 +36,8 @@ const PICKUP_COORDS = { latitude: 6.5244, longitude: 3.3792 };
 const DROPOFF_COORDS = { latitude: 6.5344, longitude: 3.3892 };
 
 export default function ActiveDeliveryScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const mapRef = useRef<MapView>(null);
   const [driverCoords, setDriverCoords] = useState({
@@ -428,7 +430,7 @@ export default function ActiveDeliveryScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,

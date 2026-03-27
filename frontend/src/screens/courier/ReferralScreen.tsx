@@ -23,22 +23,6 @@ interface Referral {
   earned: number;
 }
 
-const mockReferralCode = 'MIKE2026';
-const mockReferralLink = 'https://fulccrum.com/join?ref=MIKE2026';
-
-const mockReferrals: Referral[] = [
-  { id: '1', name: 'Tunde A.', date: 'Feb 10, 2026', status: 'completed', deliveries: 25, requiredDeliveries: 25, earned: 5000 },
-  { id: '2', name: 'Blessing O.', date: 'Feb 8, 2026', status: 'active', deliveries: 18, requiredDeliveries: 25, earned: 0 },
-  { id: '3', name: 'Chidi E.', date: 'Feb 5, 2026', status: 'active', deliveries: 7, requiredDeliveries: 25, earned: 0 },
-  { id: '4', name: 'Kemi B.', date: 'Jan 28, 2026', status: 'pending', deliveries: 0, requiredDeliveries: 25, earned: 0 },
-];
-
-const mockStats = {
-  totalReferred: 12,
-  totalEarned: 45000,
-  pendingEarnings: 10000,
-  activeReferrals: 3,
-};
 
 const REWARD_TIERS = [
   { referrals: 5, bonus: 10000, label: 'Bronze Referrer' },
@@ -48,8 +32,10 @@ const REWARD_TIERS = [
 ];
 
 export default function ReferralScreen({ navigation }: any) {
-  const [referrals, setReferrals] = useState<Referral[]>(mockReferrals);
-  const [stats, setStats] = useState(mockStats);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [stats, setStats] = useState({ totalReferred: 0, totalEarned: 0, pendingEarnings: 0, activeReferrals: 0 });
+  const [referralCode, setReferralCode] = useState('');
+  const [referralLink, setReferralLink] = useState('');
 
   useEffect(() => {
     loadData();
@@ -59,8 +45,10 @@ export default function ReferralScreen({ navigation }: any) {
     try {
       const res = await courierReferralAPI.getInfo();
       const data = res?.data ?? res;
-      if (data?.referrals && Array.isArray(data.referrals)) {
-        setReferrals(data.referrals);
+      if (data) {
+        if (data.referralCode) setReferralCode(data.referralCode);
+        if (data.referralLink) setReferralLink(data.referralLink);
+        if (Array.isArray(data.referrals)) setReferrals(data.referrals);
         setStats(prev => ({
           ...prev,
           totalReferred: data.totalReferred ?? prev.totalReferred,
@@ -68,26 +56,24 @@ export default function ReferralScreen({ navigation }: any) {
           pendingEarnings: data.pendingEarnings ?? prev.pendingEarnings,
         }));
       }
-    } catch {
-      setReferrals(mockReferrals);
-    }
+    } catch {}
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Join me on Fulccrum as a delivery courier! Use my referral code ${mockReferralCode} and we both earn ₦5,000 after your first 25 deliveries. Sign up here: ${mockReferralLink}`,
+        message: `Join me on Fulccrum as a delivery courier! Use my referral code ${referralCode} and we both earn ₦5,000 after your first 25 deliveries.${referralLink ? ` Sign up here: ${referralLink}` : ''}`,
       });
     } catch {}
   };
 
   const handleCopyCode = () => {
-    Clipboard.setString(mockReferralCode);
+    Clipboard.setString(referralCode);
     Alert.alert('Copied!', 'Referral code copied to clipboard.');
   };
 
   const handleCopyLink = () => {
-    Clipboard.setString(mockReferralLink);
+    Clipboard.setString(referralLink);
     Alert.alert('Copied!', 'Referral link copied to clipboard.');
   };
 
@@ -129,7 +115,7 @@ export default function ReferralScreen({ navigation }: any) {
           <View style={styles.codeCard}>
             <Text style={styles.codeLabel}>Your Referral Code</Text>
             <View style={styles.codeRow}>
-              <Text style={styles.codeText}>{mockReferralCode}</Text>
+              <Text style={styles.codeText}>{referralCode || 'Loading...'}</Text>
               <TouchableOpacity style={styles.copyBtn} onPress={handleCopyCode}>
                 <Ionicons name="copy-outline" size={18} color={colors.teal} />
               </TouchableOpacity>

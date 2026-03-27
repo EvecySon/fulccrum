@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
-import { usersAPI, loyaltyAPI } from '../../services/api';
+import { usersAPI, loyaltyAPI, resolveMediaUrl } from '../../services/api';
 
 const menuItems = [
   { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
@@ -39,7 +39,8 @@ const advancedItems = [
 ];
 
 const getAvatarUri = (u: any) => {
-  if (u?.avatarUrl) return u.avatarUrl;
+  const resolved = resolveMediaUrl(u?.avatarUrl);
+  if (resolved) return resolved;
   return `https://ui-avatars.com/api/?name=${encodeURIComponent((u?.firstName || '') + ' ' + (u?.lastName || ''))}&background=0D1B2A&color=fff&size=128`;
 };
 

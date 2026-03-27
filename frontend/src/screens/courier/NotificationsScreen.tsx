@@ -27,18 +27,6 @@ interface Notification {
   };
 }
 
-const mockNotifications: Notification[] = [
-  { id: '1', type: 'order', title: 'New Order Available', body: 'A ₦2,800 delivery is waiting for you near Lekki Phase 1.', read: false, createdAt: '2 min ago', data: { screen: 'Deliveries' } },
-  { id: '2', type: 'earnings', title: 'Daily Earnings Summary', body: 'You earned ₦18,500 today from 12 deliveries. Great job!', read: false, createdAt: '1 hour ago', data: { screen: 'Earnings' } },
-  { id: '3', type: 'quest', title: 'Quest Almost Complete!', body: 'You\'re 2 deliveries away from completing "Lunch Rush" and earning ₦2,000 bonus.', read: false, createdAt: '2 hours ago', data: { screen: 'Quests' } },
-  { id: '4', type: 'promo', title: '1.5x Surge in Victoria Island', body: 'High demand right now! Go online to earn 1.5x on every delivery in VI.', read: true, createdAt: '3 hours ago', data: { screen: 'HeatMap' } },
-  { id: '5', type: 'system', title: 'App Update Available', body: 'Version 2.1.0 is available with improved navigation and bug fixes.', read: true, createdAt: '5 hours ago' },
-  { id: '6', type: 'document', title: 'Document Expiring Soon', body: 'Your vehicle insurance expires in 16 days. Please renew to continue delivering.', read: true, createdAt: 'Yesterday', data: { screen: 'MaintenanceReminders' } },
-  { id: '7', type: 'safety', title: 'Safety Tip', body: 'Remember to wear your helmet and use reflective gear during night deliveries.', read: true, createdAt: 'Yesterday' },
-  { id: '8', type: 'earnings', title: 'Weekly Payout Processed', body: '₦78,500 has been sent to your bank account ending in ****4521.', read: true, createdAt: '2 days ago', data: { screen: 'Wallet' } },
-  { id: '9', type: 'quest', title: 'Quest Reward Claimed', body: 'You earned ₦5,000 bonus for completing the "Marathon Runner" quest.', read: true, createdAt: '3 days ago' },
-  { id: '10', type: 'promo', title: 'Weekend Bonus', body: 'Earn an extra ₦500 per delivery this Saturday and Sunday. Don\'t miss out!', read: true, createdAt: '4 days ago' },
-];
 
 const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
   order: { icon: 'bag-handle', color: colors.teal },
@@ -51,7 +39,7 @@ const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
 };
 
 export default function NotificationsScreen({ navigation }: any) {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [loading, setLoading] = useState(false);
@@ -64,11 +52,11 @@ export default function NotificationsScreen({ navigation }: any) {
       const data = res?.data ?? res;
       if (Array.isArray(data)) {
         if (append) setNotifications(prev => [...prev, ...data]);
-        else setNotifications(data.length ? data : mockNotifications);
+        else setNotifications(data);
         setHasMore(data.length >= 20);
       }
     } catch {
-      if (pageNum === 1) setNotifications(mockNotifications);
+      // Keep empty on error
     }
   }, [filter]);
 

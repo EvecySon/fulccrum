@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { resolveMediaUrl } from '../../services/api';
 
 export default function CallScreen({ navigation, route }: any) {
   const recipientName = route?.params?.recipientName || 'Unknown';
-  const recipientAvatar = route?.params?.recipientAvatar || 'https://i.pravatar.cc/150?img=1';
+  const recipientAvatar = resolveMediaUrl(route?.params?.recipientAvatar) || 'https://i.pravatar.cc/150?img=1';
   const recipientRole = route?.params?.recipientRole || 'merchant';
   const callType = route?.params?.callType || 'voice';
   const orderId = route?.params?.orderId || '';

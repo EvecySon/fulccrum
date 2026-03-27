@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { adminAPI } from '../../services/api';
+import { adminAPI, resolveMediaUrl } from '../../services/api';
 
 interface AgentStats {
   id: string;
@@ -212,7 +212,7 @@ export default function AgentPerformanceScreen({ navigation }: any) {
                   <View style={styles.rankBadge}>
                     <Text style={styles.rankText}>#{index + 1}</Text>
                   </View>
-                  <Image source={{ uri: agent.avatar }} style={styles.agentAvatar} />
+                  <Image source={{ uri: resolveMediaUrl(agent.avatar) || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(agent.name || '') + '&background=0D1B2A&color=fff&size=80' }} style={styles.agentAvatar} />
                   <View style={styles.agentInfo}>
                     <Text style={styles.agentName}>{agent.name}</Text>
                     <View style={styles.agentStatusRow}>

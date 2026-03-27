@@ -19,26 +19,10 @@ interface DeliveryMethod {
   selected: boolean;
 }
 
-const mockMethods: DeliveryMethod[] = [
-  { id: '1', type: 'bike', label: 'Bicycle', icon: 'bicycle', speedRating: 6, ecoRating: 10, costPerKm: 50, maxDistance: 8000, available: true, selected: false },
-  { id: '2', type: 'motorcycle', label: 'Motorcycle', icon: 'bicycle', speedRating: 8, ecoRating: 5, costPerKm: 100, maxDistance: 25000, available: true, selected: true },
-  { id: '3', type: 'car', label: 'Car', icon: 'car', speedRating: 9, ecoRating: 3, costPerKm: 150, maxDistance: 50000, available: true, selected: false },
-  { id: '4', type: 'electric_scooter', label: 'E-Scooter', icon: 'flash', speedRating: 7, ecoRating: 9, costPerKm: 60, maxDistance: 15000, available: false, selected: false },
-  { id: '5', type: 'walking', label: 'Walking', icon: 'walk', speedRating: 3, ecoRating: 10, costPerKm: 30, maxDistance: 3000, available: true, selected: false },
-];
-
-const mockVehicleInfo = {
-  make: 'Honda',
-  model: 'CG 125',
-  year: '2023',
-  plate: 'LAG-234-XY',
-  insurance: 'Valid until Dec 2026',
-  lastService: '3 weeks ago',
-  mileage: '12,450 km',
-};
 
 export default function VehicleManagementScreen({ navigation }: any) {
-  const [methods, setMethods] = useState<DeliveryMethod[]>(mockMethods);
+  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
+  const [vehicleInfo, setVehicleInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
@@ -47,10 +31,14 @@ export default function VehicleManagementScreen({ navigation }: any) {
     try {
       const res = await courierFleetAPI.getDeliveryMethods();
       const data = res?.data ?? res;
-      setMethods(Array.isArray(data) ? data : mockMethods);
-    } catch {
-      setMethods(mockMethods);
-    } finally { setLoading(false); }
+      if (Array.isArray(data)) setMethods(data);
+      // Also try to get vehicle info from performance endpoint
+      try {
+        const perfRes = await courierFleetAPI.getPerformance();
+        const perfData = perfRes?.data ?? perfRes;
+        if (perfData?.vehicle) setVehicleInfo(perfData.vehicle);
+      } catch {}
+    } catch {} finally { setLoading(false); }
   };
 
   const selectMethod = (id: string) => {
@@ -86,8 +74,8 @@ export default function VehicleManagementScreen({ navigation }: any) {
           <View style={styles.vehicleHeader}>
             <Ionicons name="bicycle" size={28} color={colors.teal} />
             <View style={styles.vehicleInfo}>
-              <Text style={styles.vehicleName}>{mockVehicleInfo.make} {mockVehicleInfo.model}</Text>
-              <Text style={styles.vehiclePlate}>{mockVehicleInfo.plate} · {mockVehicleInfo.year}</Text>
+              <Text style={styles.vehicleName}>{vehicleInfo?.make ? `${vehicleInfo.make} ${vehicleInfo.model}` : 'No vehicle set'}</Text>
+              <Text style={styles.vehiclePlate}>{vehicleInfo?.plate ? `${vehicleInfo.plate} · ${vehicleInfo.year || ''}` : 'Add your vehicle details'}</Text>
             </View>
             <TouchableOpacity style={styles.editVehicleBtn}>
               <Ionicons name="create-outline" size={18} color={colors.teal} />
@@ -96,15 +84,15 @@ export default function VehicleManagementScreen({ navigation }: any) {
           <View style={styles.vehicleDetails}>
             <View style={styles.vehicleDetail}>
               <Ionicons name="shield-checkmark" size={14} color={colors.success} />
-              <Text style={styles.vehicleDetailText}>{mockVehicleInfo.insurance}</Text>
+              <Text style={styles.vehicleDetailText}>{vehicleInfo?.insurance || 'Insurance not set'}</Text>
             </View>
             <View style={styles.vehicleDetail}>
               <Ionicons name="construct" size={14} color={colors.warning} />
-              <Text style={styles.vehicleDetailText}>Last service: {mockVehicleInfo.lastService}</Text>
+              <Text style={styles.vehicleDetailText}>Last service: {vehicleInfo?.lastService || 'Not recorded'}</Text>
             </View>
             <View style={styles.vehicleDetail}>
               <Ionicons name="speedometer" size={14} color={colors.navy} />
-              <Text style={styles.vehicleDetailText}>Mileage: {mockVehicleInfo.mileage}</Text>
+              <Text style={styles.vehicleDetailText}>Mileage: {vehicleInfo?.mileage || 'Not recorded'}</Text>
             </View>
           </View>
         </View>

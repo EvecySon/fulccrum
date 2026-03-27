@@ -201,10 +201,9 @@ export class UploadService {
     const storage = this.storageFactory.getProvider();
     const uploadResult = await storage.uploadFile(file.buffer, uniqueName, file.mimetype, 'avatars');
 
-    // Store relative URL so any client (phone, browser) resolves it via their own base URL
-    const relativeUrl = uploadResult.url.startsWith('http')
-      ? new URL(uploadResult.url).pathname
-      : uploadResult.url;
+    // Store the relative URL — clients prepend their own base URL
+    // For external providers (Cloudinary/S3) the URL is already absolute
+    const storedUrl = uploadResult.url;
 
     // Save to database
     const uploadedFile = await this.prisma.mediaFile.create({
@@ -214,20 +213,20 @@ export class UploadService {
         originalName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        url: relativeUrl,
+        url: storedUrl,
       },
     });
 
     // Update user avatar
     await this.prisma.user.update({
       where: { id: userId },
-      data: { avatarUrl: relativeUrl },
+      data: { avatarUrl: storedUrl },
     });
 
     return {
       id: uploadedFile.id,
       filename: uploadedFile.filename,
-      url: relativeUrl,
+      url: storedUrl,
       size: uploadedFile.size,
       mimeType: uploadedFile.mimeType,
     };

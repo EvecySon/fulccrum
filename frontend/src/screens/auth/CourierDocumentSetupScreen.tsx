@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { getCourierDocuments } from '../../config/documentRequirements';
+import { pickImage } from '../../services/uploadService';
+import { documentsAPI } from '../../services/api';
 
 const vehicleTypes = [
   { key: 'bicycle', label: 'Bicycle', icon: 'bicycle' },
@@ -19,21 +23,96 @@ const vehicleTypes = [
   { key: 'van', label: 'Van', icon: 'bus' },
 ];
 
+interface DocState {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+  required: boolean;
+  uri: string;
+  uploading: boolean;
+  uploaded: boolean;
+  error: string;
+}
+
 export default function CourierDocumentSetupScreen({ navigation, route }: any) {
   const { email, role } = route?.params || {};
   const [vehicleType, setVehicleType] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [guarantorName, setGuarantorName] = useState('');
   const [guarantorPhone, setGuarantorPhone] = useState('');
-  const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const toggleDoc = (key: string) => {
-    setUploadedDocs((prev) =>
-      prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key]
-    );
+  const [documents, setDocuments] = useState<DocState[]>(() =>
+    getCourierDocuments('motorcycle').map(doc => ({
+      key: doc.key,
+      label: doc.label,
+      description: doc.description,
+      icon: doc.icon,
+      required: doc.required,
+      uri: '',
+      uploading: false,
+      uploaded: false,
+      error: '',
+    }))
+  );
+
+  // Update document list when vehicle type changes
+  const handleVehicleChange = (type: string) => {
+    setVehicleType(type);
+    const newDocs = getCourierDocuments(type).map(doc => {
+      const existing = documents.find(d => d.key === doc.key);
+      return existing || {
+        key: doc.key,
+        label: doc.label,
+        description: doc.description,
+        icon: doc.icon,
+        required: doc.required,
+        uri: '',
+        uploading: false,
+        uploaded: false,
+        error: '',
+      };
+    });
+    setDocuments(newDocs);
   };
+
+  const handlePickDocument = async (key: string) => {
+    const uri = await pickImage({ allowsEditing: false, aspect: [4, 3], quality: 0.85 });
+    if (!uri) return;
+
+    // Set URI and start uploading
+    setDocuments(prev => prev.map(d =>
+      d.key === key ? { ...d, uri, uploading: true, error: '', uploaded: false } : d
+    ));
+
+    try {
+      const doc = documents.find(d => d.key === key);
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        name: `${key}.jpg`,
+        type: 'image/jpeg',
+      } as any);
+      formData.append('type', key);
+      formData.append('name', doc?.label || key);
+
+      await documentsAPI.upload(formData);
+
+      setDocuments(prev => prev.map(d =>
+        d.key === key ? { ...d, uploading: false, uploaded: true } : d
+      ));
+    } catch (err: any) {
+      setDocuments(prev => prev.map(d =>
+        d.key === key ? { ...d, uploading: false, error: err?.message || 'Upload failed' } : d
+      ));
+    }
+  };
+
+  const uploadedCount = documents.filter(d => d.uploaded).length;
+  const requiredDocs = documents.filter(d => d.required);
+  const requiredUploaded = requiredDocs.every(d => d.uploaded);
 
   const handleContinue = () => {
     if (!vehicleType) {
@@ -56,7 +135,7 @@ export default function CourierDocumentSetupScreen({ navigation, route }: any) {
       plateNumber,
       guarantorName,
       guarantorPhone,
-      uploadedDocs,
+      uploadedDocs: documents.filter(d => d.uploaded).map(d => d.key),
     });
   };
 
@@ -100,7 +179,7 @@ export default function CourierDocumentSetupScreen({ navigation, route }: any) {
             <TouchableOpacity
               key={v.key}
               style={[styles.vehicleCard, vehicleType === v.key && styles.vehicleCardActive]}
-              onPress={() => setVehicleType(v.key)}
+              onPress={() => handleVehicleChange(v.key)}
             >
               <Ionicons
                 name={v.icon as any}
@@ -135,32 +214,39 @@ export default function CourierDocumentSetupScreen({ navigation, route }: any) {
 
       {/* Documents */}
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Documents</Text>
-        <Text style={styles.inputHint}>Tap to mark documents you have ready to upload</Text>
-        {getCourierDocuments(vehicleType || 'motorcycle').map((doc) => (
+        <Text style={styles.inputLabel}>Documents ({uploadedCount}/{documents.length})</Text>
+        <Text style={styles.inputHint}>Tap each document to pick a photo from your gallery</Text>
+        {documents.map((doc) => (
           <TouchableOpacity
             key={doc.key}
-            style={[styles.docRow, uploadedDocs.includes(doc.key) && styles.docRowActive]}
-            onPress={() => toggleDoc(doc.key)}
+            style={[styles.docRow, doc.uploaded && styles.docRowActive]}
+            onPress={() => !doc.uploading && handlePickDocument(doc.key)}
+            disabled={doc.uploading}
           >
-            <View style={[styles.docIcon, uploadedDocs.includes(doc.key) && styles.docIconActive]}>
-              <Ionicons
-                name={uploadedDocs.includes(doc.key) ? 'checkmark' : (doc.icon as any)}
-                size={20}
-                color={uploadedDocs.includes(doc.key) ? colors.textWhite : colors.textLight}
-              />
+            <View style={[styles.docIcon, doc.uploaded && styles.docIconActive]}>
+              {doc.uploading ? (
+                <ActivityIndicator size="small" color={colors.teal} />
+              ) : doc.uploaded ? (
+                <Ionicons name="checkmark" size={20} color={colors.textWhite} />
+              ) : (
+                <Ionicons name={doc.icon as any} size={20} color={colors.textLight} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.docLabel}>{doc.label}</Text>
               <Text style={styles.docStatus}>
-                {doc.required ? 'Required' : 'Optional'}
+                {doc.uploading ? 'Uploading...' : doc.uploaded ? 'Uploaded ✓' : doc.error ? doc.error : doc.required ? 'Required — tap to upload' : 'Optional — tap to upload'}
               </Text>
             </View>
-            <Ionicons
-              name={uploadedDocs.includes(doc.key) ? 'checkmark-circle' : 'ellipse-outline'}
-              size={22}
-              color={uploadedDocs.includes(doc.key) ? colors.success : colors.border}
-            />
+            {doc.uri && !doc.uploading ? (
+              <Image source={{ uri: doc.uri }} style={{ width: 36, height: 36, borderRadius: 8 }} />
+            ) : (
+              <Ionicons
+                name={doc.uploaded ? 'checkmark-circle' : doc.error ? 'alert-circle' : 'cloud-upload-outline'}
+                size={22}
+                color={doc.uploaded ? colors.success : doc.error ? colors.error : colors.border}
+              />
+            )}
           </TouchableOpacity>
         ))}
       </View>

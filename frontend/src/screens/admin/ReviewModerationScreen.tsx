@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { reviewsAPI } from '../../services/api';
+import { reviewsAPI, resolveMediaUrl } from '../../services/api';
 
 
 export default function ReviewModerationScreen({ navigation }: any) {
@@ -108,7 +108,7 @@ export default function ReviewModerationScreen({ navigation }: any) {
             )}
 
             <View style={styles.reviewTop}>
-              <Image source={{ uri: review.avatar }} style={styles.avatar} />
+              <Image source={{ uri: resolveMediaUrl(review.avatar) || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(review.customer || '') + '&background=0D1B2A&color=fff&size=80' }} style={styles.avatar} />
               <View style={styles.reviewInfo}>
                 <Text style={styles.customerName}>{review.customer}</Text>
                 <View style={styles.reviewMeta}>

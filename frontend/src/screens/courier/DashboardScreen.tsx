@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,33 +11,19 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
-import { mockCourierStats } from '../../data/mockData';
-import { analyticsAPI, courierOrdersAPI } from '../../services/api';
+import { useTheme } from '../../theme/ThemeContext';
+import { analyticsAPI, courierOrdersAPI, documentsAPI } from '../../services/api';
+import { getRequiredDocKeys } from '../../config/documentRequirements';
 import { useAuth } from '../../contexts/AuthContext';
 import OrderRequestPopup, { IncomingOrder } from '../../components/courier/OrderRequestPopup';
 import DeclineReasonModal from '../../components/courier/DeclineReasonModal';
 
 const { width } = Dimensions.get('window');
 
-const recentDeliveries = [
-  { id: '1', restaurant: 'Burger House', customer: 'John S.', amount: 8.65, time: '18 min', distance: '1.5 km', status: 'completed', tip: 3.00 },
-  { id: '2', restaurant: 'Sushi Sushi', customer: 'Anna D.', amount: 12.30, time: '25 min', distance: '2.8 km', status: 'completed', tip: 5.00 },
-  { id: '3', restaurant: 'Pizza Roma', customer: 'Mike L.', amount: 7.20, time: '15 min', distance: '1.1 km', status: 'completed', tip: 2.00 },
-];
-
-const hourlyEarnings = [
-  { hour: '9AM', amount: 12 },
-  { hour: '10AM', amount: 24 },
-  { hour: '11AM', amount: 18 },
-  { hour: '12PM', amount: 35 },
-  { hour: '1PM', amount: 28 },
-  { hour: '2PM', amount: 15 },
-  { hour: '3PM', amount: 22 },
-  { hour: '4PM', amount: 30 },
-];
 
 export default function CourierDashboardScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [stats, setStats] = useState({
@@ -55,6 +41,27 @@ export default function CourierDashboardScreen({ navigation }: any) {
   const [showDeclineReason, setShowDeclineReason] = useState(false);
   const [declineOrderId, setDeclineOrderId] = useState('');
   const [onlineMinutes, setOnlineMinutes] = useState(0);
+  const [recentDeliveries, setRecentDeliveries] = useState<any[]>([]);
+  const [hourlyEarnings, setHourlyEarnings] = useState<{hour: string; amount: number}[]>([]);
+  const [missingDocs, setMissingDocs] = useState<number>(0);
+  const [showDocBanner, setShowDocBanner] = useState(false);
+
+  // Check for missing documents
+  useEffect(() => {
+    const checkDocs = async () => {
+      try {
+        const docs = await documentsAPI.getMyDocuments();
+        const uploadedTypes = (docs || []).map((d: any) => d.type);
+        const required = getRequiredDocKeys('courier');
+        const missing = required.filter(k => !uploadedTypes.includes(k));
+        if (missing.length > 0) {
+          setMissingDocs(missing.length);
+          setShowDocBanner(true);
+        }
+      } catch {}
+    };
+    checkDocs();
+  }, []);
 
   // Rest break reminder
   useEffect(() => {
@@ -63,29 +70,6 @@ export default function CourierDashboardScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, [isOnline]);
 
-  // Simulate incoming order after going online (demo)
-  useEffect(() => {
-    if (!isOnline) return;
-    const timer = setTimeout(() => {
-      setIncomingOrder({
-        id: 'demo-1',
-        restaurant: 'Chicken Republic',
-        restaurantAddress: '12 Admiralty Way, Lekki Phase 1',
-        customer: 'Adaeze O.',
-        customerAddress: '45 Chevron Drive, Lekki',
-        items: ['Chicken Meal x2', 'Jollof Rice x1'],
-        itemCount: 3,
-        distance: 2.4,
-        estimatedTime: 18,
-        basePay: 1200,
-        estimatedTip: 500,
-        surgeMultiplier: 1.3,
-        deliveryInstructions: 'Call when you arrive at the gate',
-      });
-      setShowOrderPopup(true);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [isOnline]);
 
   const handleAcceptOrder = async (orderId: string) => {
     setShowOrderPopup(false);
@@ -125,8 +109,12 @@ export default function CourierDashboardScreen({ navigation }: any) {
     const fetchStats = async () => {
       try {
         const res = await analyticsAPI.dashboard();
-        if (res) setStats(prev => ({ ...prev, ...res }));
-      } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
+        if (res) {
+          setStats(prev => ({ ...prev, ...res }));
+          if (res.recentDeliveries) setRecentDeliveries(res.recentDeliveries);
+          if (res.hourlyEarnings) setHourlyEarnings(res.hourlyEarnings);
+        }
+      } catch {} // Silently fail on dashboard poll — data will show as 0
     };
     fetchStats();
     if (isOnline) {
@@ -134,7 +122,7 @@ export default function CourierDashboardScreen({ navigation }: any) {
       return () => clearInterval(interval);
     }
   }, [isOnline]);
-  const maxEarning = Math.max(...hourlyEarnings.map(h => h.amount));
+  const maxEarning = hourlyEarnings.length ? Math.max(...hourlyEarnings.map(h => h.amount)) : 1;
 
   return (
     <View style={styles.container}>
@@ -160,6 +148,28 @@ export default function CourierDashboardScreen({ navigation }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Document Verification Banner */}
+        {showDocBanner && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              backgroundColor: colors.warning + '15', borderRadius: 14,
+              padding: 14, marginHorizontal: 16, marginTop: 12,
+              borderWidth: 1, borderColor: colors.warning + '30',
+            }}
+            onPress={() => navigation.navigate('DocumentVerification')}
+          >
+            <Ionicons name="document-text" size={24} color={colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>Documents Required</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                {missingDocs} required document{missingDocs !== 1 ? 's' : ''} missing. Upload to get verified.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.warning} />
+          </TouchableOpacity>
+        )}
+
         {/* Today's Summary */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
@@ -260,7 +270,7 @@ export default function CourierDashboardScreen({ navigation }: any) {
         {/* Recent Deliveries */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Deliveries</Text>
-          {recentDeliveries.map((delivery) => (
+          {recentDeliveries.length > 0 ? recentDeliveries.map((delivery) => (
             <View key={delivery.id} style={styles.deliveryCard}>
               <View style={styles.deliveryIcon}>
                 <Ionicons name="checkmark-circle" size={22} color={colors.success} />
@@ -275,13 +285,18 @@ export default function CourierDashboardScreen({ navigation }: any) {
                 </View>
               </View>
               <View style={styles.deliveryEarnings}>
-                <Text style={styles.deliveryAmount}>₦{delivery.amount.toLocaleString()}</Text>
+                <Text style={styles.deliveryAmount}>₦{delivery.amount?.toLocaleString()}</Text>
                 {delivery.tip > 0 && (
-                  <Text style={styles.deliveryTip}>+₦{delivery.tip.toLocaleString()} tip</Text>
+                  <Text style={styles.deliveryTip}>+₦{delivery.tip?.toLocaleString()} tip</Text>
                 )}
               </View>
             </View>
-          ))}
+          )) : (
+            <View style={styles.deliveryCard}>
+              <Ionicons name="bicycle-outline" size={22} color={colors.textLight} />
+              <Text style={[styles.deliveryCustomer, { marginLeft: 12 }]}>No deliveries yet — go online to start earning!</Text>
+            </View>
+          )}
         </View>
 
         {/* Rest Break Reminder */}
@@ -394,7 +409,7 @@ export default function CourierDashboardScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 20,

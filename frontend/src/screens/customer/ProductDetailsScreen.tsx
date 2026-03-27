@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { gadgetsAPI, Product } from '../../services/gadgetsAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -101,7 +102,7 @@ const ProductDetailsScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
         <View style={styles.imageSection}>
-          <Image source={{ uri: product.images[selectedImage] }} style={styles.mainImage} />
+          <Image source={{ uri: resolveMediaUrl(product.images[selectedImage]) || product.images[selectedImage] }} style={styles.mainImage} />
           {discount && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>-{discount}%</Text>
@@ -114,7 +115,7 @@ const ProductDetailsScreen: React.FC = () => {
                 onPress={() => setSelectedImage(index)}
                 style={[styles.thumbnail, selectedImage === index && styles.thumbnailActive]}
               >
-                <Image source={{ uri: image }} style={styles.thumbnailImage} />
+                <Image source={{ uri: resolveMediaUrl(image) || image }} style={styles.thumbnailImage} />
               </TouchableOpacity>
             ))}
           </ScrollView>

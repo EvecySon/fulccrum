@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { servicesAPI, ServiceProvider } from '../../services/servicesAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -175,9 +176,9 @@ const ServicesHomeScreen: React.FC = () => {
                   onPress={() => handleProviderSelect(provider)}
                 >
                   <View style={styles.providerImageContainer}>
-                    {provider.avatarUrl ? (
+                    {resolveMediaUrl(provider.avatarUrl) ? (
                       <Image
-                        source={{ uri: provider.avatarUrl }}
+                        source={{ uri: resolveMediaUrl(provider.avatarUrl)! }}
                         style={styles.providerImage}
                       />
                     ) : (

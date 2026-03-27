@@ -15,6 +15,7 @@ import {
   mockPopularSearches,
   getMenuForRestaurant,
 } from './mockData';
+import { resolveMediaUrl } from './api';
 
 // Set to true to always use mock data (no backend needed)
 export const USE_MOCK = false;
@@ -49,7 +50,7 @@ export function normalizeRestaurant(r: any): any {
     ...r,
     id: r.id || r.userId,
     name: r.name || r.businessName,
-    image: r.image || r.logoUrl || r.coverImageUrl,
+    image: resolveMediaUrl(r.image) || resolveMediaUrl(r.logoUrl) || resolveMediaUrl(r.coverImageUrl),
     deliveryTime: r.deliveryTime || r.estimatedDeliveryTime || r.averagePreparationTime,
     minimumOrder: r.minimumOrder ?? r.minimumOrderAmount,
     cuisine: r.cuisine || r.description,
@@ -65,7 +66,7 @@ export function normalizeMenuItem(item: any): any {
   if (!item) return item;
   return {
     ...item,
-    image: item.image || (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : undefined),
+    image: resolveMediaUrl(item.image) || (Array.isArray(item.images) && item.images.length > 0 ? resolveMediaUrl(item.images[0]) : undefined),
     category: typeof item.category === 'string' ? item.category : item.category?.name || 'Uncategorized',
     prepTime: item.prepTime || (item.preparationTime ? `${item.preparationTime} min` : undefined),
     calories: item.calories || item.nutritionalInfo?.calories,

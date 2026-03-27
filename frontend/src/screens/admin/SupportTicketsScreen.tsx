@@ -15,6 +15,7 @@ import { colors } from '../../theme/colors';
 import { ticketsAPI, type Ticket } from '../../services/ticketsAPI';
 import { agentAPI } from '../../services/agentAPI';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveMediaUrl } from '../../services/api';
 import websocketService from '../../services/websocketService';
 import ActionSheet from '../../components/ActionSheet';
 
@@ -250,7 +251,7 @@ export default function SupportTicketsScreen({ navigation }: any) {
           filtered.map(ticket => {
             const priority = getPriorityStyle(ticket.priority);
             const status = getStatusStyle(ticket.status);
-            const avatar = ticket.assignedAgent?.avatarUrl || 'https://i.pravatar.cc/100?img=1';
+            const avatar = resolveMediaUrl(ticket.assignedAgent?.avatarUrl) || 'https://i.pravatar.cc/100?img=1';
             return (
               <TouchableOpacity 
                 key={ticket.id} 

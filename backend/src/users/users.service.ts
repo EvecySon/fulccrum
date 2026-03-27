@@ -21,6 +21,7 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    console.log('[UsersService] updateProfile called for user:', userId, 'with data:', JSON.stringify(dto));
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -34,15 +35,28 @@ export class UsersService {
     }
 
     if (dto.phone && dto.phone !== user.phone) {
-      const existing = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+      const existing = await this.prisma.user.findFirst({ where: { phone: dto.phone, NOT: { id: userId } } });
       if (existing) {
         throw new ConflictException('Phone number already in use');
       }
     }
 
-    return this.prisma.user.update({
+    // Extract only known fields to avoid passing class metadata to Prisma
+    const data: Record<string, any> = {};
+    if (dto.firstName !== undefined) data.firstName = dto.firstName;
+    if (dto.lastName !== undefined) data.lastName = dto.lastName;
+    if (dto.email !== undefined) data.email = dto.email;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
+    if (dto.dietaryPreferences !== undefined) data.dietaryPreferences = dto.dietaryPreferences;
+    if (dto.allergies !== undefined) data.allergies = dto.allergies;
+    if (dto.customAllergies !== undefined) data.customAllergies = dto.customAllergies;
+
+    console.log('[UsersService] Updating with clean data:', JSON.stringify(data));
+
+    const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: dto,
+      data,
       select: {
         id: true,
         email: true,
@@ -57,6 +71,9 @@ export class UsersService {
         customAllergies: true,
       },
     });
+
+    console.log('[UsersService] Profile updated successfully:', JSON.stringify(updated));
+    return updated;
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {

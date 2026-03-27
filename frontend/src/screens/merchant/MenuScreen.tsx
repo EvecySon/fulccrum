@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { colors } from '../../theme/colors';
-import { menuAPI, uploadAPI, getApiBaseUrl } from '../../services/api';
+import { menuAPI, uploadAPI, getApiBaseUrl, resolveMediaUrl } from '../../services/api';
 import { pickImage } from '../../services/uploadService';
 
 
@@ -416,7 +416,7 @@ export default function MerchantMenuScreen({ navigation }: any) {
           : currentCategory?.items || []
         ).map((item: any) => {
           const imgArr = Array.isArray(item.images) ? item.images : [];
-          const imgUri = imgArr[0] || null;
+          const imgUri = resolveMediaUrl(imgArr[0]) || null;
           return (
           <View key={item.id} style={[styles.menuItem, !itemAvailability[item.id] && styles.menuItemDisabled]}>
             <TouchableOpacity onPress={() => handlePickItemPhoto(item.id)}>

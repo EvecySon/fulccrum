@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,38 +11,18 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { walletAPI } from '../../services/api';
 
-const mockWallet = {
-  balance: 78500,
-  pendingBalance: 12300,
-  todayEarnings: 22500,
-  weeklyEarnings: 117000,
-};
-
-const mockBankAccounts = [
-  { id: '1', bankName: 'First Bank', accountNumber: '****7832', accountName: 'Okafor Chinedu', isDefault: true },
-  { id: '2', bankName: 'UBA', accountNumber: '****2190', accountName: 'Okafor Chinedu', isDefault: false },
-];
-
-const mockTransactions = [
-  { id: '1', type: 'earning', desc: 'Delivery #3242', amount: 1300, date: 'Today, 2:30 PM' },
-  { id: '2', type: 'earning', desc: 'Delivery #3240', amount: 1850, date: 'Today, 1:15 PM' },
-  { id: '3', type: 'tip', desc: 'Tip from Adaeze O.', amount: 500, date: 'Today, 1:20 PM' },
-  { id: '4', type: 'withdrawal', desc: 'Bank withdrawal', amount: -50000, date: 'Feb 5, 2026' },
-  { id: '5', type: 'earning', desc: 'Delivery #3235', amount: 2300, date: 'Yesterday' },
-  { id: '6', type: 'bonus', desc: 'Peak hour bonus', amount: 1000, date: 'Yesterday' },
-  { id: '7', type: 'earning', desc: 'Delivery #3230', amount: 1500, date: 'Feb 5, 2026' },
-];
-
 export default function CourierWalletScreen({ navigation }: any) {
-  const [wallet, setWallet] = useState(mockWallet);
-  const [bankAccounts, setBankAccounts] = useState(mockBankAccounts);
-  const [transactions, setTransactions] = useState(mockTransactions);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [wallet, setWallet] = useState({ balance: 0, pendingBalance: 0, todayEarnings: 0, weeklyEarnings: 0 });
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [selectedBank, setSelectedBank] = useState(mockBankAccounts.find(b => b.isDefault)?.id || '1');
+  const [selectedBank, setSelectedBank] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -75,12 +55,8 @@ export default function CourierWalletScreen({ navigation }: any) {
       await loadWalletData();
       setShowWithdraw(false);
       setWithdrawAmount('');
-    } catch {
-      // Fallback: simulate success in dev
-      setTimeout(() => {
-        setShowWithdraw(false);
-        setWithdrawAmount('');
-      }, 1000);
+    } catch (e: any) {
+      Alert.alert('Withdrawal Failed', e?.message || 'Could not process withdrawal. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -240,7 +216,7 @@ export default function CourierWalletScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   headerBg: { backgroundColor: colors.teal, paddingBottom: 20, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 16, paddingBottom: 8 },

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { servicesAPI, ServiceProvider } from '../../services/servicesAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const SPECIALIZATIONS = [
   'General Practice',
@@ -221,9 +222,9 @@ const HealthServicesScreen: React.FC = () => {
             >
               <View style={styles.providerHeader}>
                 <View style={styles.providerImageContainer}>
-                  {provider.avatarUrl ? (
+                  {resolveMediaUrl(provider.avatarUrl) ? (
                     <Image
-                      source={{ uri: provider.avatarUrl }}
+                      source={{ uri: resolveMediaUrl(provider.avatarUrl)! }}
                       style={styles.providerImage}
                     />
                   ) : (

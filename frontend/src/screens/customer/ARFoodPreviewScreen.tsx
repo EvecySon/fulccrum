@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { arAPI } from '../../services/api';
+import { arAPI, resolveMediaUrl } from '../../services/api';
 import { useCart } from '../../contexts/CartContext';
 
 interface ARModel {
@@ -62,7 +62,7 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
       <View style={styles.arViewport}>
         {arActive ? (
           <View style={styles.arActiveView}>
-            <Image source={{ uri: selectedItem?.image }} style={styles.arImage} />
+            <Image source={{ uri: resolveMediaUrl(selectedItem?.image) || selectedItem?.image }} style={styles.arImage} />
             <View style={styles.arOverlay}>
               <View style={styles.arBadge}>
                 <Ionicons name="cube-outline" size={14} color={colors.textWhite} />
@@ -125,7 +125,7 @@ export default function ARFoodPreviewScreen({ navigation, route }: any) {
               style={[styles.selectorCard, selectedItem?.id === item.id && styles.selectorCardActive]}
               onPress={() => { setSelectedItem(item); setArActive(false); }}
             >
-              <Image source={{ uri: item.image }} style={styles.selectorImage} />
+              <Image source={{ uri: resolveMediaUrl(item.image) || item.image }} style={styles.selectorImage} />
               <Text style={[styles.selectorName, selectedItem?.id === item.id && styles.selectorNameActive]} numberOfLines={1}>
                 {item.name}
               </Text>

@@ -19,17 +19,14 @@ import { colors } from '../../theme/colors';
 import { usersAPI, uploadAPI, resolveMediaUrl } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten Free', 'Halal', 'Keto', 'Dairy Free'];
-const ALLERGY_OPTIONS = ['Nuts', 'Shellfish', 'Dairy', 'Eggs', 'Soy', 'Gluten', 'Fish'];
-
 const getAvatarUri = (user: any) => {
   const resolved = resolveMediaUrl(user?.avatarUrl);
   if (resolved) return resolved;
   const name = encodeURIComponent((user?.firstName || '') + ' ' + (user?.lastName || ''));
-  return `https://ui-avatars.com/api/?name=${name}&background=0D1B2A&color=fff&size=200`;
+  return `https://ui-avatars.com/api/?name=${name}&background=0d9488&color=fff&size=200`;
 };
 
-export default function EditProfileScreen({ navigation }: any) {
+export default function CourierEditProfileScreen({ navigation }: any) {
   const { user, setUser } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
@@ -38,22 +35,11 @@ export default function EditProfileScreen({ navigation }: any) {
   const [avatarUri, setAvatarUri] = useState(getAvatarUri(user));
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [dietaryPrefs, setDietaryPrefs] = useState<string[]>(user?.dietaryPreferences || []);
-  const [allergies, setAllergies] = useState<string[]>(user?.allergies || []);
-  const [customAllergies, setCustomAllergies] = useState(user?.customAllergies || '');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [changingPw, setChangingPw] = useState(false);
-
-  const togglePref = (pref: string) => {
-    setDietaryPrefs((prev) => prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref]);
-  };
-
-  const toggleAllergy = (allergy: string) => {
-    setAllergies((prev) => prev.includes(allergy) ? prev.filter((a) => a !== allergy) : [...prev, allergy]);
-  };
 
   const handlePickAvatar = async () => {
     try {
@@ -72,13 +58,11 @@ export default function EditProfileScreen({ navigation }: any) {
       const formData = new FormData();
 
       if (Platform.OS === 'web') {
-        // Web: fetch the blob from the URI and append as a File
         const response = await fetch(asset.uri);
         const blob = await response.blob();
         const file = new File([blob], 'avatar.jpg', { type: asset.mimeType || 'image/jpeg' });
         formData.append('file', file);
       } else {
-        // Mobile: use React Native FormData pattern
         formData.append('file', {
           uri: asset.uri,
           name: 'avatar.jpg',
@@ -90,15 +74,11 @@ export default function EditProfileScreen({ navigation }: any) {
       if (uploaded?.url) {
         const resolvedUrl = resolveMediaUrl(uploaded.url) || uploaded.url;
         setAvatarUri(resolvedUrl);
-        
-        // Fetch fresh user data from backend to ensure avatar persists
+
         try {
           const freshUser = await usersAPI.getProfile();
-          if (freshUser) {
-            setUser(freshUser);
-          }
+          if (freshUser) setUser(freshUser);
         } catch (err) {
-          // Fallback: update local context if fetch fails
           if (user) setUser({ ...user, avatarUrl: uploaded.url });
         }
       }
@@ -119,9 +99,6 @@ export default function EditProfileScreen({ navigation }: any) {
         lastName: lastName.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
-        dietaryPreferences: dietaryPrefs,
-        allergies,
-        customAllergies: customAllergies.trim() || undefined,
       });
       if (updated) setUser(updated);
       Alert.alert('Saved', 'Profile updated successfully.');
@@ -159,7 +136,7 @@ export default function EditProfileScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <TouchableOpacity onPress={handleSave} disabled={saving}>
@@ -249,54 +226,6 @@ export default function EditProfileScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Dietary Preferences */}
-        <View style={styles.prefCard}>
-          <Text style={styles.prefTitle}>Dietary Preferences</Text>
-          <View style={styles.prefGrid}>
-            {DIETARY_OPTIONS.map((pref) => {
-              const isSelected = dietaryPrefs.includes(pref);
-              return (
-                <TouchableOpacity key={pref} style={[styles.prefChip, isSelected && styles.prefChipActive]} onPress={() => togglePref(pref)}>
-                  <Text style={[styles.prefChipText, isSelected && styles.prefChipTextActive]}>{pref}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Allergy Info */}
-        <View style={styles.prefCard}>
-          <Text style={styles.prefTitle}>Allergies</Text>
-          <View style={styles.prefGrid}>
-            {ALLERGY_OPTIONS.map((allergy) => {
-              const isSelected = allergies.includes(allergy);
-              return (
-                <TouchableOpacity key={allergy} style={[styles.allergyChip, isSelected && styles.allergyChipActive]} onPress={() => toggleAllergy(allergy)}>
-                  <Ionicons
-                    name={isSelected ? 'alert-circle' : 'add-circle-outline'}
-                    size={14}
-                    color={isSelected ? colors.textWhite : colors.error}
-                  />
-                  <Text style={[styles.allergyChipText, isSelected && styles.allergyChipTextActive]}>{allergy}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.prefTitle, { fontSize: 13, marginTop: 14, marginBottom: 6, color: colors.textSecondary }]}>
-            Other Allergies / Dietary Needs
-          </Text>
-          <TextInput
-            style={styles.customAllergyInput}
-            placeholder="e.g. Nightshades, MSG sensitivity, Pescatarian..."
-            placeholderTextColor={colors.textLight}
-            value={customAllergies}
-            onChangeText={setCustomAllergies}
-            multiline
-            numberOfLines={2}
-          />
-        </View>
-
         {/* Account Actions */}
         <View style={styles.actionsCard}>
           <TouchableOpacity style={styles.actionRow} onPress={handleChangePassword}>
@@ -305,16 +234,15 @@ export default function EditProfileScreen({ navigation }: any) {
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
           <View style={styles.fieldDivider} />
-          <TouchableOpacity style={styles.actionRow}>
-            <Ionicons name="language-outline" size={20} color={colors.navy} />
-            <Text style={styles.actionText}>Language</Text>
-            <Text style={styles.actionValue}>English</Text>
+          <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('DocumentVerification')}>
+            <Ionicons name="document-text-outline" size={20} color={colors.navy} />
+            <Text style={styles.actionText}>Documents & Verification</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
           <View style={styles.fieldDivider} />
-          <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('Notifications')}>
-            <Ionicons name="notifications-outline" size={20} color={colors.navy} />
-            <Text style={styles.actionText}>Notification Preferences</Text>
+          <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('VehicleManagement')}>
+            <Ionicons name="car-outline" size={20} color={colors.navy} />
+            <Text style={styles.actionText}>Vehicle Information</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
         </View>
@@ -391,17 +319,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
-    marginTop: 10, marginHorizontal: 10, borderRadius: 28, backgroundColor: colors.white,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 5,
+    backgroundColor: colors.navy,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textWhite },
   saveBtn: { fontSize: 16, fontWeight: '700', color: colors.teal },
   content: { flex: 1, paddingHorizontal: 10, paddingTop: 12 },
   avatarSection: { alignItems: 'center', marginBottom: 20 },
   avatarWrapper: { position: 'relative' },
-  avatar: { width: 100, height: 100, borderRadius: 30 },
+  avatar: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: colors.teal },
   cameraBtn: {
-    position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16,
+    position: 'absolute', bottom: 0, right: 0, width: 34, height: 34, borderRadius: 17,
     backgroundColor: colors.teal, justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: colors.lightGray,
   },
@@ -414,31 +341,9 @@ const styles = StyleSheet.create({
   verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   verifiedText: { fontSize: 11, fontWeight: '600', color: colors.success },
   fieldDivider: { height: 1, backgroundColor: colors.borderLight },
-  prefCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 16 },
-  prefTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
-  prefGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  prefChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-    backgroundColor: colors.lightGray, borderWidth: 1, borderColor: colors.border,
-  },
-  prefChipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  prefChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  prefChipTextActive: { color: colors.textWhite },
-  allergyChip: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 12, backgroundColor: colors.error + '08', borderWidth: 1, borderColor: colors.error + '25', gap: 4,
-  },
-  allergyChipActive: { backgroundColor: colors.error, borderColor: colors.error },
-  allergyChipText: { fontSize: 13, fontWeight: '600', color: colors.error },
-  allergyChipTextActive: { color: colors.textWhite },
-  customAllergyInput: {
-    backgroundColor: colors.lightGray, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14, color: colors.textPrimary, minHeight: 50, textAlignVertical: 'top',
-  },
   actionsCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 16 },
   actionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   actionText: { flex: 1, fontSize: 15, color: colors.textPrimary },
-  actionValue: { fontSize: 14, color: colors.textLight },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end',
   },

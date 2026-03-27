@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { gadgetsAPI, Product } from '../../services/gadgetsAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const SellerDashboardScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -162,7 +163,7 @@ const SellerDashboardScreen: React.FC = () => {
           ) : (
             products.map((product) => (
               <View key={product.id} style={styles.productCard}>
-                <Image source={{ uri: product.images[0] }} style={styles.productImage} />
+                <Image source={{ uri: resolveMediaUrl(product.images[0]) || product.images[0] }} style={styles.productImage} />
 
                 <View style={styles.productInfo}>
                   <Text style={styles.productName} numberOfLines={2}>

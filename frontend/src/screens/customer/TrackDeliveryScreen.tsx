@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { resolveMediaUrl } from '../../services/api';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -368,8 +369,8 @@ const TrackDeliveryScreen: React.FC = () => {
           {/* Courier Info */}
           <View style={styles.courierInfo}>
             <TouchableOpacity style={styles.courierAvatar} onPress={handleCourierAvatarPress} activeOpacity={0.75}>
-              {courierInfo?.avatarUrl ? (
-                <Image source={{ uri: courierInfo.avatarUrl }} style={styles.avatarImage} />
+              {resolveMediaUrl(courierInfo?.avatarUrl) ? (
+                <Image source={{ uri: resolveMediaUrl(courierInfo.avatarUrl)! }} style={styles.avatarImage} />
               ) : (
                 <Ionicons name="person" size={32} color="#7B8494" />
               )}

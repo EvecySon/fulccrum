@@ -30,60 +30,24 @@ interface Claim {
   description: string;
 }
 
-const mockCurrentPlan: InsurancePlan = {
-  id: '2',
-  name: 'Standard Protection',
-  type: 'standard',
-  monthlyPremium: 3500,
-  coverage: [
-    'Accident coverage up to ₦500,000',
-    'Third-party liability',
-    'Medical expenses up to ₦200,000',
-    'Lost/damaged goods up to ₦50,000',
-    'Legal assistance',
-  ],
-  maxCoverage: 500000,
-  active: true,
-};
-
-const mockPlans: InsurancePlan[] = [
-  {
-    id: '1', name: 'Basic Protection', type: 'basic', monthlyPremium: 1500,
-    coverage: ['Accident coverage up to ₦200,000', 'Third-party liability', 'Medical expenses up to ₦50,000'],
-    maxCoverage: 200000, active: false,
-  },
-  mockCurrentPlan,
-  {
-    id: '3', name: 'Premium Protection', type: 'premium', monthlyPremium: 6000,
-    coverage: [
-      'Accident coverage up to ₦1,000,000', 'Third-party liability', 'Medical expenses up to ₦500,000',
-      'Lost/damaged goods up to ₦150,000', 'Legal assistance', 'Income protection (7 days)',
-      'Vehicle replacement coverage', '24/7 roadside assistance',
-    ],
-    maxCoverage: 1000000, active: false,
-  },
-];
-
-const mockClaims: Claim[] = [
-  { id: '1', type: 'Accident', date: 'Jan 15, 2026', amount: 45000, status: 'paid', description: 'Minor collision at Lekki roundabout' },
-  { id: '2', type: 'Medical', date: 'Dec 20, 2025', amount: 12000, status: 'approved', description: 'Hospital visit after fall' },
-  { id: '3', type: 'Lost Goods', date: 'Nov 5, 2025', amount: 8500, status: 'rejected', description: 'Package damaged during delivery' },
-];
 
 export default function InsuranceScreen({ navigation }: any) {
-  const [currentPlan, setCurrentPlan] = useState(mockCurrentPlan);
+  const [currentPlan, setCurrentPlan] = useState<InsurancePlan | null>(null);
+  const [plans, setPlans] = useState<InsurancePlan[]>([]);
   const [showPlans, setShowPlans] = useState(false);
-  const [claims, setClaims] = useState(mockClaims);
+  const [claims, setClaims] = useState<Claim[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const [planRes, claimsRes] = await Promise.all([
+        const [planRes, plansRes, claimsRes] = await Promise.all([
           courierInsuranceAPI.getCurrentPlan().catch(() => null),
+          courierInsuranceAPI.getPlans().catch(() => null),
           courierInsuranceAPI.getClaims().catch(() => null),
         ]);
         if (planRes?.id) setCurrentPlan(planRes);
-        if (Array.isArray(claimsRes) && claimsRes.length) setClaims(claimsRes);
+        if (Array.isArray(plansRes)) setPlans(plansRes);
+        if (Array.isArray(claimsRes)) setClaims(claimsRes);
       } catch {}
     })();
   }, []);
@@ -129,6 +93,7 @@ export default function InsuranceScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Current Plan */}
+        {currentPlan ? (
         <View style={[styles.planHero, { borderColor: getPlanColor(currentPlan.type) + '40' }]}>
           <View style={styles.planHeroHeader}>
             <View style={[styles.planBadge, { backgroundColor: getPlanColor(currentPlan.type) + '15' }]}>
@@ -166,14 +131,24 @@ export default function InsuranceScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+        ) : (
+          <View style={[styles.planHero, { borderColor: colors.border }]}>
+            <Ionicons name="shield-outline" size={32} color={colors.textLight} />
+            <Text style={[styles.planName, { marginTop: 8 }]}>No Insurance Plan</Text>
+            <Text style={styles.planPremium}>Browse plans below to get covered</Text>
+            <TouchableOpacity style={[styles.upgradeBtn, { marginTop: 12 }]} onPress={() => setShowPlans(true)}>
+              <Text style={styles.upgradeBtnText}>View Plans</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Available Plans */}
         {showPlans && (
           <View style={styles.plansSection}>
             <Text style={styles.sectionTitle}>Available Plans</Text>
-            {mockPlans.map((plan) => {
+            {plans.map((plan) => {
               const planColor = getPlanColor(plan.type);
-              const isCurrent = plan.id === currentPlan.id;
+              const isCurrent = plan.id === currentPlan?.id;
               return (
                 <View key={plan.id} style={[styles.planCard, isCurrent && { borderColor: planColor + '40', borderWidth: 2 }]}>
                   <View style={styles.planCardHeader}>

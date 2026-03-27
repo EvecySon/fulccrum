@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,23 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
-import { mockAvailableDeliveries } from '../../data/mockData';
+import { useTheme } from '../../theme/ThemeContext';
 import { courierOrdersAPI } from '../../services/api';
 
 const filters = ['All', 'Nearby', 'High Pay', 'Quick'];
 
 export default function DeliveriesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [activeFilter, setActiveFilter] = useState('All');
-  const [deliveries, setDeliveries] = useState(mockAvailableDeliveries);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadDeliveries = useCallback(async () => {
     try {
       const res = await courierOrdersAPI.getAvailable(activeFilter !== 'All' ? activeFilter.toLowerCase() : undefined);
       const data = res?.data ?? res;
-      if (Array.isArray(data) && data.length) setDeliveries(data);
+      if (Array.isArray(data)) setDeliveries(data);
     } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
   }, []);
 
@@ -162,7 +163,7 @@ export default function DeliveriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
   header: {
     paddingTop: 54, paddingHorizontal: 20, paddingBottom: 16,
