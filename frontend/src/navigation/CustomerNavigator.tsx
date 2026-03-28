@@ -188,6 +188,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="GadgetsOrderTracking" component={GadgetsOrderTrackingScreen} />
       <Stack.Screen name="SellerDashboard" component={SellerDashboardScreen} />
       <Stack.Screen name="FoodCategories" component={FoodCategoriesScreen} />
+      <Stack.Screen name="Search" component={SearchScreen} />
     </Stack.Navigator>
   );
 }

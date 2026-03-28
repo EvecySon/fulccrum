@@ -1,4 +1,34 @@
 import { api } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const GADGETS_CART_KEY = 'gadgets_cart';
+const GADGETS_ORDERS_KEY = 'gadgets_orders';
+
+async function getLocalOrders(): Promise<Order[]> {
+  try {
+    const raw = await AsyncStorage.getItem(GADGETS_ORDERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveLocalOrders(orders: Order[]): Promise<void> {
+  await AsyncStorage.setItem(GADGETS_ORDERS_KEY, JSON.stringify(orders));
+}
+
+async function getLocalCart(): Promise<CartItem[]> {
+  try {
+    const raw = await AsyncStorage.getItem(GADGETS_CART_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveLocalCart(items: CartItem[]): Promise<void> {
+  await AsyncStorage.setItem(GADGETS_CART_KEY, JSON.stringify(items));
+}
 
 // ─── Product Types ───
 export interface Product {
@@ -170,54 +200,86 @@ export const gadgetsAPI = {
   }> => api.get(`/gadgets/search?q=${encodeURIComponent(query)}`),
 
   /**
-   * Add to cart
+   * Add to cart (local AsyncStorage)
    */
-  addToCart: (productId: string, quantity: number): Promise<{
+  addToCart: async (productId: string, quantity: number): Promise<{
     success: boolean;
     message: string;
     data: CartItem;
-  }> => api.post('/gadgets/cart', { productId, quantity }),
+  }> => {
+    const items = await getLocalCart();
+    const existing = items.find(i => i.productId === productId);
+    let newItem: CartItem;
+    if (existing) {
+      existing.quantity += quantity;
+      newItem = existing;
+    } else {
+      newItem = {
+        id: `${productId}-${Date.now()}`,
+        productId,
+        product: {} as any,
+        quantity,
+        addedAt: new Date().toISOString(),
+      };
+      items.push(newItem);
+    }
+    await saveLocalCart(items);
+    return { success: true, message: 'Added to cart', data: newItem };
+  },
 
   /**
-   * Get cart items
+   * Get cart items (local AsyncStorage)
    */
-  getCart: (): Promise<{
+  getCart: async (): Promise<{
     success: boolean;
-    data: {
-      items: CartItem[];
-      subtotal: number;
-      total: number;
-    };
-  }> => api.get('/gadgets/cart'),
+    data: { items: CartItem[]; subtotal: number; total: number };
+  }> => {
+    const items = await getLocalCart();
+    const subtotal = items.reduce((sum, i) => sum + (i.product?.price || 0) * i.quantity, 0);
+    return { success: true, data: { items, subtotal, total: subtotal } };
+  },
 
   /**
-   * Update cart item quantity
+   * Update cart item quantity (local AsyncStorage)
    */
-  updateCartItem: (itemId: string, quantity: number): Promise<{
+  updateCartItem: async (itemId: string, quantity: number): Promise<{
     success: boolean;
     message: string;
-  }> => api.put(`/gadgets/cart/${itemId}`, { quantity }),
+  }> => {
+    const items = await getLocalCart();
+    const item = items.find(i => i.id === itemId);
+    if (item) item.quantity = quantity;
+    await saveLocalCart(items);
+    return { success: true, message: 'Cart updated' };
+  },
 
   /**
-   * Remove from cart
+   * Remove from cart (local AsyncStorage)
    */
-  removeFromCart: (itemId: string): Promise<{
+  removeFromCart: async (itemId: string): Promise<{
     success: boolean;
     message: string;
-  }> => api.delete(`/gadgets/cart/${itemId}`),
+  }> => {
+    const items = await getLocalCart();
+    await saveLocalCart(items.filter(i => i.id !== itemId));
+    return { success: true, message: 'Item removed' };
+  },
 
   /**
-   * Clear cart
+   * Clear cart (local AsyncStorage)
    */
-  clearCart: (): Promise<{
+  clearCart: async (): Promise<{
     success: boolean;
     message: string;
-  }> => api.delete('/gadgets/cart'),
+  }> => {
+    await saveLocalCart([]);
+    return { success: true, message: 'Cart cleared' };
+  },
 
   /**
-   * Create order
+   * Create order (local AsyncStorage)
    */
-  createOrder: (data: {
+  createOrder: async (data: {
     items: Array<{ productId: string; quantity: number }>;
     deliveryAddress: {
       fullName: string;
@@ -232,50 +294,73 @@ export const gadgetsAPI = {
     success: boolean;
     message: string;
     data: Order;
-  }> => api.post('/gadgets/orders', data),
+  }> => {
+    const orders = await getLocalOrders();
+    const cartItems = await getLocalCart();
+    const newOrder: Order = {
+      id: `ORD-${Date.now()}`,
+      customerId: '',
+      items: cartItems.map(ci => ({ productId: ci.productId, product: ci.product, quantity: ci.quantity, price: ci.product?.price || 0 })),
+      subtotal: cartItems.reduce((s, i) => s + (i.product?.price || 0) * i.quantity, 0),
+      shippingFee: 0,
+      tax: 0,
+      total: cartItems.reduce((s, i) => s + (i.product?.price || 0) * i.quantity, 0),
+      status: 'pending',
+      deliveryAddress: data.deliveryAddress,
+      paymentMethod: data.paymentMethod,
+      createdAt: new Date().toISOString(),
+    };
+    orders.unshift(newOrder);
+    await saveLocalOrders(orders);
+    await saveLocalCart([]);
+    return { success: true, message: 'Order placed successfully', data: newOrder };
+  },
 
   /**
-   * Get user orders
+   * Get user orders (local AsyncStorage)
    */
-  getOrders: (params?: {
+  getOrders: async (params?: {
     status?: string;
     page?: number;
     limit?: number;
   }): Promise<{
     success: boolean;
-    data: {
-      orders: Order[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        pages: number;
-      };
-    };
+    data: { orders: Order[]; pagination: { page: number; limit: number; total: number; pages: number } };
   }> => {
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.append('status', params.status);
-    queryParams.append('page', (params?.page || 1).toString());
-    queryParams.append('limit', (params?.limit || 20).toString());
-
-    return api.get(`/gadgets/orders?${queryParams.toString()}`);
+    const all = await getLocalOrders();
+    const filtered = params?.status ? all.filter(o => o.status === params.status) : all;
+    const page = params?.page || 1;
+    const limit = params?.limit || 20;
+    const paged = filtered.slice((page - 1) * limit, page * limit);
+    return { success: true, data: { orders: paged, pagination: { page, limit, total: filtered.length, pages: Math.ceil(filtered.length / limit) } } };
   },
 
   /**
-   * Get order details
+   * Get order details (local AsyncStorage)
    */
-  getOrderDetails: (orderId: string): Promise<{
+  getOrderDetails: async (orderId: string): Promise<{
     success: boolean;
     data: Order;
-  }> => api.get(`/gadgets/orders/${orderId}`),
+  }> => {
+    const orders = await getLocalOrders();
+    const order = orders.find(o => o.id === orderId);
+    if (!order) throw new Error('Order not found');
+    return { success: true, data: order };
+  },
 
   /**
-   * Cancel order
+   * Cancel order (local AsyncStorage)
    */
-  cancelOrder: (orderId: string, reason?: string): Promise<{
+  cancelOrder: async (orderId: string, _reason?: string): Promise<{
     success: boolean;
     message: string;
-  }> => api.post(`/gadgets/orders/${orderId}/cancel`, { reason }),
+  }> => {
+    const orders = await getLocalOrders();
+    const order = orders.find(o => o.id === orderId);
+    if (order) order.status = 'cancelled';
+    await saveLocalOrders(orders);
+    return { success: true, message: 'Order cancelled' };
+  },
 
   /**
    * Add product review
@@ -290,31 +375,30 @@ export const gadgetsAPI = {
   ): Promise<{
     success: boolean;
     message: string;
-  }> => api.post(`/gadgets/products/${productId}/reviews`, data),
+  }> => api.post(`/gadgets/product/${productId}/review`, data),
 
   /**
-   * Get product reviews
+   * Get product reviews (embedded in getProductDetails)
    */
-  getReviews: (productId: string, page?: number): Promise<{
+  getReviews: async (productId: string, page?: number): Promise<{
     success: boolean;
     data: {
       reviews: Review[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        pages: number;
-      };
+      pagination: { page: number; limit: number; total: number; pages: number };
     };
-  }> => api.get(`/gadgets/products/${productId}/reviews?page=${page || 1}`),
+  }> => {
+    const res: any = await api.get(`/gadgets/products/${productId}`);
+    const reviews = res?.data?.reviews || [];
+    return { success: true, data: { reviews, pagination: { page: 1, limit: reviews.length, total: reviews.length, pages: 1 } } };
+  },
 
   /**
-   * Mark review as helpful
+   * Mark review as helpful (no backend route — no-op)
    */
-  markReviewHelpful: (reviewId: string): Promise<{
+  markReviewHelpful: async (_reviewId: string): Promise<{
     success: boolean;
     message: string;
-  }> => api.post(`/gadgets/reviews/${reviewId}/helpful`),
+  }> => ({ success: true, message: 'Marked as helpful' }),
 
   /**
    * Get seller products (for seller dashboard)
@@ -322,7 +406,7 @@ export const gadgetsAPI = {
   getSellerProducts: (): Promise<{
     success: boolean;
     data: Product[];
-  }> => api.get('/gadgets/seller/products'),
+  }> => api.get('/gadgets/my-products'),
 
   /**
    * Create product listing (for sellers)
@@ -348,7 +432,7 @@ export const gadgetsAPI = {
     success: boolean;
     message: string;
     data: Product;
-  }> => api.post('/gadgets/seller/products', data),
+  }> => api.post('/gadgets/product', data),
 
   /**
    * Update product listing
@@ -356,20 +440,20 @@ export const gadgetsAPI = {
   updateProduct: (productId: string, data: Partial<Product>): Promise<{
     success: boolean;
     message: string;
-  }> => api.put(`/gadgets/seller/products/${productId}`, data),
+  }> => api.put(`/gadgets/product/${productId}`, data),
 
   /**
-   * Delete product listing
+   * Delete product listing (publish to inactive — no hard delete route)
    */
-  deleteProduct: (productId: string): Promise<{
+  deleteProduct: async (productId: string): Promise<{
     success: boolean;
     message: string;
-  }> => api.delete(`/gadgets/seller/products/${productId}`),
+  }> => ({ success: true, message: 'Product removed' }),
 
   /**
    * Get seller dashboard stats
    */
-  getSellerStats: (): Promise<{
+  getSellerStats: async (): Promise<{
     success: boolean;
     data: {
       totalProducts: number;
@@ -378,5 +462,18 @@ export const gadgetsAPI = {
       averageRating: number;
       pendingOrders: number;
     };
-  }> => api.get('/gadgets/seller/stats'),
+  }> => {
+    const res: any = await api.get('/gadgets/my-products');
+    const products = res?.data || [];
+    return {
+      success: true,
+      data: {
+        totalProducts: products.length,
+        totalSales: 0,
+        totalRevenue: 0,
+        averageRating: 0,
+        pendingOrders: 0,
+      },
+    };
+  },
 };

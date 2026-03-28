@@ -156,7 +156,7 @@ export default function OrderDetailsScreen({ navigation, route }: any) {
         {/* Order Items */}
         <View style={styles.itemsCard}>
           <Text style={styles.cardTitle}>Order Items ({order.items.length})</Text>
-          {order.items.map((item, idx) => (
+          {order.items.map((item: any, idx: number) => (
             <View key={item.id} style={[styles.itemRow, idx < order.items.length - 1 && styles.itemBorder]}>
               <View style={styles.itemQty}>
                 <Text style={styles.itemQtyText}>{item.quantity}x</Text>

@@ -241,7 +241,7 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}!</Text>
-            <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Address')}>
+            <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Addresses')}>
               <Ionicons name="location" size={16} color={colors.tealLight} />
               <Text style={styles.addressText} numberOfLines={1}>{defaultAddress || 'Set delivery address'}</Text>
               <Ionicons name="chevron-down" size={16} color={colors.tealLight} />

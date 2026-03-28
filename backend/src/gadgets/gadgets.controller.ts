@@ -19,6 +19,57 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 export class GadgetsController {
   constructor(private readonly gadgetsService: GadgetsService) {}
 
+  @Get('featured')
+  async getFeaturedProducts() {
+    const result = await this.gadgetsService.searchProducts({
+      sortBy: 'popular',
+      limit: 20,
+      page: 1,
+    });
+    return {
+      success: true,
+      data: result.products,
+    };
+  }
+
+  @Get('products')
+  async getProducts(
+    @Query('category') category?: string,
+    @Query('brand') brand?: string,
+    @Query('condition') condition?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.gadgetsService.searchProducts({
+      categoryId: category,
+      brand,
+      condition: condition as any,
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      sortBy: sortBy as any,
+      query: search,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+    return { success: true, data: result };
+  }
+
+  @Get('search')
+  async searchProductsGet(@Query('q') q?: string) {
+    const result = await this.gadgetsService.searchProducts({ query: q || '' });
+    return { success: true, data: result.products };
+  }
+
+  @Get('products/:id')
+  async getProductById(@Param('id') id: string) {
+    const product = await this.gadgetsService.getProductDetails(id);
+    return { success: true, data: product };
+  }
+
   @Get('categories')
   async getCategories() {
     const categories = await this.gadgetsService.getCategories();
