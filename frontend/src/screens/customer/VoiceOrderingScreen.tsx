@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { aiAPI } from '../../services/api';
+import { aiAPI, searchAPI } from '../../services/api';
 
 interface VoiceResult {
   intent: string;
@@ -199,13 +199,28 @@ export default function VoiceOrderingScreen({ navigation }: any) {
               <TouchableOpacity style={styles.editBtn} onPress={() => setResult(null)}>
                 <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={() => {
-                if (result.items.length > 0) {
-                  navigation.navigate('Search', { query: result.items.join(' ') });
-                } else if (result.restaurant) {
-                  navigation.navigate('Search', { query: result.restaurant });
-                } else {
-                  navigation.navigate('Search', { query: transcript });
+              <TouchableOpacity style={styles.confirmBtn} onPress={async () => {
+                try {
+                  const searchTerm = result.restaurant || result.items.join(' ') || transcript;
+                  const res: any = await searchAPI.searchBusinesses(searchTerm);
+                  const businesses = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+
+                  if (businesses.length > 0) {
+                    // Found a matching restaurant — go straight to it
+                    navigation.navigate('Restaurant', {
+                      restaurant: businesses[0],
+                      highlightItem: result.items[0] || null,
+                    });
+                  } else {
+                    // Nothing found — fall back to search with the term pre-filled
+                    Alert.alert(
+                      'Restaurant Not Found',
+                      `We couldn't find "${result.restaurant || searchTerm}" nearby. Showing search results instead.`,
+                      [{ text: 'OK', onPress: () => navigation.navigate('Search', { query: searchTerm }) }]
+                    );
+                  }
+                } catch {
+                  navigation.navigate('Search', { query: result.restaurant || result.items.join(' ') || transcript });
                 }
               }}>
                 <Text style={styles.confirmBtnText}>Find Items</Text>

@@ -20,11 +20,12 @@ import { hapticImpact } from '../../utils/haptics';
 import { normalizeMenuItems } from '../../services/mockApi';
 
 export default function RestaurantScreen({ route, navigation }: any) {
-  const { restaurant } = route.params;
+  const { restaurant, highlightItem } = route.params;
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [voiceBanner, setVoiceBanner] = useState<string | null>(null);
   const { addItem, items, updateQuantity, removeItem, itemCount, subtotal } = useCart();
 
   const getItemQty = (menuItemId: string) => {
@@ -55,7 +56,25 @@ export default function RestaurantScreen({ route, navigation }: any) {
       try {
         const res = await menuAPI.getItems(restaurant.id);
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setMenuItems(normalizeMenuItems(data));
+        const normalized = normalizeMenuItems(data);
+        setMenuItems(normalized);
+
+        if (highlightItem) {
+          const match = normalized.find((item: any) =>
+            item.name?.toLowerCase().includes(highlightItem.toLowerCase())
+          );
+          if (match) {
+            addItem(
+              { id: restaurant.id, name: restaurant.name, image: restaurant.image },
+              { menuItemId: match.id, name: match.name, price: match.price, image: match.image, quantity: 1 }
+            );
+            setVoiceBanner(`"${match.name}" added to your cart from voice order 🎤`);
+            setTimeout(() => setVoiceBanner(null), 4000);
+          } else {
+            setVoiceBanner(`"${highlightItem}" not on the menu — browse below`);
+            setTimeout(() => setVoiceBanner(null), 4000);
+          }
+        }
       } catch (e: any) { Alert.alert('Error', e?.message || 'Something went wrong'); }
     })();
   }, [restaurant.id]);
@@ -132,6 +151,14 @@ export default function RestaurantScreen({ route, navigation }: any) {
             <Ionicons name="flag-outline" size={22} color={colors.textWhite} />
           </TouchableOpacity>
         </View>
+
+        {/* Voice Order Banner */}
+        {voiceBanner && (
+          <View style={styles.voiceBanner}>
+            <Ionicons name="mic" size={16} color={colors.textWhite} />
+            <Text style={styles.voiceBannerText}>{voiceBanner}</Text>
+          </View>
+        )}
 
         {/* Restaurant Info */}
         <View style={styles.infoSection}>
@@ -675,6 +702,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  voiceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.teal,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+  },
+  voiceBannerText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   cartBarPrice: {
     color: '#fff',

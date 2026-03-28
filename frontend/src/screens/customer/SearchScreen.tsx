@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import { searchAPI, analyticsAPI } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +28,7 @@ const SORT_OPTIONS = [
 const DIETARY_FILTERS = ['Vegan', 'Vegetarian', 'Halal', 'Gluten Free', 'Keto', 'Dairy Free'];
 
 export default function SearchScreen({ navigation }: any) {
+  const route = useRoute();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -41,6 +43,11 @@ export default function SearchScreen({ navigation }: any) {
   useEffect(() => {
     loadRecentSearches();
     loadPopularSearches();
+    const initialQuery = (route.params as any)?.query;
+    if (initialQuery) {
+      setQuery(initialQuery);
+      handleSearch(initialQuery);
+    }
   }, []);
 
   const loadRecentSearches = async () => {
@@ -86,7 +93,7 @@ export default function SearchScreen({ navigation }: any) {
     if (text.length === 0) { setResults([]); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await searchAPI.searchBusinesses(query);
+        const res = await searchAPI.searchBusinesses(text);
         const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setResults(Array.isArray(data) ? data : []);
       } catch (e: any) {
