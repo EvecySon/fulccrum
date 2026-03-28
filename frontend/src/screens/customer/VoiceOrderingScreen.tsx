@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { aiAPI, searchAPI } from '../../services/api';
+import { normalizeRestaurant } from '../../services/mockApi';
 
 interface VoiceResult {
   intent: string;
@@ -206,9 +207,9 @@ export default function VoiceOrderingScreen({ navigation }: any) {
                   const businesses = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
 
                   if (businesses.length > 0) {
-                    // Found a matching restaurant — go straight to it
+                    // Found a matching restaurant — normalize shape and go straight to it
                     navigation.navigate('Restaurant', {
-                      restaurant: businesses[0],
+                      restaurant: normalizeRestaurant(businesses[0]),
                       highlightItem: result.items[0] || null,
                     });
                   } else {
