@@ -33,7 +33,7 @@ export class ServicesController {
   @Get('featured')
   async getFeaturedProviders(@Query('category') category?: string) {
     const providers = await this.servicesService.searchProviders({
-      serviceType: (category === 'health' ? 'health' : 'home') as any,
+      serviceType: (category === 'health' ? 'health_service' : 'home_service') as any,
     });
     return { success: true, data: providers.slice(0, 10) };
   }
@@ -46,8 +46,10 @@ export class ServicesController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    const typeMap: Record<string, string> = { home: 'home_service', health: 'health_service' };
+    const resolvedType = typeMap[category || ''] || 'home_service';
     const providers = await this.servicesService.searchProviders({
-      serviceType: (category || 'home') as any,
+      serviceType: resolvedType as any,
       category: serviceType as any,
     });
     const p = parseInt(page || '1');
@@ -145,7 +147,7 @@ export class ServicesController {
   @Get('search')
   async searchProvidersGet(@Query('q') q?: string) {
     const providers = await this.servicesService.searchProviders({
-      serviceType: 'home' as any,
+      serviceType: 'home_service' as any,
     });
     const filtered = q
       ? providers.filter((p: any) => JSON.stringify(p).toLowerCase().includes(q.toLowerCase()))
