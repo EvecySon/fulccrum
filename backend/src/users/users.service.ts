@@ -16,7 +16,21 @@ export class UsersService {
   async findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { businessProfile: true, driverProfile: true },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        role: true,
+        status: true,
+        dietaryPreferences: true,
+        allergies: true,
+        customAllergies: true,
+        businessProfile: true,
+        driverProfile: true,
+      },
     });
   }
 
