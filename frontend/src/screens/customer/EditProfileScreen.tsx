@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -46,6 +46,11 @@ export default function EditProfileScreen({ navigation }: any) {
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [changingPw, setChangingPw] = useState(false);
+
+  // Update avatar URI when user changes (e.g., after login)
+  useEffect(() => {
+    setAvatarUri(getAvatarUri(user));
+  }, [user]);
 
   const togglePref = (pref: string) => {
     setDietaryPrefs((prev) => prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref]);

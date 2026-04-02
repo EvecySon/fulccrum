@@ -53,6 +53,12 @@ export default function AccountScreen({ navigation }: any) {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [loyaltyProfile, setLoyaltyProfile] = useState<any>(null);
+  const [avatarUri, setAvatarUri] = useState(getAvatarUri(user));
+
+  // Update avatar when user changes
+  useEffect(() => {
+    setAvatarUri(getAvatarUri(user));
+  }, [user]);
 
   useEffect(() => {
     (async () => {
@@ -110,7 +116,7 @@ export default function AccountScreen({ navigation }: any) {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <Image
-            source={{ uri: getAvatarUri(user) }}
+            source={{ uri: avatarUri }}
             style={styles.avatar}
           />
           <View style={styles.profileInfo}>

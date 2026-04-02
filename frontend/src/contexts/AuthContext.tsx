@@ -101,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const profile = await usersAPI.getProfile();
+        console.log('[Auth] Profile received:', JSON.stringify(profile, null, 2));
+        console.log('[Auth] avatarUrl value:', profile?.avatarUrl);
         setUser(profile);
         console.log('[Auth] Session restored for', profile?.email);
       } catch (profileErr: any) {
