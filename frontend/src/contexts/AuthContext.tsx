@@ -33,6 +33,7 @@ interface AuthContextType {
     lastName: string;
     phone?: string;
     role?: string;
+    referredByCode?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;

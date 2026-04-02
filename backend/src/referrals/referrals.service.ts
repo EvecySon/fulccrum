@@ -42,4 +42,33 @@ export class ReferralsService {
       },
     };
   }
+
+  async getHistory(userId: string) {
+    const referrals = await this.prisma.referral.findMany({
+      where: { referrerId: userId },
+      include: {
+        referred: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return referrals.map((r) => ({
+      id: r.id,
+      name: `${r.referred.firstName} ${r.referred.lastName}`,
+      email: r.referred.email,
+      joinedDate: r.createdAt,
+      status: r.status,
+      deliveriesCompleted: r.deliveriesCompleted,
+      deliveriesRequired: r.deliveriesRequired,
+      rewardAmount: r.rewardAmount,
+      paidOut: r.paidOut,
+    }));
+  }
 }

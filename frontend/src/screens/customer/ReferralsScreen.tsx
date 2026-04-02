@@ -22,6 +22,18 @@ interface ReferralStats {
   pendingEarnings: number;
 }
 
+interface ReferralHistoryItem {
+  id: string;
+  name: string;
+  email: string;
+  joinedDate: string;
+  status: string;
+  deliveriesCompleted: number;
+  deliveriesRequired: number;
+  rewardAmount: number;
+  paidOut: boolean;
+}
+
 const ReferralsScreen: React.FC = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
@@ -32,6 +44,8 @@ const ReferralsScreen: React.FC = () => {
     totalEarnings: 0,
     pendingEarnings: 0,
   });
+  const [history, setHistory] = useState<ReferralHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     fetchReferralData();
@@ -42,9 +56,16 @@ const ReferralsScreen: React.FC = () => {
       const response = await api.get('/referrals/my-stats');
       setReferralCode(response.data.referralCode || generateReferralCode());
       setStats(response.data.stats || stats);
+      
+      // Fetch history
+      setLoadingHistory(true);
+      const historyResponse = await api.get('/referrals/history');
+      setHistory(historyResponse.data || []);
     } catch (error) {
       console.error('Error fetching referral data:', error);
       setReferralCode(generateReferralCode());
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -184,6 +205,53 @@ const ReferralsScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* Referral History */}
+        {history.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.sectionTitle}>Referral History</Text>
+            {history.map((item) => (
+              <View key={item.id} style={styles.historyCard}>
+                <View style={styles.historyHeader}>
+                  <View>
+                    <Text style={styles.historyName}>{item.name}</Text>
+                    <Text style={styles.historyEmail}>{item.email}</Text>
+                  </View>
+                  <View style={[
+                    styles.statusBadge,
+                    item.status === 'completed' && styles.statusCompleted,
+                    item.status === 'active' && styles.statusActive,
+                    item.status === 'pending' && styles.statusPending,
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.historyDetails}>
+                  <View style={styles.historyDetailItem}>
+                    <Ionicons name="calendar-outline" size={14} color="#64748b" />
+                    <Text style={styles.historyDetailText}>
+                      {new Date(item.joinedDate).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.historyDetailItem}>
+                    <Ionicons name="bicycle-outline" size={14} color="#64748b" />
+                    <Text style={styles.historyDetailText}>
+                      {item.deliveriesCompleted}/{item.deliveriesRequired} orders
+                    </Text>
+                  </View>
+                  <View style={styles.historyDetailItem}>
+                    <Ionicons name="cash-outline" size={14} color="#64748b" />
+                    <Text style={styles.historyDetailText}>
+                      {formatCurrency(item.rewardAmount)} {item.paidOut ? '✓' : ''}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Terms */}
         <View style={styles.termsSection}>
@@ -374,6 +442,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     lineHeight: 18,
+  },
+  historySection: {
+    padding: 16,
+    marginTop: 8,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  historyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  historyEmail: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
+  },
+  statusCompleted: {
+    backgroundColor: '#d1fae5',
+  },
+  statusActive: {
+    backgroundColor: '#dbeafe',
+  },
+  statusPending: {
+    backgroundColor: '#fef3c7',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  historyDetails: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  historyDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  historyDetailText: {
+    fontSize: 12,
+    color: '#64748b',
   },
 });
 

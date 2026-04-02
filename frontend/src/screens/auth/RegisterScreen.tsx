@@ -30,6 +30,7 @@ export default function RegisterScreen({ navigation }: any) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -81,6 +82,7 @@ export default function RegisterScreen({ navigation }: any) {
         lastName,
         phone: phone ? `+234${phone}` : undefined,
         role: selectedRole,
+        referredByCode: referralCode.trim() || undefined,
       });
       navigation.navigate('OTPVerification', { email, phone: phone ? `+234${phone}` : undefined, role: selectedRole });
     } catch (err: any) {
@@ -225,6 +227,21 @@ export default function RegisterScreen({ navigation }: any) {
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Referral Code (Optional)</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="gift-outline" size={20} color={colors.textLight} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter referral code"
+                  placeholderTextColor={colors.textLight}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  autoCapitalize="characters"
                 />
               </View>
             </View>

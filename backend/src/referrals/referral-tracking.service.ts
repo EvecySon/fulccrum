@@ -44,10 +44,15 @@ export class ReferralTrackingService {
         status: 'completed',
         paidOut: true,
       },
+      include: {
+        referred: {
+          select: { firstName: true, lastName: true },
+        },
+      },
     });
 
     // Credit the referrer's wallet
-    const wallet = await this.prisma.digitalWallet.upsert({
+    await this.prisma.digitalWallet.upsert({
       where: { userId: referrerId },
       create: {
         userId: referrerId,
@@ -58,7 +63,20 @@ export class ReferralTrackingService {
       },
     });
 
-    // Optional: Create a transaction record or notification
+    // Create notification for referrer
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: referrerId,
+          title: 'Referral Bonus Earned! 🎉',
+          message: `You've earned ₦${referral.rewardAmount.toLocaleString()} for referring ${referral.referred.firstName}!`,
+          type: 'promotional',
+        },
+      });
+    } catch (err) {
+      console.log('Notification creation failed (non-critical):', err);
+    }
+
     console.log(`Referral reward of ₦${referral.rewardAmount} credited to user ${referrerId}`);
   }
 }

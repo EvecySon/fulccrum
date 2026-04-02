@@ -11,4 +11,9 @@ export class ReferralsController {
   async getMyStats(@Request() req: any) {
     return this.referralsService.getMyStats(req.user.sub);
   }
+
+  @Get('history')
+  async getHistory(@Request() req: any) {
+    return this.referralsService.getHistory(req.user.sub);
+  }
 }
