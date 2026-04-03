@@ -72,8 +72,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ visible, onClose, onNavigate })
     { icon: 'time-outline', label: 'Order History', screen: 'PackageHistory' },
     { icon: 'wallet-outline', label: 'Wallet', screen: 'WalletDetails' },
     { icon: 'people-outline', label: 'Referrals', screen: 'Referrals' },
-    { icon: 'chatbubbles-outline', label: 'Contact Us', screen: 'Feedback' },
-    { icon: 'help-circle-outline', label: 'Help', screen: 'Support' },
+    { icon: 'help-circle-outline', label: 'Help & Support', screen: 'Support' },
   ];
 
   return (
