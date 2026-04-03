@@ -91,4 +91,48 @@ export class WalletController {
   async deleteBankAccount(@Request() req: any, @Param('id') id: string) {
     return this.walletService.deleteBankAccount(req.user.sub, id);
   }
+
+  @Post('transfer')
+  @UseGuards(NonceGuard)
+  @RequireNonce('transfer')
+  async transferMoney(
+    @Request() req: any,
+    @Body() dto: { amount: number; recipientIdentifier: string; recipientType: 'phone' | 'email'; note?: string },
+  ) {
+    return this.walletService.transferMoney(
+      req.user.sub,
+      dto.amount,
+      dto.recipientIdentifier,
+      dto.recipientType,
+      dto.note,
+    );
+  }
+
+  @Get('transactions/:id')
+  async getTransactionDetails(@Request() req: any, @Param('id') id: string) {
+    return this.walletService.getTransactionDetails(req.user.sub, id);
+  }
+
+  @Get('export')
+  async exportStatement(
+    @Request() req: any,
+    @Query('format') format?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.walletService.exportStatement(
+      req.user.sub,
+      format || 'csv',
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('analytics')
+  async getAnalytics(
+    @Request() req: any,
+    @Query('period') period?: string,
+  ) {
+    return this.walletService.getAnalytics(req.user.sub, period || 'month');
+  }
 }

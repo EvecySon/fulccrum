@@ -492,4 +492,261 @@ export class WalletService {
     };
   }
 
+  async transferMoney(
+    senderId: string,
+    amount: number,
+    recipientIdentifier: string,
+    recipientType: 'phone' | 'email',
+    note?: string,
+  ) {
+    if (amount <= 0) {
+      throw new BadRequestException('Amount must be greater than 0');
+    }
+
+    if (amount < 100) {
+      throw new BadRequestException('Minimum transfer amount is ₦100');
+    }
+
+    // Find recipient
+    const recipient = await this.prisma.user.findFirst({
+      where:
+        recipientType === 'phone'
+          ? { phone: recipientIdentifier.startsWith('+234') ? recipientIdentifier : `+234${recipientIdentifier}` }
+          : { email: recipientIdentifier },
+    });
+
+    if (!recipient) {
+      throw new NotFoundException('Recipient not found. They must have a Fulccrum account.');
+    }
+
+    if (recipient.id === senderId) {
+      throw new BadRequestException('Cannot transfer to yourself');
+    }
+
+    // Check sender balance
+    const senderWallet = await this.getOrCreateWallet(senderId);
+    const availableBalance = Number(senderWallet.balance) - Number(senderWallet.frozenBalance);
+
+    if (amount > availableBalance) {
+      throw new BadRequestException(`Insufficient balance. Available: ₦${availableBalance}`);
+    }
+
+    // Get sender details
+    const sender = await this.prisma.user.findUnique({
+      where: { id: senderId },
+      select: { firstName: true, lastName: true, email: true, phone: true },
+    });
+
+    // Perform transfer
+    const recipientWallet = await this.getOrCreateWallet(recipient.id);
+    const reference = `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Debit sender
+    await this.prisma.digitalWallet.update({
+      where: { id: senderWallet.id },
+      data: { balance: { decrement: amount } },
+    });
+
+    // Credit recipient
+    await this.prisma.digitalWallet.update({
+      where: { id: recipientWallet.id },
+      data: { balance: { increment: amount } },
+    });
+
+    // Create notification for recipient
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: recipient.id,
+          title: 'Money Received',
+          message: `You received ₦${amount.toLocaleString()} from ${sender.firstName} ${sender.lastName}${note ? `: ${note}` : ''}`,
+          type: 'promotional',
+        },
+      });
+    } catch (err) {
+      console.log('Notification creation failed (non-critical):', err);
+    }
+
+    return {
+      success: true,
+      reference,
+      amount,
+      recipient: {
+        name: `${recipient.firstName} ${recipient.lastName}`,
+        identifier: recipientType === 'phone' ? recipient.phone : recipient.email,
+      },
+      message: `₦${amount.toLocaleString()} sent successfully`,
+    };
+  }
+
+  async getTransactionDetails(userId: string, transactionId: string) {
+    // Try to find in withdrawal requests
+    const withdrawal = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: transactionId },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+      },
+    });
+
+    if (withdrawal && withdrawal.userId === userId) {
+      const wallet = await this.getOrCreateWallet(userId);
+      return {
+        id: withdrawal.id,
+        type: 'debit',
+        amount: Number(withdrawal.amount),
+        description: `Withdrawal to bank account`,
+        date: withdrawal.requestedAt.toISOString(),
+        status: withdrawal.status,
+        category: 'withdrawal',
+        reference: withdrawal.reference,
+        balanceBefore: Number(wallet.balance) + Number(withdrawal.amount),
+        balanceAfter: Number(wallet.balance),
+      };
+    }
+
+    // For now, return mock data for other transaction types
+    // In production, you'd query a proper WalletTransaction table
+    throw new NotFoundException('Transaction not found');
+  }
+
+  async exportStatement(userId: string, format: string, startDate?: string, endDate?: string) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    const withdrawals = await this.prisma.withdrawalRequest.findMany({
+      where: {
+        userId,
+        requestedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+
+    const transactions = withdrawals.map((w) => ({
+      date: w.requestedAt.toISOString(),
+      reference: w.reference,
+      type: 'Withdrawal',
+      amount: Number(w.amount),
+      status: w.status,
+    }));
+
+    if (format === 'csv') {
+      const csvHeader = 'Date,Reference,Type,Amount,Status\n';
+      const csvRows = transactions
+        .map(
+          (t) =>
+            `${t.date},${t.reference},${t.type},${t.amount},${t.status}`,
+        )
+        .join('\n');
+      
+      return {
+        format: 'csv',
+        content: csvHeader + csvRows,
+        filename: `wallet-statement-${start.toISOString().split('T')[0]}-to-${end.toISOString().split('T')[0]}.csv`,
+      };
+    }
+
+    return {
+      format: 'json',
+      transactions,
+      period: { start, end },
+    };
+  }
+
+  async getAnalytics(userId: string, period: string) {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Get withdrawals
+    const withdrawals = await this.prisma.withdrawalRequest.findMany({
+      where: {
+        userId,
+        requestedAt: { gte: startDate },
+        status: 'completed',
+      },
+    });
+
+    const totalWithdrawals = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
+
+    // Get orders (spending)
+    const orders = await this.prisma.order.findMany({
+      where: {
+        customerId: userId,
+        createdAt: { gte: startDate },
+        status: 'delivered',
+      },
+    });
+
+    const totalSpending = orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
+    // Get referral earnings
+    const referrals = await this.prisma.referral.findMany({
+      where: {
+        referrerId: userId,
+        createdAt: { gte: startDate },
+        status: 'completed',
+        paidOut: true,
+      },
+    });
+
+    const totalReferralEarnings = referrals.reduce((sum, r) => sum + Number(r.rewardAmount), 0);
+
+    // Calculate daily breakdown
+    const dailyData = [];
+    const days = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStart = new Date(date.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+
+      const dayOrders = orders.filter(
+        (o) => new Date(o.createdAt) >= dayStart && new Date(o.createdAt) <= dayEnd,
+      );
+      const dayWithdrawals = withdrawals.filter(
+        (w) => new Date(w.requestedAt) >= dayStart && new Date(w.requestedAt) <= dayEnd,
+      );
+
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        spending: dayOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0),
+        withdrawals: dayWithdrawals.reduce((sum, w) => sum + Number(w.amount), 0),
+      });
+    }
+
+    return {
+      period,
+      summary: {
+        totalSpending,
+        totalWithdrawals,
+        totalReferralEarnings,
+        netChange: totalReferralEarnings - totalSpending - totalWithdrawals,
+      },
+      breakdown: {
+        orderCount: orders.length,
+        withdrawalCount: withdrawals.length,
+        referralCount: referrals.length,
+      },
+      dailyData,
+    };
+  }
+
 }

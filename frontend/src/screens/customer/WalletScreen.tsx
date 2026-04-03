@@ -71,11 +71,19 @@ const WalletScreen: React.FC = () => {
   };
 
   const handleSendMoney = () => {
-    Alert.alert('Coming Soon', 'Send money feature will be available soon!');
+    (navigation as any).navigate('SendMoney');
+  };
+
+  const handleTransactionTap = (transactionId: string) => {
+    (navigation as any).navigate('TransactionDetails', { transactionId });
   };
 
   const handleCards = () => {
     (navigation as any).navigate('SavedCards');
+  };
+
+  const handleAnalytics = () => {
+    (navigation as any).navigate('WalletAnalytics');
   };
 
   const formatCurrency = (amount: number) => {
@@ -111,7 +119,9 @@ const WalletScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="#1f2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
-        <View style={styles.headerRight} />
+        <TouchableOpacity style={styles.headerRight} onPress={handleAnalytics}>
+          <Ionicons name="stats-chart" size={24} color="#14b8a6" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -168,7 +178,11 @@ const WalletScreen: React.FC = () => {
             </View>
           ) : (
             transactions.map((transaction) => (
-              <View key={transaction.id} style={styles.transactionItem}>
+              <TouchableOpacity 
+                key={transaction.id} 
+                style={styles.transactionItem}
+                onPress={() => handleTransactionTap(transaction.id)}
+              >
                 <View style={[
                   styles.transactionIcon,
                   { backgroundColor: transaction.type === 'credit' ? '#dcfce7' : '#fee2e2' }
@@ -191,7 +205,7 @@ const WalletScreen: React.FC = () => {
                 ]}>
                   {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>

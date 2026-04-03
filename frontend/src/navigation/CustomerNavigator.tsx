@@ -47,6 +47,9 @@ import WalletScreen from '../screens/customer/WalletScreen';
 import WithdrawScreen from '../screens/customer/WithdrawScreen';
 import BankAccountsScreen from '../screens/customer/BankAccountsScreen';
 import SavedCardsScreen from '../screens/customer/SavedCardsScreen';
+import SendMoneyScreen from '../screens/customer/SendMoneyScreen';
+import TransactionDetailsScreen from '../screens/customer/TransactionDetailsScreen';
+import WalletAnalyticsScreen from '../screens/customer/WalletAnalyticsScreen';
 import ReferralsScreen from '../screens/customer/ReferralsScreen';
 import SupportScreen from '../screens/customer/SupportScreen';
 import MyTicketsScreen from '../screens/customer/MyTicketsScreen';
@@ -165,6 +168,9 @@ export default function CustomerNavigator() {
       <Stack.Screen name="WithdrawScreen" component={WithdrawScreen} />
       <Stack.Screen name="BankAccounts" component={BankAccountsScreen} />
       <Stack.Screen name="SavedCards" component={SavedCardsScreen} />
+      <Stack.Screen name="SendMoney" component={SendMoneyScreen} />
+      <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
+      <Stack.Screen name="WalletAnalytics" component={WalletAnalyticsScreen} />
       <Stack.Screen name="Referrals" component={ReferralsScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
       <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
