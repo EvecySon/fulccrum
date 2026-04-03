@@ -6,9 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
@@ -23,8 +23,10 @@ export default function SendMoneyScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [recipientType, setRecipientType] = useState<'phone' | 'email'>('phone');
+  const [lastTransferTime, setLastTransferTime] = useState<number>(0);
 
   const quickAmounts = [1000, 2000, 5000, 10000];
+  const MAX_TRANSFER_AMOUNT = 50000; // ₦50,000 per transfer
 
   React.useEffect(() => {
     fetchBalance();
@@ -37,7 +39,7 @@ export default function SendMoneyScreen() {
       setAvailableBalance(response.availableBalance || 0);
     } catch (error) {
       console.error('Error fetching balance:', error);
-      Alert.alert('Error', 'Failed to load wallet balance');
+      showAlert('Error', 'Failed to load wallet balance');
     } finally {
       setLoading(false);
     }
@@ -45,7 +47,7 @@ export default function SendMoneyScreen() {
 
   const validateRecipient = () => {
     if (!recipient.trim()) {
-      Alert.alert('Required', 'Please enter recipient phone or email');
+      showAlert('Required', 'Please enter recipient phone or email');
       return false;
     }
 
@@ -53,14 +55,14 @@ export default function SendMoneyScreen() {
       // Nigerian phone number validation (10 digits without country code)
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(recipient.trim())) {
-        Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
+        showAlert('Invalid Phone', 'Please enter a valid 10-digit phone number');
         return false;
       }
     } else {
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(recipient.trim())) {
-        Alert.alert('Invalid Email', 'Please enter a valid email address');
+        showAlert('Invalid Email', 'Please enter a valid email address');
         return false;
       }
     }
@@ -69,15 +71,40 @@ export default function SendMoneyScreen() {
   };
 
   const handleSendMoney = async () => {
+    console.log('[SendMoney] Button clicked, amount:', amount, 'recipient:', recipient, 'balance:', availableBalance);
     const sendAmount = parseFloat(amount);
+    console.log('[SendMoney] Parsed amount:', sendAmount);
 
-    if (!sendAmount || sendAmount < 100) {
-      Alert.alert('Invalid Amount', 'Minimum transfer amount is ₦100');
+    if (!amount || isNaN(sendAmount)) {
+      console.log('[SendMoney] Validation failed: Invalid amount');
+      showAlert('Invalid Amount', 'Please enter a valid amount');
+      return;
+    }
+
+    if (sendAmount < 100) {
+      console.log('[SendMoney] Validation failed: Below minimum');
+      showAlert('Invalid Amount', 'Minimum transfer amount is ₦100');
+      return;
+    }
+
+    if (sendAmount > MAX_TRANSFER_AMOUNT) {
+      console.log('[SendMoney] Validation failed: Above maximum');
+      showAlert('Amount Too Large', `Maximum transfer amount is ₦${MAX_TRANSFER_AMOUNT.toLocaleString()} per transaction`);
       return;
     }
 
     if (sendAmount > availableBalance) {
-      Alert.alert('Insufficient Balance', 'You do not have enough balance to send this amount');
+      console.log('[SendMoney] Validation failed: Insufficient balance');
+      showAlert('Insufficient Balance', 'You do not have enough balance to send this amount');
+      return;
+    }
+
+    // Check cooldown (1 minute between transfers)
+    const now = Date.now();
+    const cooldownRemaining = Math.ceil((lastTransferTime + 60 * 1000 - now) / 1000);
+    if (cooldownRemaining > 0) {
+      console.log('[SendMoney] Validation failed: Cooldown active');
+      showAlert('Please Wait', `You can make another transfer in ${cooldownRemaining} seconds`);
       return;
     }
 
@@ -85,7 +112,9 @@ export default function SendMoneyScreen() {
       return;
     }
 
-    Alert.alert(
+    console.log('[SendMoney] All validations passed');
+
+    showAlert(
       'Confirm Transfer',
       `Send ₦${sendAmount.toLocaleString()} to ${recipient}?`,
       [
@@ -102,13 +131,21 @@ export default function SendMoneyScreen() {
                 note: note.trim() || undefined,
               });
 
-              Alert.alert(
+              // Clear form and update cooldown
+              setAmount('');
+              setRecipient('');
+              setNote('');
+              setLastTransferTime(Date.now());
+              await fetchBalance(); // Refresh balance
+
+              showAlert(
                 'Transfer Successful',
                 `₦${sendAmount.toLocaleString()} has been sent to ${recipient}`,
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
               );
             } catch (error: any) {
-              Alert.alert('Transfer Failed', error.message || 'Could not complete transfer');
+              console.error('[SendMoney] Transfer failed:', error);
+              showAlert('Transfer Failed', error.message || 'Could not complete transfer');
             } finally {
               setSubmitting(false);
             }
@@ -258,7 +295,9 @@ export default function SendMoneyScreen() {
           <Ionicons name="information-circle" size={20} color={colors.info} />
           <Text style={styles.infoText}>
             • Minimum transfer: ₦100{'\n'}
+            • Maximum per transfer: ₦50,000{'\n'}
             • Instant transfer{'\n'}
+            • 1-minute cooldown between transfers{'\n'}
             • No transfer fees{'\n'}
             • Recipient must have a Fulccrum account
           </Text>
@@ -267,7 +306,7 @@ export default function SendMoneyScreen() {
         <TouchableOpacity
           style={[styles.sendButton, submitting && styles.sendButtonDisabled]}
           onPress={handleSendMoney}
-          disabled={submitting || !amount || parseFloat(amount) < 100 || !recipient}
+          disabled={submitting}
         >
           {submitting ? (
             <ActivityIndicator size="small" color={colors.white} />
