@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../../services/api';
 import { colors } from '../../theme/colors';
 
@@ -27,25 +27,31 @@ export default function SavedCardsScreen() {
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCards();
-  }, []);
+  // Refresh cards when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchCards();
+    }, [])
+  );
 
   const fetchCards = async () => {
     try {
+      console.log('[SavedCards] Fetching saved cards...');
       setLoading(true);
       const response = await api.get<SavedCard[]>('/payment/cards');
+      console.log('[SavedCards] Fetched', response?.length || 0, 'cards');
       setCards(response || []);
     } catch (error) {
-      console.error('Error fetching cards:', error);
-      Alert.alert('Error', 'Failed to load saved cards');
+      console.error('[SavedCards] Error fetching cards:', error);
+      showAlert('Error', 'Failed to load saved cards');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddCard = () => {
-    Alert.alert(
+    console.log('[SavedCards] Add card info displayed');
+    showAlert(
       'Add Card',
       'To add a new card, make a payment using a new card and select "Save card for future use".'
     );
@@ -53,16 +59,20 @@ export default function SavedCardsScreen() {
 
   const handleSetDefault = async (cardId: string) => {
     try {
+      console.log('[SavedCards] Setting card as default:', cardId);
       await api.patch(`/payment/cards/${cardId}/set-default`, {});
-      Alert.alert('Success', 'Default card updated');
+      console.log('[SavedCards] Default card updated successfully');
+      showAlert('Success', 'Default card updated');
       fetchCards();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to set default card');
+      console.error('[SavedCards] Error setting default card:', error);
+      showAlert('Error', error.message || 'Failed to set default card');
     }
   };
 
   const handleDeleteCard = async (cardId: string) => {
-    Alert.alert(
+    console.log('[SavedCards] Delete card confirmation for:', cardId);
+    showAlert(
       'Remove Card',
       'Are you sure you want to remove this card?',
       [
@@ -72,11 +82,14 @@ export default function SavedCardsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('[SavedCards] Deleting card:', cardId);
               await api.delete(`/payment/cards/${cardId}`);
-              Alert.alert('Success', 'Card removed');
+              console.log('[SavedCards] Card deleted successfully');
+              showAlert('Success', 'Card removed');
               fetchCards();
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to remove card');
+              console.error('[SavedCards] Error deleting card:', error);
+              showAlert('Error', error.message || 'Failed to remove card');
             }
           },
         },
