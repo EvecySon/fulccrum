@@ -6,9 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../../services/api';
@@ -56,7 +56,7 @@ export default function WithdrawScreen() {
 
       if (remaining === 0) {
         clearInterval(interval);
-        Alert.alert('Code Expired', 'Your confirmation code has expired. Please request a new withdrawal.');
+        showAlert('Code Expired', 'Your confirmation code has expired. Please request a new withdrawal.');
         setShowConfirmation(false);
       }
     }, 1000);
@@ -82,29 +82,42 @@ export default function WithdrawScreen() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      Alert.alert('Error', 'Failed to load withdrawal data');
+      showAlert('Error', 'Failed to load withdrawal data');
     } finally {
       setLoading(false);
     }
   };
 
   const handleWithdraw = async () => {
+    console.log('[Withdraw] Button clicked, amount:', amount, 'balance:', availableBalance);
     const withdrawAmount = parseFloat(amount);
+    console.log('[Withdraw] Parsed amount:', withdrawAmount);
 
-    if (!withdrawAmount || withdrawAmount < 1000) {
-      Alert.alert('Invalid Amount', 'Minimum withdrawal amount is ₦1,000');
+    if (!amount || isNaN(withdrawAmount)) {
+      console.log('[Withdraw] Validation failed: Invalid amount');
+      showAlert('Invalid Amount', 'Please enter a valid amount');
+      return;
+    }
+
+    if (withdrawAmount < 1000) {
+      console.log('[Withdraw] Validation failed: Below minimum');
+      showAlert('Invalid Amount', 'Minimum withdrawal amount is ₦1,000');
       return;
     }
 
     if (withdrawAmount > 10000) {
-      Alert.alert('Amount Too Large', 'Maximum withdrawal amount is ₦10,000 per request');
+      console.log('[Withdraw] Validation failed: Above maximum');
+      showAlert('Amount Too Large', 'Maximum withdrawal amount is ₦10,000 per request');
       return;
     }
 
     if (withdrawAmount > availableBalance) {
-      Alert.alert('Insufficient Balance', 'You do not have enough balance to withdraw this amount');
+      console.log('[Withdraw] Validation failed: Insufficient balance');
+      showAlert('Insufficient Balance', 'You do not have enough balance to withdraw this amount');
       return;
     }
+
+    console.log('[Withdraw] All validations passed, checking cooldown...');
 
     // Check cooldown (5 minutes)
     const now = Date.now();
@@ -112,7 +125,7 @@ export default function WithdrawScreen() {
     if (cooldownRemaining > 0) {
       const minutes = Math.floor(cooldownRemaining / 60);
       const seconds = cooldownRemaining % 60;
-      Alert.alert(
+      showAlert(
         'Please Wait',
         `You can make another withdrawal request in ${minutes}m ${seconds}s`
       );
@@ -120,7 +133,7 @@ export default function WithdrawScreen() {
     }
 
     if (!selectedAccount) {
-      Alert.alert('Select Bank Account', 'Please select a bank account to withdraw to');
+      showAlert('Select Bank Account', 'Please select a bank account to withdraw to');
       return;
     }
 
@@ -135,12 +148,12 @@ export default function WithdrawScreen() {
       setCodeExpiresAt(new Date(response.expiresAt));
       setLastWithdrawalTime(Date.now());
       setShowConfirmation(true);
-      Alert.alert(
+      showAlert(
         'Confirmation Code Sent',
         'A 6-digit code has been sent to your email and phone. Code expires in 10 minutes.'
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to request withdrawal');
+      showAlert('Error', error.message || 'Failed to request withdrawal');
     } finally {
       setSubmitting(false);
     }
@@ -160,9 +173,9 @@ export default function WithdrawScreen() {
       setRequestId(response.requestId);
       setCodeExpiresAt(new Date(response.expiresAt));
       setConfirmationCode('');
-      Alert.alert('Code Resent', 'A new confirmation code has been sent to your email and phone.');
+      showAlert('Code Resent', 'A new confirmation code has been sent to your email and phone.');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to resend code');
+      showAlert('Error', error.message || 'Failed to resend code');
     } finally {
       setSubmitting(false);
     }
@@ -170,12 +183,12 @@ export default function WithdrawScreen() {
 
   const handleConfirmWithdrawal = async () => {
     if (!confirmationCode || confirmationCode.length < 6) {
-      Alert.alert('Invalid Code', 'Please enter the 6-digit confirmation code');
+      showAlert('Invalid Code', 'Please enter the 6-digit confirmation code');
       return;
     }
 
     if (!requestId) {
-      Alert.alert('Error', 'No withdrawal request found');
+      showAlert('Error', 'No withdrawal request found');
       return;
     }
 
@@ -194,13 +207,13 @@ export default function WithdrawScreen() {
       setShowConfirmation(false);
       setCodeExpiresAt(null);
       
-      Alert.alert(
+      showAlert(
         'Withdrawal Successful',
         'Your withdrawal request has been submitted. Funds will be transferred within 24 hours.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to confirm withdrawal');
+      showAlert('Error', error.message || 'Failed to confirm withdrawal');
     } finally {
       setSubmitting(false);
     }
@@ -403,7 +416,7 @@ export default function WithdrawScreen() {
         <TouchableOpacity
           style={[styles.withdrawButton, submitting && styles.withdrawButtonDisabled]}
           onPress={handleWithdraw}
-          disabled={submitting || !amount || parseFloat(amount) < 1000 || !selectedAccount}
+          disabled={submitting}
         >
           {submitting ? (
             <ActivityIndicator size="small" color={colors.white} />
