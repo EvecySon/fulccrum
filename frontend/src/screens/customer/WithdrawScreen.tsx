@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../../services/api';
 import { colors } from '../../theme/colors';
 
@@ -36,9 +36,12 @@ export default function WithdrawScreen() {
 
   const quickAmounts = [5000, 10000, 20000, 50000];
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Refresh data when screen comes into focus (e.g., after adding bank account)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const fetchData = async () => {
     try {
