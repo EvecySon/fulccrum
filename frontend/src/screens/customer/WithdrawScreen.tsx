@@ -33,6 +33,9 @@ export default function WithdrawScreen() {
   const [confirmationCode, setConfirmationCode] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [codeExpiresAt, setCodeExpiresAt] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [lastWithdrawalTime, setLastWithdrawalTime] = useState<number>(0);
 
   const quickAmounts = [5000, 10000, 20000, 50000];
 
@@ -42,6 +45,24 @@ export default function WithdrawScreen() {
       fetchData();
     }, [])
   );
+
+  // Countdown timer for code expiry
+  useEffect(() => {
+    if (!codeExpiresAt) return;
+
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((codeExpiresAt.getTime() - Date.now()) / 1000));
+      setTimeRemaining(remaining);
+
+      if (remaining === 0) {
+        clearInterval(interval);
+        Alert.alert('Code Expired', 'Your confirmation code has expired. Please request a new withdrawal.');
+        setShowConfirmation(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [codeExpiresAt]);
 
   const fetchData = async () => {
     try {
@@ -75,8 +96,26 @@ export default function WithdrawScreen() {
       return;
     }
 
+    if (withdrawAmount > 10000) {
+      Alert.alert('Amount Too Large', 'Maximum withdrawal amount is ₦10,000 per request');
+      return;
+    }
+
     if (withdrawAmount > availableBalance) {
       Alert.alert('Insufficient Balance', 'You do not have enough balance to withdraw this amount');
+      return;
+    }
+
+    // Check cooldown (5 minutes)
+    const now = Date.now();
+    const cooldownRemaining = Math.ceil((lastWithdrawalTime + 5 * 60 * 1000 - now) / 1000);
+    if (cooldownRemaining > 0) {
+      const minutes = Math.floor(cooldownRemaining / 60);
+      const seconds = cooldownRemaining % 60;
+      Alert.alert(
+        'Please Wait',
+        `You can make another withdrawal request in ${minutes}m ${seconds}s`
+      );
       return;
     }
 
@@ -87,19 +126,43 @@ export default function WithdrawScreen() {
 
     setSubmitting(true);
     try {
-      const response = await api.post<{ requestId: string; message: string }>(
+      const response = await api.post<{ requestId: string; message: string; expiresAt: string }>(
         '/wallet/withdraw/request',
         { amount: withdrawAmount, bankAccountId: selectedAccount }
       );
 
       setRequestId(response.requestId);
+      setCodeExpiresAt(new Date(response.expiresAt));
+      setLastWithdrawalTime(Date.now());
       setShowConfirmation(true);
       Alert.alert(
         'Confirmation Code Sent',
-        'A confirmation code has been sent to your email and phone. Please enter it to complete the withdrawal.'
+        'A 6-digit code has been sent to your email and phone. Code expires in 10 minutes.'
       );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to request withdrawal');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!selectedAccount) return;
+
+    const withdrawAmount = parseFloat(amount);
+    setSubmitting(true);
+    try {
+      const response = await api.post<{ requestId: string; message: string; expiresAt: string }>(
+        '/wallet/withdraw/request',
+        { amount: withdrawAmount, bankAccountId: selectedAccount }
+      );
+
+      setRequestId(response.requestId);
+      setCodeExpiresAt(new Date(response.expiresAt));
+      setConfirmationCode('');
+      Alert.alert('Code Resent', 'A new confirmation code has been sent to your email and phone.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend code');
     } finally {
       setSubmitting(false);
     }
@@ -123,6 +186,14 @@ export default function WithdrawScreen() {
         confirmationCode,
       });
 
+      // Clear form and reset state
+      setAmount('');
+      setSelectedAccount(null);
+      setConfirmationCode('');
+      setRequestId(null);
+      setShowConfirmation(false);
+      setCodeExpiresAt(null);
+      
       Alert.alert(
         'Withdrawal Successful',
         'Your withdrawal request has been submitted. Funds will be transferred within 24 hours.',
@@ -186,6 +257,20 @@ export default function WithdrawScreen() {
               ) : (
                 <Text style={styles.confirmButtonText}>Confirm Withdrawal</Text>
               )}
+            </TouchableOpacity>
+
+            {timeRemaining > 0 && (
+              <Text style={styles.timerText}>
+                Code expires in {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
+              </Text>
+            )}
+
+            <TouchableOpacity 
+              onPress={handleResendCode}
+              disabled={submitting}
+              style={styles.resendButton}
+            >
+              <Text style={styles.resendText}>Resend Code</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowConfirmation(false)}>
@@ -308,7 +393,9 @@ export default function WithdrawScreen() {
           <Ionicons name="information-circle" size={20} color={colors.info} />
           <Text style={styles.infoText}>
             • Minimum withdrawal: ₦1,000{'\n'}
+            • Maximum per request: ₦10,000{'\n'}
             • Processing time: 24 hours{'\n'}
+            • 5-minute cooldown between requests{'\n'}
             • No withdrawal fees
           </Text>
         </View>
@@ -618,5 +705,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  timerText: {
+    fontSize: 14,
+    color: colors.warning,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  resendButton: {
+    marginBottom: 12,
+  },
+  resendText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.teal,
   },
 });
