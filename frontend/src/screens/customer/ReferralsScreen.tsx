@@ -53,14 +53,14 @@ const ReferralsScreen: React.FC = () => {
 
   const fetchReferralData = async () => {
     try {
-      const response = await api.get('/referrals/my-stats');
-      setReferralCode(response.data.referralCode || generateReferralCode());
-      setStats(response.data.stats || stats);
+      const response = await api.get<{ referralCode: string; stats: ReferralStats }>('/referrals/my-stats');
+      setReferralCode(response.referralCode || generateReferralCode());
+      setStats(response.stats || stats);
       
       // Fetch history
       setLoadingHistory(true);
-      const historyResponse = await api.get('/referrals/history');
-      setHistory(historyResponse.data || []);
+      const historyResponse = await api.get<ReferralHistoryItem[]>('/referrals/history');
+      setHistory(historyResponse || []);
     } catch (error) {
       console.error('Error fetching referral data:', error);
       setReferralCode(generateReferralCode());
