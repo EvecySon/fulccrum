@@ -24,6 +24,9 @@ interface Transaction {
 const WalletScreen: React.FC = () => {
   const navigation = useNavigation();
   const [balance, setBalance] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [pendingBalance, setPendingBalance] = useState(0);
+  const [frozenBalance, setFrozenBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,11 +37,23 @@ const WalletScreen: React.FC = () => {
   const fetchWalletData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/wallet/balance');
-      setBalance(response.data.balance || 0);
+      const balanceResponse = await api.get<{
+        balance: number;
+        availableBalance: number;
+        pendingBalance: number;
+        frozenBalance: number;
+      }>('/wallet/balance');
       
-      const txResponse = await api.get('/wallet/transactions');
-      setTransactions(txResponse.data.transactions || []);
+      setBalance(balanceResponse.balance || 0);
+      setAvailableBalance(balanceResponse.availableBalance || 0);
+      setPendingBalance(balanceResponse.pendingBalance || 0);
+      setFrozenBalance(balanceResponse.frozenBalance || 0);
+      
+      const txResponse = await api.get<{
+        transactions: Transaction[];
+        pagination: any;
+      }>('/wallet/transactions');
+      setTransactions(txResponse.transactions || []);
     } catch (error) {
       console.error('Error fetching wallet data:', error);
       Alert.alert('Error', 'Failed to load wallet data');
@@ -49,6 +64,18 @@ const WalletScreen: React.FC = () => {
 
   const handleTopUp = () => {
     (navigation as any).navigate('WalletTopUp');
+  };
+
+  const handleWithdraw = () => {
+    (navigation as any).navigate('WithdrawScreen');
+  };
+
+  const handleSendMoney = () => {
+    Alert.alert('Coming Soon', 'Send money feature will be available soon!');
+  };
+
+  const handleCards = () => {
+    (navigation as any).navigate('SavedCards');
   };
 
   const formatCurrency = (amount: number) => {
@@ -90,8 +117,23 @@ const WalletScreen: React.FC = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Balance Card */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Wallet Balance</Text>
-          <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
+          <Text style={styles.balanceLabel}>Available Balance</Text>
+          <Text style={styles.balanceAmount}>{formatCurrency(availableBalance)}</Text>
+          
+          {(pendingBalance > 0 || frozenBalance > 0) && (
+            <View style={styles.balanceDetails}>
+              {pendingBalance > 0 && (
+                <Text style={styles.balanceDetailText}>
+                  Pending: {formatCurrency(pendingBalance)}
+                </Text>
+              )}
+              {frozenBalance > 0 && (
+                <Text style={styles.balanceDetailText}>
+                  Frozen: {formatCurrency(frozenBalance)}
+                </Text>
+              )}
+            </View>
+          )}
           
           <TouchableOpacity style={styles.topUpButton} onPress={handleTopUp}>
             <Ionicons name="add-circle" size={20} color="#fff" />
@@ -101,15 +143,15 @@ const WalletScreen: React.FC = () => {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleSendMoney}>
             <Ionicons name="arrow-up-circle" size={24} color="#14b8a6" />
             <Text style={styles.actionText}>Send Money</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleWithdraw}>
             <Ionicons name="arrow-down-circle" size={24} color="#14b8a6" />
             <Text style={styles.actionText}>Withdraw</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleCards}>
             <Ionicons name="card" size={24} color="#14b8a6" />
             <Text style={styles.actionText}>Cards</Text>
           </TouchableOpacity>
@@ -215,7 +257,17 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  balanceDetails: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
+  },
+  balanceDetailText: {
+    fontSize: 12,
+    color: '#fff',
+    opacity: 0.8,
   },
   topUpButton: {
     flexDirection: 'row',
