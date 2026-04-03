@@ -29,7 +29,13 @@ class NonceService {
     console.log(`[Nonce] Fetching new nonce for action: ${action}`);
     try {
       const response = await nonceAPI.getNonce(action);
-      const { nonce, expiresIn } = response.data;
+      
+      // API returns data directly, not wrapped in .data
+      if (!response || !response.nonce) {
+        throw new Error('Invalid nonce response from server');
+      }
+      
+      const { nonce, expiresIn } = response;
 
       // Cache for 4 minutes (backend expires in 5)
       const cacheTime = Math.min(expiresIn - 60, 240); // 4 minutes max
@@ -42,7 +48,7 @@ class NonceService {
       return nonce;
     } catch (error: any) {
       console.error(`[Nonce] Failed to get nonce for ${action}:`, error);
-      throw new Error(error?.response?.data?.message || 'Failed to obtain security nonce');
+      throw new Error(error?.message || 'Failed to obtain security nonce');
     }
   }
 
