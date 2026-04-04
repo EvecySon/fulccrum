@@ -131,7 +131,13 @@ async function request<T = any>(
     { path: '/payment/cards', action: 'card-save' },
   ];
 
-  const isProtected = protectedEndpoints.find(ep => endpoint.includes(ep.path));
+  const isProtected = protectedEndpoints.find(ep => {
+    // Exact match for /payment/cards to avoid matching /payment/cards/add
+    if (ep.path === '/payment/cards') {
+      return endpoint === '/payment/cards';
+    }
+    return endpoint.includes(ep.path);
+  });
   if (isProtected && options.method === 'POST' && !headers['X-Nonce']) {
     try {
       const nonceService = await getNonceService();
@@ -144,9 +150,11 @@ async function request<T = any>(
     }
   }
 
-  // Add 10 second timeout
+  // Add timeout (30s for payment endpoints that call Paystack, 10s for others)
+  const isPaymentEndpoint = endpoint.includes('/payment/');
+  const timeoutDuration = isPaymentEndpoint ? 30000 : 10000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {

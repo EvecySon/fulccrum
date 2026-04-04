@@ -26,6 +26,7 @@ export default function SavedCardsScreen() {
   const navigation = useNavigation();
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addingCard, setAddingCard] = useState(false);
 
   // Refresh cards when screen comes into focus
   useFocusEffect(
@@ -49,12 +50,51 @@ export default function SavedCardsScreen() {
     }
   };
 
-  const handleAddCard = () => {
-    console.log('[SavedCards] Add card info displayed');
-    showAlert(
-      'Add Card',
-      'To add a new card, make a payment using a new card and select "Save card for future use".'
-    );
+  const handleAddCard = async () => {
+    console.log('[SavedCards] Initiating add card flow');
+    setAddingCard(true);
+    
+    try {
+      console.log('[SavedCards] Requesting card add initialization');
+      const response = await api.post<{ authorizationUrl: string; reference: string }>(
+        '/payment/cards/add',
+        {}
+      );
+      
+      console.log('[SavedCards] Got authorization URL:', response.authorizationUrl);
+      
+      // Open Paystack payment page in browser
+      if (typeof window !== 'undefined') {
+        window.open(response.authorizationUrl, '_blank');
+        showAlert(
+          'Add Your Card',
+          'A payment window has been opened. Enter your card details to verify and save your card. A ₦50 authorization charge will be refunded to your wallet.',
+          [
+            {
+              text: 'Done - Refresh',
+              onPress: () => {
+                console.log('[SavedCards] User completed payment, refreshing cards');
+                fetchCards();
+              },
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
+        );
+      } else {
+        showAlert(
+          'Payment Link',
+          `Please visit this link to add your card: ${response.authorizationUrl}`
+        );
+      }
+    } catch (error: any) {
+      console.error('[SavedCards] Error initializing card add:', error);
+      showAlert('Error', error.message || 'Failed to initialize card addition');
+    } finally {
+      setAddingCard(false);
+    }
   };
 
   const handleSetDefault = async (cardId: string) => {
@@ -128,8 +168,16 @@ export default function SavedCardsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Saved Cards</Text>
-        <TouchableOpacity onPress={handleAddCard} style={styles.addButton}>
-          <Ionicons name="add" size={24} color={colors.teal} />
+        <TouchableOpacity 
+          onPress={handleAddCard} 
+          style={styles.addButton}
+          disabled={addingCard}
+        >
+          {addingCard ? (
+            <ActivityIndicator size="small" color={colors.teal} />
+          ) : (
+            <Ionicons name="add" size={24} color={colors.teal} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -139,7 +187,7 @@ export default function SavedCardsScreen() {
             <Ionicons name="card-outline" size={64} color={colors.textLight} />
             <Text style={styles.emptyTitle}>No Saved Cards</Text>
             <Text style={styles.emptyText}>
-              Add a card during checkout and select "Save card for future use" to save it here
+              Tap the + button above to add a new card, or add one during checkout
             </Text>
           </View>
         ) : (
