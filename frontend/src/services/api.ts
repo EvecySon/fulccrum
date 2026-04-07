@@ -126,6 +126,7 @@ async function request<T = any>(
   // Add nonce for protected endpoints
   const protectedEndpoints = [
     { path: '/payment/initialize', action: 'payment' },
+    { path: '/payment/topup', action: 'payment' },
     { path: '/wallet/withdraw/request', action: 'withdraw' },
     { path: '/wallet/bank-accounts', action: 'bank-account' },
     { path: '/payment/cards', action: 'card-save' },
@@ -442,6 +443,12 @@ export const paymentAPI = {
   // Wallet top-up
   initializeWalletTopUp: (amount: number) => api.post('/payment/topup', { amount }),
   verifyWalletTopUp: (reference: string) => api.get(`/payment/topup/verify/${reference}`),
+  // Virtual account for bank transfers
+  getVirtualAccount: () => api.get('/payment/virtual-account'),
+  // USSD payment
+  generateUSSDCode: (amount: number, bankCode: string) => api.post('/payment/ussd/generate', { amount, bankCode }),
+  // Payment status
+  checkPaymentStatus: (reference: string) => api.get(`/payment/status/${reference}`),
 };
 
 // ─── Wallet API ───

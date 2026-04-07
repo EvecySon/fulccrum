@@ -175,4 +175,86 @@ export class PaystackService {
       );
     }
   }
+
+  async createDedicatedVirtualAccount(data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    preferredBank?: string;
+  }) {
+    try {
+      console.log('[PAYSTACK] Creating dedicated virtual account for:', data.email);
+      
+      const response = await axios.post(
+        `${this.baseUrl}/dedicated_account`,
+        {
+          customer: data.email,
+          preferred_bank: data.preferredBank || 'wema-bank',
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+        },
+        { headers: this.getHeaders() }
+      );
+
+      console.log('[PAYSTACK] Virtual account created:', response.data.data);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('[PAYSTACK] Create virtual account error:', error.response?.data);
+      throw new BadRequestException(
+        error.response?.data?.message || 'Failed to create virtual account'
+      );
+    }
+  }
+
+  async fetchDedicatedVirtualAccount(accountId: string) {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/dedicated_account/${accountId}`,
+        { headers: this.getHeaders() }
+      );
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error('[PAYSTACK] Fetch virtual account error:', error.response?.data);
+      throw new BadRequestException(
+        error.response?.data?.message || 'Failed to fetch virtual account'
+      );
+    }
+  }
+
+  async initializeUSSDPayment(data: {
+    email: string;
+    amount: number;
+    bankCode: string;
+    metadata?: any;
+  }) {
+    try {
+      console.log('[PAYSTACK] Initializing USSD payment:', data);
+      
+      const response = await axios.post(
+        `${this.baseUrl}/charge`,
+        {
+          email: data.email,
+          amount: data.amount,
+          currency: 'NGN',
+          channel: 'ussd',
+          bank: {
+            code: data.bankCode,
+          },
+          metadata: data.metadata,
+        },
+        { headers: this.getHeaders() }
+      );
+
+      console.log('[PAYSTACK] USSD payment initialized:', response.data.data);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('[PAYSTACK] USSD payment error:', error.response?.data);
+      throw new BadRequestException(
+        error.response?.data?.message || 'Failed to initialize USSD payment'
+      );
+    }
+  }
 }

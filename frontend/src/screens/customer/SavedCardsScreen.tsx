@@ -61,34 +61,39 @@ export default function SavedCardsScreen() {
         {}
       );
       
-      console.log('[SavedCards] Got authorization URL:', response.authorizationUrl);
+      console.log('[SavedCards] Got payment reference:', response.reference);
       
-      // Open Paystack payment page in browser
-      if (typeof window !== 'undefined') {
-        window.open(response.authorizationUrl, '_blank');
-        showAlert(
-          'Add Your Card',
-          'A payment window has been opened. Enter your card details to verify and save your card. A ₦50 authorization charge will be refunded to your wallet.',
-          [
-            {
-              text: 'Done - Refresh',
-              onPress: () => {
-                console.log('[SavedCards] User completed payment, refreshing cards');
-                fetchCards();
-              },
-            },
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-          ]
-        );
-      } else {
-        showAlert(
-          'Payment Link',
-          `Please visit this link to add your card: ${response.authorizationUrl}`
-        );
-      }
+      // Navigate to beautiful in-app payment modal
+      (navigation as any).navigate('MockPaystack', {
+        reference: response.reference,
+        email: 'user@example.com', // TODO: Get from user context
+        amount: 5000, // ₦50 in kobo
+        onSuccess: async (paymentData: any) => {
+          console.log('[SavedCards] Payment successful:', paymentData);
+          
+          // Save the card to backend
+          try {
+            await api.post('/payment/cards', {
+              authorizationCode: paymentData.authorization.authorization_code,
+              cardType: paymentData.authorization.card_type,
+              last4: paymentData.authorization.last4,
+              expMonth: paymentData.authorization.exp_month,
+              expYear: paymentData.authorization.exp_year,
+              bank: paymentData.authorization.bank,
+            });
+            
+            console.log('[SavedCards] Card saved successfully');
+            fetchCards();
+            showAlert('Success', 'Card added successfully!');
+          } catch (error: any) {
+            console.error('[SavedCards] Error saving card:', error);
+            showAlert('Error', error.message || 'Failed to save card');
+          }
+        },
+        onClose: () => {
+          console.log('[SavedCards] Payment modal closed');
+        },
+      });
     } catch (error: any) {
       console.error('[SavedCards] Error initializing card add:', error);
       showAlert('Error', error.message || 'Failed to initialize card addition');

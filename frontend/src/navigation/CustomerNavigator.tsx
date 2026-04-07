@@ -48,6 +48,9 @@ import WithdrawScreen from '../screens/customer/WithdrawScreen';
 import BankAccountsScreen from '../screens/customer/BankAccountsScreen';
 import SavedCardsScreen from '../screens/customer/SavedCardsScreen';
 import SendMoneyScreen from '../screens/customer/SendMoneyScreen';
+import PaystackPaymentScreen from '../screens/PaystackPaymentScreen';
+import BankTransferScreen from '../screens/customer/BankTransferScreen';
+import USSDPaymentScreen from '../screens/customer/USSDPaymentScreen';
 import TransactionDetailsScreen from '../screens/customer/TransactionDetailsScreen';
 import WalletAnalyticsScreen from '../screens/customer/WalletAnalyticsScreen';
 import ReferralsScreen from '../screens/customer/ReferralsScreen';
@@ -169,6 +172,18 @@ export default function CustomerNavigator() {
       <Stack.Screen name="BankAccounts" component={BankAccountsScreen} />
       <Stack.Screen name="SavedCards" component={SavedCardsScreen} />
       <Stack.Screen name="SendMoney" component={SendMoneyScreen} />
+      <Stack.Screen 
+        name="PaystackPayment" 
+        component={PaystackPaymentScreen}
+        options={{ 
+          presentation: 'modal',
+          headerShown: true,
+          headerTitle: 'Complete Payment',
+          headerLeft: () => null,
+        }}
+      />
+      <Stack.Screen name="BankTransfer" component={BankTransferScreen} />
+      <Stack.Screen name="USSDPayment" component={USSDPaymentScreen} />
       <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
       <Stack.Screen name="WalletAnalytics" component={WalletAnalyticsScreen} />
       <Stack.Screen name="Referrals" component={ReferralsScreen} />

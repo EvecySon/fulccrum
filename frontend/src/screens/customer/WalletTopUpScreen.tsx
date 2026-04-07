@@ -1,77 +1,117 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { paymentAPI, walletAPI } from '../../services/api';
+import WalletPaymentMethodSelector, { PaymentMethod } from '../../components/WalletPaymentMethodSelector';
 
 export default function WalletTopUpScreen({ navigation }: any) {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMethodSelector, setShowMethodSelector] = useState(false);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [authorizationUrl, setAuthorizationUrl] = useState('');
 
   const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
-  const handleTopUp = async () => {
+  const handleContinue = async () => {
+    console.log('[WalletTopUp] Continue clicked, amount:', amount);
     const topUpAmount = parseFloat(amount);
+    console.log('[WalletTopUp] Parsed amount:', topUpAmount);
+
+    if (!amount || isNaN(topUpAmount)) {
+      console.log('[WalletTopUp] Validation failed: Invalid amount');
+      showAlert('Invalid Amount', 'Please enter a valid amount');
+      return;
+    }
     
-    if (!topUpAmount || topUpAmount < 100) {
-      Alert.alert('Invalid Amount', 'Please enter an amount of at least ₦100');
+    if (topUpAmount < 100) {
+      console.log('[WalletTopUp] Validation failed: Below minimum');
+      showAlert('Invalid Amount', 'Please enter an amount of at least ₦100');
       return;
     }
 
     if (topUpAmount > 1000000) {
-      Alert.alert('Amount Too Large', 'Maximum top-up amount is ₦1,000,000');
+      console.log('[WalletTopUp] Validation failed: Above maximum');
+      showAlert('Amount Too Large', 'Maximum top-up amount is ₦1,000,000');
       return;
     }
 
+    console.log('[WalletTopUp] All validations passed, initializing payment...');
     setLoading(true);
+    
     try {
       const response = await paymentAPI.initializeWalletTopUp(topUpAmount);
-      
-      if (response.authorizationUrl) {
-        // Open Paystack payment page
-        const supported = await Linking.canOpenURL(response.authorizationUrl);
-        if (supported) {
-          await Linking.openURL(response.authorizationUrl);
-          
-          // Show instructions
-          Alert.alert(
-            'Complete Payment',
-            'You will be redirected to Paystack to complete your payment. After payment, your wallet will be credited automatically.',
-            [
-              {
-                text: 'I\'ve Completed Payment',
-                onPress: async () => {
-                  // Verify payment
-                  try {
-                    const verifyResult = await paymentAPI.verifyWalletTopUp(response.reference);
-                    if (verifyResult.success) {
-                      Alert.alert(
-                        'Success!',
-                        `₦${topUpAmount.toLocaleString()} has been added to your wallet`,
-                        [{ text: 'OK', onPress: () => navigation.goBack() }]
-                      );
-                    } else {
-                      Alert.alert('Payment Pending', 'Your payment is being processed. Please check back shortly.');
-                    }
-                  } catch (error: any) {
-                    Alert.alert('Verification Failed', error.message || 'Could not verify payment. Please contact support if money was deducted.');
-                  }
-                },
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-            ]
-          );
-        } else {
-          Alert.alert('Error', 'Cannot open payment page');
-        }
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to initialize payment');
-    } finally {
+      console.log('[WalletTopUp] Payment initialized:', response);
+      setPaymentReference(response.reference);
+      setAuthorizationUrl(response.authorizationUrl || '');
       setLoading(false);
+      setShowMethodSelector(true);
+    } catch (error: any) {
+      console.error('[WalletTopUp] Error initializing payment:', error);
+      showAlert('Error', error.message || 'Failed to initialize payment');
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentMethodSelected = (method: PaymentMethod) => {
+    console.log('[WalletTopUp] Payment method selected:', method);
+    const topUpAmount = parseFloat(amount);
+    
+    setShowMethodSelector(false);
+
+    switch (method) {
+      case 'card':
+        // Navigate to real Paystack payment screen
+        console.log('[WalletTopUp] Opening Paystack with URL:', authorizationUrl);
+        if (!authorizationUrl) {
+          showAlert('Error', 'Payment URL not available. Please try again.');
+          return;
+        }
+        (navigation as any).navigate('PaystackPayment', {
+          authorizationUrl: authorizationUrl,
+          reference: paymentReference,
+          onSuccess: async (paymentData: any) => {
+            console.log('[WalletTopUp] Card payment successful, verifying...');
+            try {
+              const verifyResult = await paymentAPI.verifyWalletTopUp(paymentReference);
+              if (verifyResult.success) {
+                setAmount('');
+                showAlert(
+                  'Success!',
+                  `₦${topUpAmount.toLocaleString()} has been added to your wallet`,
+                  [{ text: 'OK', onPress: () => navigation.goBack() }]
+                );
+              }
+            } catch (error: any) {
+              console.error('[WalletTopUp] Verification failed:', error);
+              showAlert('Error', error.message || 'Payment verification failed');
+            }
+          },
+          onClose: () => {
+            console.log('[WalletTopUp] Paystack payment closed');
+          },
+        });
+        break;
+
+      case 'bank_transfer':
+        // Navigate to bank transfer screen
+        (navigation as any).navigate('BankTransfer', {
+          amount: topUpAmount,
+          reference: paymentReference,
+        });
+        setAmount(''); // Clear immediately
+        break;
+
+      case 'ussd':
+        // Navigate to USSD payment screen
+        (navigation as any).navigate('USSDPayment', {
+          amount: topUpAmount,
+          reference: paymentReference,
+        });
+        setAmount(''); // Clear immediately
+        break;
     }
   };
 
@@ -158,20 +198,27 @@ export default function WalletTopUpScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={[styles.topUpButton, loading && styles.topUpButtonDisabled]}
-          onPress={handleTopUp}
-          disabled={loading || !amount || parseFloat(amount) < 100}
+          onPress={handleContinue}
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <>
-              <Ionicons name="add-circle" size={20} color={colors.white} />
+              <Ionicons name="arrow-forward" size={20} color={colors.white} />
               <Text style={styles.topUpButtonText}>
-                Top Up {amount ? `₦${parseFloat(amount).toLocaleString()}` : 'Wallet'}
+                Continue {amount ? `with ₦${parseFloat(amount).toLocaleString()}` : ''}
               </Text>
             </>
           )}
         </TouchableOpacity>
+
+        <WalletPaymentMethodSelector
+          visible={showMethodSelector}
+          amount={parseFloat(amount) || 0}
+          onSelectMethod={handlePaymentMethodSelected}
+          onClose={() => setShowMethodSelector(false)}
+        />
 
         <View style={styles.securityNote}>
           <Ionicons name="lock-closed" size={16} color={colors.info} />

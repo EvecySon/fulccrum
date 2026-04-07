@@ -48,12 +48,6 @@ export class PaymentController {
     );
   }
 
-  @Post('webhook')
-  async handleWebhook(@Body() payload: any, @Request() req: any) {
-    const signature = req.headers['x-paystack-signature'];
-    return this.paymentService.handleWebhook(payload, signature);
-  }
-
   @Post('cards')
   @UseGuards(NonceGuard)
   @RequireNonce('card-save')
@@ -99,5 +93,30 @@ export class PaymentController {
   @Post('cards/add')
   async initializeCardAdd(@Request() req: any) {
     return this.paymentService.initializeCardAdd(req.user.sub);
+  }
+
+  @Get('virtual-account')
+  async getVirtualAccount(@Request() req: any) {
+    return this.paymentService.getOrCreateVirtualAccount(req.user.sub);
+  }
+
+  @Post('webhook')
+  async handleWebhook(@Request() req: any, @Body() payload: any) {
+    const signature = req.headers['x-paystack-signature'];
+    return this.paymentService.handlePaystackWebhook(payload, signature);
+  }
+
+  @Post('ussd/generate')
+  async generateUSSDCode(
+    @Request() req: any,
+    @Body('amount') amount: number,
+    @Body('bankCode') bankCode: string,
+  ) {
+    return this.paymentService.generateUSSDCode(req.user.sub, amount, bankCode);
+  }
+
+  @Get('status/:reference')
+  async checkPaymentStatus(@Param('reference') reference: string) {
+    return this.paymentService.checkPaymentStatus(reference);
   }
 }

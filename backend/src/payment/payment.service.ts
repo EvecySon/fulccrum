@@ -5,6 +5,7 @@ import { PaystackService } from './paystack.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IdempotencyService } from '../common/services/idempotency.service';
 import axios from 'axios';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class PaymentService {
@@ -509,5 +510,219 @@ export class PaymentService {
       reference: charge.data.reference,
       amount: charge.data.amount / 100,
     };
+  }
+
+  async getOrCreateVirtualAccount(userId: string) {
+    console.log('[PAYMENT] Getting or creating virtual account for user:', userId);
+    
+    // Check if user already has a virtual account
+    let virtualAccount = await this.prisma.virtualAccount.findUnique({
+      where: { userId },
+    });
+
+    if (virtualAccount && virtualAccount.isActive) {
+      console.log('[PAYMENT] Virtual account already exists:', virtualAccount.accountNumber);
+      return {
+        accountNumber: virtualAccount.accountNumber,
+        accountName: virtualAccount.accountName,
+        bankName: virtualAccount.bankName,
+        bankCode: virtualAccount.bankCode,
+      };
+    }
+
+    // Create new virtual account via Paystack
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    try {
+      const paystackAccount = await this.paystackService.createDedicatedVirtualAccount({
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        preferredBank: 'wema-bank',
+      });
+
+      // Save to database
+      virtualAccount = await this.prisma.virtualAccount.create({
+        data: {
+          userId,
+          accountNumber: paystackAccount.account_number,
+          accountName: paystackAccount.account_name,
+          bankName: paystackAccount.bank.name,
+          bankCode: paystackAccount.bank.code,
+          paystackCustomerCode: paystackAccount.customer?.customer_code,
+          paystackAccountId: paystackAccount.id?.toString(),
+          isActive: true,
+        },
+      });
+
+      console.log('[PAYMENT] Virtual account created:', virtualAccount.accountNumber);
+
+      return {
+        accountNumber: virtualAccount.accountNumber,
+        accountName: virtualAccount.accountName,
+        bankName: virtualAccount.bankName,
+        bankCode: virtualAccount.bankCode,
+      };
+    } catch (error: any) {
+      console.error('[PAYMENT] Error creating virtual account:', error);
+      
+      // Check if using placeholder keys
+      if (this.paystackSecretKey.includes('your_paystack_secret_key_here') || 
+          this.paystackSecretKey === 'sk_test_xxx') {
+        throw new BadRequestException(
+          'Paystack API keys not configured. Please add real Paystack keys to .env file. ' +
+          'Get your keys from https://dashboard.paystack.com/#/settings/developer'
+        );
+      }
+      
+      // Real API error
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      throw new BadRequestException(
+        `Failed to create virtual account: ${errorMessage}. ` +
+        'Please check your Paystack account status and API keys.'
+      );
+    }
+  }
+
+  async handlePaystackWebhook(payload: any, signature: string) {
+    console.log('[PAYMENT] Webhook received:', payload.event);
+
+    // Verify webhook signature
+    const hash = crypto
+      .createHmac('sha512', this.paystackSecretKey)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+
+    if (hash !== signature) {
+      console.error('[PAYMENT] Invalid webhook signature');
+      throw new BadRequestException('Invalid webhook signature');
+    }
+
+    const event = payload.event;
+    const data = payload.data;
+
+    switch (event) {
+      case 'charge.success':
+        await this.handleSuccessfulCharge(data);
+        break;
+      case 'transfer.success':
+        await this.handleSuccessfulTransfer(data);
+        break;
+      case 'dedicatedaccount.assign.success':
+        console.log('[PAYMENT] Dedicated account assigned:', data);
+        break;
+      default:
+        console.log('[PAYMENT] Unhandled webhook event:', event);
+    }
+
+    return { status: 'success' };
+  }
+
+  private async handleSuccessfulCharge(data: any) {
+    console.log('[PAYMENT] Processing successful charge:', data.reference);
+
+    const metadata = data.metadata || {};
+    
+    if (metadata.type === 'wallet_topup') {
+      const userId = metadata.userId;
+      const amount = data.amount / 100; // kobo to naira
+
+      // Credit wallet
+      let wallet = await this.prisma.digitalWallet.findUnique({ where: { userId } });
+      if (!wallet) {
+        wallet = await this.prisma.digitalWallet.create({ data: { userId } });
+      }
+
+      await this.prisma.digitalWallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: amount } },
+      });
+
+      console.log(`[PAYMENT] Credited ₦${amount} to user ${userId} wallet`);
+
+      // Auto-save card if authorization exists
+      const auth = data.authorization;
+      if (auth?.authorization_code && auth?.last4) {
+        const existing = await this.prisma.savedCard.findFirst({
+          where: { userId, authorizationCode: auth.authorization_code },
+        });
+        if (!existing) {
+          const isFirst = (await this.prisma.savedCard.count({ where: { userId } })) === 0;
+          await this.prisma.savedCard.create({
+            data: {
+              userId,
+              authorizationCode: auth.authorization_code,
+              cardType: auth.card_type || 'unknown',
+              last4: auth.last4,
+              expMonth: auth.exp_month || '00',
+              expYear: auth.exp_year || '00',
+              bank: auth.bank || 'Unknown',
+              isDefault: isFirst,
+            },
+          });
+          console.log(`[PAYMENT] Card saved for user ${userId}`);
+        }
+      }
+    }
+  }
+
+  private async handleSuccessfulTransfer(data: any) {
+    console.log('[PAYMENT] Processing successful transfer:', data.reference);
+    // Bank transfer to virtual account - wallet already credited by Paystack
+    // This is just for logging/notification purposes
+  }
+
+  async generateUSSDCode(userId: string, amount: number, bankCode: string) {
+    console.log('[PAYMENT] Generating USSD code for user:', userId, 'amount:', amount, 'bank:', bankCode);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    try {
+      const result = await this.paystackService.initializeUSSDPayment({
+        email: user.email,
+        amount: amount * 100, // kobo
+        bankCode,
+        metadata: { type: 'wallet_topup', userId },
+      });
+
+      console.log('[PAYMENT] USSD code generated:', result.ussd_code);
+
+      return {
+        ussdCode: result.ussd_code,
+        reference: result.reference,
+        displayText: result.display_text,
+      };
+    } catch (error: any) {
+      console.error('[PAYMENT] Error generating USSD code:', error);
+      throw new BadRequestException('Failed to generate USSD code. Please try again.');
+    }
+  }
+
+  async checkPaymentStatus(reference: string) {
+    console.log('[PAYMENT] Checking payment status for reference:', reference);
+
+    try {
+      const result = await this.paystackService.verifyPayment(reference);
+
+      return {
+        status: result.status, // 'success', 'pending', 'failed'
+        amount: result.amount / 100,
+        paidAt: result.paid_at,
+        channel: result.channel, // 'card', 'bank_transfer', 'ussd'
+        reference: result.reference,
+      };
+    } catch (error: any) {
+      console.error('[PAYMENT] Error checking payment status:', error);
+      return {
+        status: 'pending',
+        amount: 0,
+        paidAt: null,
+        channel: null,
+        reference,
+      };
+    }
   }
 }

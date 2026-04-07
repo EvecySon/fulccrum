@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,20 +13,65 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { ordersAPI } from '../../services/api';
 
+// TypeScript Interfaces
+interface MenuItem {
+  name: string;
+  price: number;
+}
+
+interface OrderItem {
+  id: string;
+  quantity: number;
+  menuItem: MenuItem;
+}
+
+interface Business {
+  businessName: string;
+}
+
+type OrderStatus = 
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'picked_up'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  totalAmount: number;
+  estimatedDeliveryTime: string | null;
+  business: Business;
+  items: OrderItem[];
+}
+
+interface OrdersResponse {
+  data: Order[];
+  meta?: {
+    totalPages: number;
+    currentPage: number;
+    total: number;
+  };
+}
+
 export default function OrdersScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
-  const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const loadOrders = async (pageNum = 1, append = false) => {
+  const loadOrders = useCallback(async (pageNum = 1, append = false) => {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await ordersAPI.getMyOrders(pageNum, 20);
-      const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const res = await ordersAPI.getMyOrders(pageNum, 20) as OrdersResponse;
+      const data: Order[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res as unknown as Order[] : [];
       const meta = res?.meta;
       
       if (append) {
@@ -42,26 +87,26 @@ export default function OrdersScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading]);
 
   useEffect(() => {
     loadOrders();
   }, []);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setPage(1);
     await loadOrders(1, false);
     setRefreshing(false);
-  };
+  }, [loadOrders]);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (hasMore && !loading) {
       loadOrders(page + 1, true);
     }
-  };
+  }, [hasMore, loading, page, loadOrders]);
 
-  const handleReorder = async (order: any) => {
+  const handleReorder = useCallback(async (order: Order) => {
     try {
       await ordersAPI.reorder(order.id);
       Alert.alert('Success', 'Order added to cart!');
@@ -69,9 +114,9 @@ export default function OrdersScreen({ navigation }: any) {
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Could not reorder');
     }
-  };
+  }, [navigation]);
 
-  const formatETA = (estimatedTime: string | null) => {
+  const formatETA = useCallback((estimatedTime: string | null): string | null => {
     if (!estimatedTime) return null;
     const eta = new Date(estimatedTime);
     const now = new Date();
@@ -82,16 +127,24 @@ export default function OrdersScreen({ navigation }: any) {
     const hours = Math.floor(diffMins / 60);
     const mins = diffMins % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
+  }, []);
 
-  const activeOrders = allOrders.filter(
-    (o: any) => o.status !== 'delivered' && o.status !== 'cancelled'
+  // Memoize filtered orders for performance
+  const activeOrders = useMemo(
+    () => allOrders.filter(
+      (o: Order) => o.status !== 'delivered' && o.status !== 'cancelled'
+    ),
+    [allOrders]
   );
-  const pastOrders = allOrders.filter(
-    (o: any) => o.status === 'delivered' || o.status === 'cancelled'
+  
+  const pastOrders = useMemo(
+    () => allOrders.filter(
+      (o: Order) => o.status === 'delivered' || o.status === 'cancelled'
+    ),
+    [allOrders]
   );
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: OrderStatus): string => {
     switch (status) {
       case 'pending':
       case 'confirmed':
@@ -109,9 +162,9 @@ export default function OrdersScreen({ navigation }: any) {
       default:
         return colors.textLight;
     }
-  };
+  }, []);
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = useCallback((status: OrderStatus): string => {
     switch (status) {
       case 'pending':
         return 'Pending';
@@ -130,9 +183,9 @@ export default function OrdersScreen({ navigation }: any) {
       case 'cancelled':
         return 'Cancelled';
       default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
+        return (status as string).charAt(0).toUpperCase() + (status as string).slice(1);
     }
-  };
+  }, []);
 
   const orders = activeTab === 'active' ? activeOrders : pastOrders;
 
@@ -185,7 +238,7 @@ export default function OrdersScreen({ navigation }: any) {
             </Text>
           </View>
         ) : (
-          orders.map((order) => (
+          orders.map((order: Order) => (
             <TouchableOpacity
               key={order.id}
               style={styles.orderCard}
@@ -226,7 +279,7 @@ export default function OrdersScreen({ navigation }: any) {
               </View>
 
               <View style={styles.orderItems}>
-                {(order.items || []).slice(0, 3).map((item: any, index: number) => (
+                {(order.items || []).slice(0, 3).map((item: OrderItem, index: number) => (
                   <Text key={index} style={styles.orderItemText}>
                     • {item.quantity}x {item.menuItem?.name || 'Item'}
                   </Text>
