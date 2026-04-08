@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { showAlert } from '../../utils/alert';
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -49,18 +50,18 @@ const DeliveryCompleteScreen: React.FC = () => {
 
   const handleRatingSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a rating before submitting');
+      showAlert('Rating Required', 'Please select a rating before submitting');
       return;
     }
     try {
       setIsSubmitting(true);
       await packageDeliveryAPI.rateDelivery(orderId, rating, feedback.trim() || undefined);
-      Alert.alert('Thank You!', 'Your feedback helps us improve our service', [
+      showAlert('Thank You!', 'Your feedback helps us improve our service', [
         { text: 'OK', onPress: () => (navigation as any).navigate('PackageHistory') },
       ]);
     } catch (error) {
       console.error('Rating error:', error);
-      Alert.alert('Error', 'Failed to submit rating. Please try again.');
+      showAlert('Error', 'Failed to submit rating. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -15,6 +15,8 @@ interface User {
   lastName: string;
   role: UserRole;
   avatarUrl?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   dietaryPreferences?: string[];
   allergies?: string[];
   customAllergies?: string;

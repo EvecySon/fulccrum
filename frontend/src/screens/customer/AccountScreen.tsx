@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, loyaltyAPI, resolveMediaUrl } from '../../services/api';
+import { showAlert } from '../../utils/alert';
 
 const menuItems = [
   { icon: 'person-outline', label: 'Edit Profile', screen: 'EditProfile' },
@@ -80,9 +80,9 @@ export default function AccountScreen({ navigation }: any) {
     try {
       await usersAPI.exportData();
       setShowExportModal(false);
-      Alert.alert('Data Export', 'Your data export has been prepared. Check your email for the download link.');
+      showAlert('Data Export', 'Your data export has been prepared. Check your email for the download link.');
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not export data.');
+      showAlert('Error', e?.message || 'Could not export data.');
     } finally { setExporting(false); }
   };
 
@@ -97,11 +97,11 @@ export default function AccountScreen({ navigation }: any) {
     try {
       await usersAPI.deleteAccount(deletePassword);
       setShowDeleteModal(false);
-      Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+      showAlert('Account Deleted', 'Your account has been permanently deleted.', [
         { text: 'OK', onPress: () => logout() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not delete account. Check your password.');
+      showAlert('Error', e?.message || 'Could not delete account. Check your password.');
     } finally { setDeleting(false); }
   };
 

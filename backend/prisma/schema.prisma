@@ -505,11 +505,18 @@ model Order {
   // Package delivery fields
   pickupLocation     Json?          @map("pickup_location")
   dropoffLocation    Json?          @map("dropoff_location")
+  additionalStops    Json?          @map("additional_stops")
   packageSize        PackageSize?   @map("package_size")
   packageWeight      Float?         @map("package_weight")
   packagePhoto       String?        @map("package_photo")
   deliverySpeed      DeliverySpeed? @map("delivery_speed")
   packageDescription String?        @map("package_description") @db.VarChar(500)
+  insuranceTier      String?        @map("insurance_tier") @db.VarChar(20)
+  insuranceAmount    Decimal?       @map("insurance_amount") @db.Decimal(10, 2)
+  promoCode          String?        @map("promo_code") @db.VarChar(30)
+  promoDiscount      Decimal?       @map("promo_discount") @db.Decimal(10, 2)
+  cancellationReason String?        @map("cancellation_reason") @db.VarChar(255)
+  cancellationFee    Decimal?       @map("cancellation_fee") @db.Decimal(10, 2)
 
   // Pricing breakdown for package delivery
   basePrice      Decimal? @map("base_price") @db.Decimal(10, 2)

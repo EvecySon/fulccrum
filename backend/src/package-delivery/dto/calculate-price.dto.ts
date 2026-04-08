@@ -1,4 +1,4 @@
-import { IsObject, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsObject, IsEnum, IsNotEmpty, IsOptional, IsArray, IsString } from 'class-validator';
 
 export class CalculatePriceDto {
   @IsObject()
@@ -14,4 +14,12 @@ export class CalculatePriceDto {
 
   @IsEnum(['express', 'same_day', 'scheduled'])
   speed: string;
+
+  @IsOptional()
+  @IsArray()
+  additionalStops?: { lat: number; lng: number }[];
+
+  @IsOptional()
+  @IsString()
+  insuranceTier?: string;
 }

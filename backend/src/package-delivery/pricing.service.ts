@@ -16,23 +16,33 @@ export class PricingService {
     dropoff: { lat: number; lng: number },
     size: string,
     speed: string,
+    additionalStops?: { lat: number; lng: number }[],
+    insuranceTier?: string,
   ) {
     // Get pricing settings from database
     const settings = await this.getPricingSettings();
 
-    // Get real road distance using Google Maps API (with Haversine fallback)
-    const { distance, source } = await this.mapsService.getRouteDistance(
-      pickup,
-      dropoff,
-    );
+    // Calculate total distance across all route segments
+    let totalDistance = 0;
+    const waypoints = [pickup, ...(additionalStops || []), dropoff];
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const { distance } = await this.mapsService.getRouteDistance(
+        waypoints[i],
+        waypoints[i + 1],
+      );
+      totalDistance += distance;
+    }
 
-    this.logger.log(`Distance calculated: ${distance.toFixed(2)} km using ${source}`);
+    this.logger.log(`Total distance calculated: ${totalDistance.toFixed(2)} km across ${waypoints.length} waypoints`);
 
     const basePrice = settings.basePackagePrice.toNumber();
     const pricePerKm = settings.perKmPackageRate.toNumber();
-    const distancePrice = distance * pricePerKm;
+    const distancePrice = totalDistance * pricePerKm;
 
-    let price = basePrice + distancePrice;
+    // Extra stop fee: ₦200 per additional stop
+    const stopFee = (additionalStops?.length || 0) * 200;
+
+    let price = basePrice + distancePrice + stopFee;
 
     // Apply size multiplier
     const sizeMultipliers: Record<string, number> = {
@@ -57,22 +67,56 @@ export class PricingService {
     const surgeFactor = await this.calculateSurgeFactor(pickup, settings);
     price *= surgeFactor;
 
+    // Insurance pricing
+    const insurancePricing = this.getInsurancePricing(insuranceTier);
+
     return {
       basePrice,
       distancePrice,
       sizeMultiplier,
       speedMultiplier,
       surgeFactor,
-      distance: parseFloat(distance.toFixed(2)),
-      totalPrice: parseFloat(price.toFixed(2)),
+      stopFee,
+      stopCount: additionalStops?.length || 0,
+      distance: parseFloat(totalDistance.toFixed(2)),
+      insuranceTier: insuranceTier || null,
+      insuranceAmount: insurancePricing.amount,
+      insuranceCoverage: insurancePricing.coverage,
+      totalPrice: parseFloat((price + insurancePricing.amount).toFixed(2)),
       breakdown: {
         base: basePrice,
         distance: distancePrice,
+        stops: stopFee,
         sizeAdjustment: (sizeMultiplier - 1) * 100,
         speedAdjustment: (speedMultiplier - 1) * 100,
         surgeAdjustment: (surgeFactor - 1) * 100,
+        insurance: insurancePricing.amount,
       },
     };
+  }
+
+  getInsurancePricing(tier?: string): { amount: number; coverage: number; label: string } {
+    switch (tier) {
+      case 'basic':
+        return { amount: 200, coverage: 50000, label: 'Basic (up to ₦50,000)' };
+      case 'standard':
+        return { amount: 500, coverage: 200000, label: 'Standard (up to ₦200,000)' };
+      case 'premium':
+        return { amount: 1000, coverage: 500000, label: 'Premium (up to ₦500,000)' };
+      default:
+        return { amount: 0, coverage: 50000, label: 'Free (up to ₦50,000)' };
+    }
+  }
+
+  async validatePromoCode(code: string): Promise<{ valid: boolean; discount: number; message: string }> {
+    // TODO: Look up promo codes from a promo table; for now support a few static codes
+    const promos: Record<string, { discount: number; message: string }> = {
+      'FIRST10': { discount: 10, message: '10% off your first delivery!' },
+      'FULCCRUM20': { discount: 20, message: '20% off — welcome to Fulccrum!' },
+    };
+    const promo = promos[code.toUpperCase()];
+    if (promo) return { valid: true, ...promo };
+    return { valid: false, discount: 0, message: 'Invalid promo code' };
   }
 
   private async getPricingSettings() {

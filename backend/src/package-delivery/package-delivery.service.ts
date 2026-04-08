@@ -20,22 +20,51 @@ export class PackageDeliveryService {
     dropoff: { lat: number; lng: number },
     size: string,
     speed: string,
+    additionalStops?: { lat: number; lng: number }[],
+    insuranceTier?: string,
   ) {
     return this.pricingService.calculateDeliveryPrice(
       pickup,
       dropoff,
       size,
       speed,
+      additionalStops,
+      insuranceTier,
     );
   }
 
+  async validatePromo(code: string) {
+    return this.pricingService.validatePromoCode(code);
+  }
+
+  async getDeliveryProofs(orderId: string) {
+    return this.prisma.deliveryProof.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async requestDelivery(customerId: string, dto: RequestDeliveryDto) {
+    const additionalStops = dto.additionalStops?.map(s => ({ lat: s.lat, lng: s.lng }));
     const pricing = await this.pricingService.calculateDeliveryPrice(
       { lat: dto.pickupLocation.lat, lng: dto.pickupLocation.lng },
       { lat: dto.dropoffLocation.lat, lng: dto.dropoffLocation.lng },
       dto.packageSize,
       dto.deliverySpeed,
+      additionalStops,
+      dto.insuranceTier,
     );
+
+    // Validate and apply promo code
+    let promoDiscount = 0;
+    if (dto.promoCode) {
+      const promo = await this.pricingService.validatePromoCode(dto.promoCode);
+      if (promo.valid) {
+        promoDiscount = parseFloat(((pricing.totalPrice * promo.discount) / 100).toFixed(2));
+      }
+    }
+
+    const finalTotal = parseFloat((pricing.totalPrice - promoDiscount).toFixed(2));
 
     const orderNumber = `PKG-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
@@ -46,12 +75,18 @@ export class PackageDeliveryService {
         customerId,
         pickupLocation: dto.pickupLocation as any,
         dropoffLocation: dto.dropoffLocation as any,
+        additionalStops: dto.additionalStops ? (dto.additionalStops as any) : undefined,
         packageSize: dto.packageSize as any,
         packageWeight: dto.packageWeight,
         packageDescription: dto.packageDescription,
         deliverySpeed: dto.deliverySpeed as any,
         specialInstructions: dto.specialInstructions,
-        totalAmount: pricing.totalPrice,
+        paymentMethod: dto.paymentMethod,
+        insuranceTier: dto.insuranceTier,
+        insuranceAmount: pricing.insuranceAmount,
+        promoCode: dto.promoCode,
+        promoDiscount,
+        totalAmount: finalTotal,
         basePrice: pricing.basePrice,
         distancePrice: pricing.distancePrice,
         sizeMultiplier: pricing.sizeMultiplier,
@@ -173,7 +208,7 @@ export class PackageDeliveryService {
     return { success: true, message: 'Order marked as delivered' };
   }
 
-  async cancelDelivery(orderId: string, customerId: string) {
+  async cancelDelivery(orderId: string, customerId: string, reason?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -190,9 +225,19 @@ export class PackageDeliveryService {
       throw new BadRequestException('Cannot cancel delivered order');
     }
 
+    // Cancellation fee: free if pending/searching, 20% if accepted/picked_up
+    let cancellationFee = 0;
+    if (['accepted', 'picked_up', 'in_transit'].includes(order.status)) {
+      cancellationFee = parseFloat((Number(order.totalAmount) * 0.2).toFixed(2));
+    }
+
     await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: 'cancelled' },
+      data: {
+        status: 'cancelled',
+        cancellationReason: reason || null,
+        cancellationFee: cancellationFee || null,
+      },
     });
 
     await this.prisma.deliveryRequest.updateMany({
@@ -204,9 +249,11 @@ export class PackageDeliveryService {
       await this.notifications.sendPushNotification(
         order.driverId,
         'Delivery Cancelled',
-        'The customer has cancelled the delivery',
+        `The customer has cancelled the delivery${reason ? `: ${reason}` : ''}`,
       );
     }
+
+    return { cancellationFee };
   }
 
   async rateDelivery(orderId: string, rating: number, feedback?: string) {

@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { showAlert } from '../../utils/alert';
 
 const { width } = Dimensions.get('window');
 
@@ -47,7 +48,7 @@ const FindingCourierScreen: React.FC = () => {
 
     if (!orderId) {
       console.error('No orderId provided to FindingCourierScreen!');
-      Alert.alert('Error', 'Missing order information. Please try again.');
+      showAlert('Error', 'Missing order information. Please try again.');
       navigation.goBack();
       return;
     }
@@ -165,7 +166,7 @@ const FindingCourierScreen: React.FC = () => {
       if (window.confirm('Cancel this delivery request?')) doCancel();
       return;
     }
-    Alert.alert(
+    showAlert(
       'Cancel Request',
       'Are you sure you want to cancel this delivery request?',
       [

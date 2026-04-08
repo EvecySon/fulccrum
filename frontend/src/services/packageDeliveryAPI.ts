@@ -15,20 +15,28 @@ export interface PriceCalculation {
   sizeMultiplier: number;
   speedMultiplier: number;
   surgeFactor: number;
+  stopFee: number;
+  stopCount: number;
   distance: number;
+  insuranceTier: string | null;
+  insuranceAmount: number;
+  insuranceCoverage: number;
   totalPrice: number;
   breakdown: {
     base: number;
     distance: number;
+    stops: number;
     sizeAdjustment: number;
     speedAdjustment: number;
     surgeAdjustment: number;
+    insurance: number;
   };
 }
 
 export interface DeliveryRequest {
   pickupLocation: Location;
   dropoffLocation: Location;
+  additionalStops?: Location[];
   packageSize: 'small' | 'medium' | 'large' | 'extra_large';
   deliverySpeed: 'express' | 'same_day' | 'scheduled';
   scheduledTime?: string;
@@ -37,6 +45,8 @@ export interface DeliveryRequest {
   dimensions?: { length?: number; width?: number; height?: number };
   specialInstructions?: string;
   paymentMethod?: string;
+  promoCode?: string;
+  insuranceTier?: 'basic' | 'standard' | 'premium';
 }
 
 export interface DeliveryStatus {
@@ -108,8 +118,26 @@ export const packageDeliveryAPI = {
     dropoff: { lat: number; lng: number };
     size: 'small' | 'medium' | 'large' | 'extra_large';
     speed: 'express' | 'same_day' | 'scheduled';
+    additionalStops?: { lat: number; lng: number }[];
+    insuranceTier?: string;
   }): Promise<{ success: boolean; data: PriceCalculation }> =>
     api.post('/package-delivery/calculate-price', data),
+
+  /**
+   * Validate a promo code
+   */
+  validatePromo: (
+    code: string
+  ): Promise<{ success: boolean; data: { valid: boolean; discount: number; message: string } }> =>
+    api.post('/package-delivery/validate-promo', { code }),
+
+  /**
+   * Get delivery proofs (photos) for an order
+   */
+  getDeliveryProofs: (
+    orderId: string
+  ): Promise<{ success: boolean; data: Array<{ id: string; photoUrl: string; notes?: string; type: string; createdAt: string }> }> =>
+    api.get(`/package-delivery/${orderId}/proofs`),
 
   /**
    * Request package delivery
@@ -164,9 +192,10 @@ export const packageDeliveryAPI = {
    * Cancel delivery
    */
   cancelDelivery: (
-    orderId: string
-  ): Promise<{ success: boolean; message: string }> =>
-    api.post(`/package-delivery/${orderId}/cancel`, {}),
+    orderId: string,
+    reason?: string
+  ): Promise<{ success: boolean; message: string; data?: { cancellationFee: number } }> =>
+    api.post(`/package-delivery/${orderId}/cancel`, { reason }),
 
   /**
    * Rate delivery

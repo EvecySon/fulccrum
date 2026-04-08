@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
+import { showAlert } from '../../utils/alert';
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -50,69 +52,28 @@ const PackageHistoryScreen: React.FC = () => {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockHistory: DeliveryHistoryItem[] = [
-        {
-          id: 'PKG1773635247769',
-          orderNumber: 'PKG1773635247769',
-          status: 'IN_TRANSIT',
-          pickupAddress: 'Victoria Island, Lagos',
-          dropoffAddress: 'Lekki Phase 1, Lagos',
-          packageSize: 'medium',
-          totalAmount: 2500,
-          createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          courier: { name: 'David Okafor', rating: 4.9 },
-        },
-        {
-          id: 'PKG1773535247769',
-          orderNumber: 'PKG1773535247769',
-          status: 'DELIVERED',
-          pickupAddress: 'Victoria Island, Lagos',
-          dropoffAddress: 'Lekki Phase 1, Lagos',
-          packageSize: 'medium',
-          totalAmount: 2500,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-          courier: { name: 'John Doe', rating: 4.8 },
-        },
-        {
-          id: 'PKG1773435247769',
-          orderNumber: 'PKG1773435247769',
-          status: 'DELIVERED',
-          pickupAddress: 'Ikeja GRA, Lagos',
-          dropoffAddress: 'Surulere, Lagos',
-          packageSize: 'small',
-          totalAmount: 1800,
-          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
-          courier: { name: 'Jane Smith', rating: 4.9 },
-        },
-        {
-          id: 'PKG1773335247769',
-          orderNumber: 'PKG1773335247769',
-          status: 'CANCELLED',
-          pickupAddress: 'Yaba, Lagos',
-          dropoffAddress: 'Ajah, Lagos',
-          packageSize: 'large',
-          totalAmount: 3200,
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'PKG1773235247769',
-          orderNumber: 'PKG1773235247769',
-          status: 'DELIVERED',
-          pickupAddress: 'Maryland, Lagos',
-          dropoffAddress: 'Ikoyi, Lagos',
-          packageSize: 'medium',
-          totalAmount: 2200,
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          deliveredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000).toISOString(),
-          courier: { name: 'Mike Johnson', rating: 4.7 },
-        },
-      ];
-      setDeliveries(mockHistory);
-    } catch (error) {
+      const res: any = await packageDeliveryAPI.getHistory(1, 50);
+      const data = res?.data || res;
+      const items: DeliveryHistoryItem[] = (data?.deliveries || []).map((d: any) => ({
+        id: d.id,
+        orderNumber: d.orderNumber || d.id,
+        status: (d.status || 'PENDING').toUpperCase(),
+        pickupAddress: d.pickupLocation?.address || 'Pickup',
+        dropoffAddress: d.dropoffLocation?.address || 'Dropoff',
+        packageSize: d.packageSize || 'medium',
+        totalAmount: d.totalAmount || 0,
+        createdAt: d.createdAt,
+        deliveredAt: d.deliveredAt,
+        cancelledAt: d.cancelledAt,
+        courier: d.driver ? {
+          name: `${d.driver.firstName || ''} ${d.driver.lastName || ''}`.trim(),
+          rating: d.driver.driverProfile?.rating || d.driver.rating || 0,
+        } : undefined,
+      }));
+      setDeliveries(items);
+    } catch (error: any) {
       console.error('Load history error:', error);
+      showAlert('Error', error?.message || 'Could not load delivery history.');
     } finally {
       setLoading(false);
       setRefreshing(false);

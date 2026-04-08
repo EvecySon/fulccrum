@@ -28,12 +28,26 @@ export class PackageDeliveryController {
       dto.dropoff,
       dto.size,
       dto.speed,
+      dto.additionalStops,
+      dto.insuranceTier,
     );
     
     return {
       success: true,
       data: pricing,
     };
+  }
+
+  @Post('validate-promo')
+  async validatePromo(@Body() body: { code: string }) {
+    const result = await this.packageDeliveryService.validatePromo(body.code);
+    return { success: true, data: result };
+  }
+
+  @Get(':id/proofs')
+  async getDeliveryProofs(@Param('id') id: string) {
+    const proofs = await this.packageDeliveryService.getDeliveryProofs(id);
+    return { success: true, data: proofs };
   }
 
   @Post('request')
@@ -98,12 +112,14 @@ export class PackageDeliveryController {
   async cancelDelivery(
     @Param('id') id: string,
     @Request() req: any,
+    @Body() body: { reason?: string },
   ) {
-    await this.packageDeliveryService.cancelDelivery(id, req.user.sub);
+    const result = await this.packageDeliveryService.cancelDelivery(id, req.user.sub, body?.reason);
     
     return {
       success: true,
       message: 'Delivery cancelled successfully',
+      data: { cancellationFee: result.cancellationFee },
     };
   }
 

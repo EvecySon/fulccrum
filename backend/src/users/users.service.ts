@@ -25,6 +25,8 @@ export class UsersService {
         avatarUrl: true,
         role: true,
         status: true,
+        emailVerified: true,
+        phoneVerified: true,
         dietaryPreferences: true,
         allergies: true,
         customAllergies: true,

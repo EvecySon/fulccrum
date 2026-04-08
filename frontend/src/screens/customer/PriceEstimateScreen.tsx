@@ -6,12 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
   Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { packageDeliveryAPI, PriceCalculation } from '../../services/packageDeliveryAPI';
+import { showAlert } from '../../utils/alert';
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -26,6 +28,7 @@ const PriceEstimateScreen: React.FC = () => {
     packageSize,
     pickupLocation,
     dropoffLocation,
+    additionalStops,
     deliverySpeed,
     scheduledTime,
     packageDescription,
@@ -33,12 +36,16 @@ const PriceEstimateScreen: React.FC = () => {
     dimensions,
     specialInstructions,
     packagePhoto,
+    insuranceTier,
   } = (route.params as any) || {};
 
   const [pricing, setPricing] = useState<PriceCalculation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'cash'>('wallet');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card' | 'cash'>('wallet');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoResult, setPromoResult] = useState<{ valid: boolean; discount: number; message: string } | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   useEffect(() => {
     console.log('PriceEstimateScreen mounted with params:', {
@@ -55,7 +62,7 @@ const PriceEstimateScreen: React.FC = () => {
       setIsLoading(true);
       if (!pickupLocation?.lat || !pickupLocation?.lng || !dropoffLocation?.lat || !dropoffLocation?.lng) {
         console.error('Missing location data:', { pickupLocation, dropoffLocation });
-        Alert.alert('Error', 'Location data is missing. Please go back and select locations again.');
+        showAlert('Error', 'Location data is missing. Please go back and select locations again.');
         setIsLoading(false);
         return;
       }
@@ -64,15 +71,36 @@ const PriceEstimateScreen: React.FC = () => {
         dropoff: { lat: dropoffLocation.lat, lng: dropoffLocation.lng },
         size: packageSize,
         speed: deliverySpeed,
+        additionalStops: additionalStops?.map((s: any) => ({ lat: s.lat, lng: s.lng })),
+        insuranceTier,
       });
       setPricing(response?.data || response);
     } catch (error) {
       console.error('Price calculation error:', error);
-      Alert.alert('Error', 'Failed to calculate price. Please try again.');
+      showAlert('Error', 'Failed to calculate price. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleValidatePromo = async () => {
+    if (!promoCode.trim()) return;
+    try {
+      setIsValidatingPromo(true);
+      const res: any = await packageDeliveryAPI.validatePromo(promoCode.trim());
+      const data = res?.data || res;
+      setPromoResult(data);
+    } catch {
+      setPromoResult({ valid: false, discount: 0, message: 'Could not validate promo code' });
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const promoDiscount = promoResult?.valid && pricing
+    ? parseFloat(((pricing.totalPrice * promoResult.discount) / 100).toFixed(2))
+    : 0;
+  const finalTotal = pricing ? parseFloat((pricing.totalPrice - promoDiscount).toFixed(2)) : 0;
 
   const handleConfirmOrder = async () => {
     try {
@@ -80,6 +108,7 @@ const PriceEstimateScreen: React.FC = () => {
       const response = await packageDeliveryAPI.requestDelivery({
         pickupLocation,
         dropoffLocation,
+        additionalStops,
         packageSize,
         deliverySpeed,
         scheduledTime,
@@ -88,6 +117,8 @@ const PriceEstimateScreen: React.FC = () => {
         dimensions,
         specialInstructions,
         paymentMethod,
+        promoCode: promoResult?.valid ? promoCode.trim() : undefined,
+        insuranceTier,
       });
       const result = response?.data || response;
       (navigation as any).navigate('FindingCourier', {
@@ -98,7 +129,7 @@ const PriceEstimateScreen: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Request delivery error:', error);
-      Alert.alert(
+      showAlert(
         'Error',
         error.response?.data?.message || 'Failed to request delivery. Please try again.'
       );
@@ -162,10 +193,16 @@ const PriceEstimateScreen: React.FC = () => {
         {/* Total Price Card */}
         <View style={styles.totalPriceCard}>
           <Text style={styles.totalPriceLabel}>Total Delivery Cost</Text>
-          <Text style={styles.totalPrice}>{'\u20A6'}{pricing.totalPrice.toLocaleString()}</Text>
+          <Text style={styles.totalPrice}>{'\u20A6'}{finalTotal.toLocaleString()}</Text>
           <Text style={styles.totalPriceSub}>
-            {pricing.distance.toFixed(1)} km • {deliverySpeed === 'express' ? '30-60 min' : '2-4 hours'}
+            {pricing.distance.toFixed(1)} km{pricing.stopCount > 0 ? ` • ${pricing.stopCount} stop${pricing.stopCount > 1 ? 's' : ''}` : ''} • {deliverySpeed === 'express' ? '30-60 min' : '2-4 hours'}
           </Text>
+          {promoDiscount > 0 && (
+            <View style={styles.promoBadge}>
+              <Ionicons name="pricetag" size={12} color="#22c55e" />
+              <Text style={styles.promoBadgeText}>You save {'\u20A6'}{promoDiscount.toLocaleString()}</Text>
+            </View>
+          )}
         </View>
 
         {/* Price Breakdown */}
@@ -209,10 +246,28 @@ const PriceEstimateScreen: React.FC = () => {
                 </Text>
               </View>
             )}
+            {(pricing.breakdown.stops || 0) > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Additional Stops ({pricing.stopCount})</Text>
+                <Text style={styles.breakdownValue}>{'\u20A6'}{pricing.breakdown.stops.toLocaleString()}</Text>
+              </View>
+            )}
+            {(pricing.breakdown.insurance || 0) > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Insurance ({pricing.insuranceTier})</Text>
+                <Text style={styles.breakdownValue}>{'\u20A6'}{pricing.breakdown.insurance.toLocaleString()}</Text>
+              </View>
+            )}
+            {promoDiscount > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={[styles.breakdownLabel, { color: '#22c55e' }]}>Promo Discount (-{promoResult!.discount}%)</Text>
+                <Text style={[styles.breakdownValue, { color: '#22c55e' }]}>-{'\u20A6'}{promoDiscount.toLocaleString()}</Text>
+              </View>
+            )}
             <View style={styles.divider} />
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabelTotal}>Total</Text>
-              <Text style={styles.breakdownValueTotal}>{'\u20A6'}{pricing.totalPrice.toLocaleString()}</Text>
+              <Text style={styles.breakdownValueTotal}>{'\u20A6'}{finalTotal.toLocaleString()}</Text>
             </View>
           </View>
         </View>
@@ -298,47 +353,73 @@ const PriceEstimateScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Promo Code */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Promo Code</Text>
+          <View style={styles.promoRow}>
+            <TextInput
+              style={styles.promoInput}
+              placeholder="Enter promo code"
+              placeholderTextColor={TEXT_DIM}
+              value={promoCode}
+              onChangeText={(t) => { setPromoCode(t); setPromoResult(null); }}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity
+              style={[styles.promoBtn, (!promoCode.trim() || isValidatingPromo) && styles.promoBtnDisabled]}
+              onPress={handleValidatePromo}
+              disabled={!promoCode.trim() || isValidatingPromo}
+            >
+              {isValidatingPromo ? (
+                <ActivityIndicator size="small" color={BG_DARK} />
+              ) : (
+                <Text style={styles.promoBtnText}>Apply</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {promoResult && (
+            <View style={[styles.promoFeedback, promoResult.valid ? styles.promoFeedbackValid : styles.promoFeedbackInvalid]}>
+              <Ionicons name={promoResult.valid ? 'checkmark-circle' : 'close-circle'} size={16} color={promoResult.valid ? '#22c55e' : '#ef4444'} />
+              <Text style={[styles.promoFeedbackText, { color: promoResult.valid ? '#22c55e' : '#ef4444' }]}>{promoResult.message}</Text>
+            </View>
+          )}
+        </View>
+
         {/* Payment Method */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
           <View style={styles.paymentRow}>
-            <TouchableOpacity
-              style={[styles.paymentCard, paymentMethod === 'wallet' && styles.paymentCardSelected]}
-              onPress={() => setPaymentMethod('wallet')}
-            >
-              <View style={[styles.paymentIcon, paymentMethod === 'wallet' && styles.paymentIconSelected]}>
-                <Ionicons name="wallet-outline" size={22} color={paymentMethod === 'wallet' ? BG_DARK : ACCENT} />
-              </View>
-              <Text style={[styles.paymentTitle, paymentMethod === 'wallet' && styles.paymentTitleSelected]}>Wallet</Text>
-              <Text style={styles.paymentSub}>Pay from balance</Text>
-              {paymentMethod === 'wallet' && (
-                <View style={styles.paymentCheck}>
-                  <Ionicons name="checkmark" size={12} color={BG_DARK} />
+            {[
+              { id: 'wallet' as const, icon: 'wallet-outline', label: 'Wallet', sub: 'Pay from balance' },
+              { id: 'card' as const, icon: 'card-outline', label: 'Card', sub: 'Debit/Credit card' },
+              { id: 'cash' as const, icon: 'cash-outline', label: 'Cash', sub: 'Pay on delivery' },
+            ].map(pm => (
+              <TouchableOpacity
+                key={pm.id}
+                style={[styles.paymentCard, paymentMethod === pm.id && styles.paymentCardSelected]}
+                onPress={() => setPaymentMethod(pm.id)}
+              >
+                <View style={[styles.paymentIcon, paymentMethod === pm.id && styles.paymentIconSelected]}>
+                  <Ionicons name={pm.icon as any} size={20} color={paymentMethod === pm.id ? BG_DARK : ACCENT} />
                 </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.paymentCard, paymentMethod === 'cash' && styles.paymentCardSelected]}
-              onPress={() => setPaymentMethod('cash')}
-            >
-              <View style={[styles.paymentIcon, paymentMethod === 'cash' && styles.paymentIconSelected]}>
-                <Ionicons name="cash-outline" size={22} color={paymentMethod === 'cash' ? BG_DARK : ACCENT} />
-              </View>
-              <Text style={[styles.paymentTitle, paymentMethod === 'cash' && styles.paymentTitleSelected]}>Cash</Text>
-              <Text style={styles.paymentSub}>Pay on delivery</Text>
-              {paymentMethod === 'cash' && (
-                <View style={styles.paymentCheck}>
-                  <Ionicons name="checkmark" size={12} color={BG_DARK} />
-                </View>
-              )}
-            </TouchableOpacity>
+                <Text style={[styles.paymentTitle, paymentMethod === pm.id && styles.paymentTitleSelected]}>{pm.label}</Text>
+                <Text style={styles.paymentSub}>{pm.sub}</Text>
+                {paymentMethod === pm.id && (
+                  <View style={styles.paymentCheck}>
+                    <Ionicons name="checkmark" size={12} color={BG_DARK} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
         {/* Insurance Banner */}
         <View style={styles.infoBanner}>
           <Ionicons name="shield-checkmark" size={18} color={ACCENT} />
-          <Text style={styles.infoBannerText}>Insured up to {'\u20A6'}50,000</Text>
+          <Text style={styles.infoBannerText}>
+            {insuranceTier ? `${insuranceTier.charAt(0).toUpperCase() + insuranceTier.slice(1)} insurance — up to ${pricing.insuranceCoverage ? '\u20A6' + pricing.insuranceCoverage.toLocaleString() : '\u20A650,000'}` : 'Insured up to \u20A650,000'}
+          </Text>
         </View>
 
         <View style={{ height: 100 }} />
@@ -721,6 +802,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  promoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34,197,94,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+    gap: 6,
+  },
+  promoBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#22c55e',
+  },
+  promoRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  promoInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: CARD_DARK,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  promoBtn: {
+    backgroundColor: ACCENT,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  promoBtnDisabled: {
+    backgroundColor: CARD_DARK,
+  },
+  promoBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BG_DARK,
+  },
+  promoFeedback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  promoFeedbackValid: {
+    backgroundColor: 'rgba(34,197,94,0.08)',
+  },
+  promoFeedbackInvalid: {
+    backgroundColor: 'rgba(239,68,68,0.08)',
+  },
+  promoFeedbackText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
 

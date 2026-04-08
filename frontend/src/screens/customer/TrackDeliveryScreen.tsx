@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { packageDeliveryAPI } from '../../services/packageDeliveryAPI';
 import { resolveMediaUrl } from '../../services/api';
+import { showAlert } from '../../utils/alert';
 
 const TrackDeliveryScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -30,8 +31,20 @@ const TrackDeliveryScreen: React.FC = () => {
   const [eta, setEta] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deliveryProofs, setDeliveryProofs] = useState<any[]>([]);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const hasLoadedOnce = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const CANCEL_REASONS = [
+    'Changed my mind',
+    'Found a better option',
+    'Courier taking too long',
+    'Wrong pickup/dropoff address',
+    'Package no longer needed',
+    'Other',
+  ];
 
   useEffect(() => {
     if (!orderId) {
@@ -89,6 +102,13 @@ const TrackDeliveryScreen: React.FC = () => {
         setCourierInfo(data.order.driver);
       }
 
+      if (data.order?.status === 'delivered' || data.order?.status === 'picked_up') {
+        try {
+          const proofsRes: any = await packageDeliveryAPI.getDeliveryProofs(orderId);
+          setDeliveryProofs(proofsRes?.data || []);
+        } catch { /* proofs optional */ }
+      }
+
       if (data.courierLocation && mapRef.current) {
         mapRef.current.animateToRegion({
           latitude: data.courierLocation.latitude,
@@ -117,7 +137,7 @@ const TrackDeliveryScreen: React.FC = () => {
   const handleMessageCourier = () => {
     const phone = courierInfo?.phone || courierInfo?.phoneNumber;
     if (phone) Linking.openURL(`sms:${phone}`);
-    else Alert.alert('Not available', 'Courier phone number is not available.');
+    else showAlert('Not available', 'Courier phone number is not available.');
   };
 
   const handleShare = async () => {
@@ -132,9 +152,9 @@ const TrackDeliveryScreen: React.FC = () => {
           await (navigator as any).share({ title: 'Track My Delivery', text: message });
         } else if (typeof navigator !== 'undefined' && (navigator as any).clipboard) {
           await (navigator as any).clipboard.writeText(message);
-          Alert.alert('Copied!', 'Tracking info copied to clipboard.');
+          showAlert('Copied!', 'Tracking info copied to clipboard.');
         } else {
-          Alert.alert('Share', message);
+          showAlert('Share', message);
         }
       } else {
         await Share.share({ message, title: 'Track My Delivery' });
@@ -150,7 +170,7 @@ const TrackDeliveryScreen: React.FC = () => {
       ? Number(courierInfo.driverProfile.rating).toFixed(1)
       : 'N/A';
     const trips = courierInfo.driverProfile?.totalDeliveries ?? 'N/A';
-    Alert.alert(
+    showAlert(
       `${courierInfo.firstName} ${courierInfo.lastName}`,
       `⭐ Rating: ${rating}\n📦 Deliveries: ${trips}\n📞 ${courierInfo.phone || courierInfo.phoneNumber || 'N/A'}`,
       [{ text: 'Close' }]
@@ -158,25 +178,21 @@ const TrackDeliveryScreen: React.FC = () => {
   };
 
   const handleCancelDelivery = () => {
-    Alert.alert(
-      'Cancel Delivery',
-      'Are you sure you want to cancel this delivery?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await packageDeliveryAPI.cancelDelivery(orderId);
-              (navigation as any).navigate('HomeTabs');
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to cancel delivery');
-            }
-          },
-        },
-      ]
-    );
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = async () => {
+    try {
+      const res: any = await packageDeliveryAPI.cancelDelivery(orderId, cancelReason || undefined);
+      const fee = res?.data?.cancellationFee || 0;
+      setShowCancelModal(false);
+      if (fee > 0) {
+        showAlert('Delivery Cancelled', `A cancellation fee of \u20A6${fee.toLocaleString()} has been applied.`);
+      }
+      (navigation as any).navigate('HomeTabs');
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Failed to cancel delivery');
+    }
   };
 
   const getStatusInfo = () => {
@@ -457,6 +473,23 @@ const TrackDeliveryScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Delivery Proofs */}
+          {deliveryProofs.length > 0 && (
+            <View style={styles.proofsSection}>
+              <Text style={styles.proofsSectionTitle}>Delivery Proof</Text>
+              {deliveryProofs.map((proof: any) => (
+                <View key={proof.id} style={styles.proofCard}>
+                  <Image source={{ uri: proof.photoUrl }} style={styles.proofImage} />
+                  <View style={styles.proofInfo}>
+                    <Text style={styles.proofType}>{proof.type}</Text>
+                    {proof.notes && <Text style={styles.proofNotes}>{proof.notes}</Text>}
+                    <Text style={styles.proofTime}>{new Date(proof.createdAt).toLocaleString()}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Cancel Button */}
           {deliveryStatus.order.status !== 'delivered' && (
             <TouchableOpacity style={styles.cancelButton} onPress={handleCancelDelivery}>
@@ -467,6 +500,46 @@ const TrackDeliveryScreen: React.FC = () => {
           <View style={{ height: Platform.OS === 'ios' ? 20 : 8 }} />
         </ScrollView>
       </View>
+
+      {/* Cancel Reason Modal */}
+      {showCancelModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.cancelModal}>
+            <Text style={styles.cancelModalTitle}>Cancel Delivery</Text>
+            <Text style={styles.cancelModalSub}>Please select a reason for cancelling</Text>
+            {deliveryStatus.order.status && ['accepted', 'picked_up', 'in_transit'].includes(deliveryStatus.order.status) && (
+              <View style={styles.cancelFeeWarning}>
+                <Ionicons name="warning" size={16} color="#f59e0b" />
+                <Text style={styles.cancelFeeText}>A 20% cancellation fee may apply</Text>
+              </View>
+            )}
+            {CANCEL_REASONS.map(reason => (
+              <TouchableOpacity
+                key={reason}
+                style={[styles.cancelReasonOption, cancelReason === reason && styles.cancelReasonSelected]}
+                onPress={() => setCancelReason(reason)}
+              >
+                <View style={[styles.cancelRadio, cancelReason === reason && styles.cancelRadioSelected]}>
+                  {cancelReason === reason && <View style={styles.cancelRadioDot} />}
+                </View>
+                <Text style={[styles.cancelReasonText, cancelReason === reason && { color: '#ef4444' }]}>{reason}</Text>
+              </TouchableOpacity>
+            ))}
+            <View style={styles.cancelModalActions}>
+              <TouchableOpacity style={styles.cancelModalDismiss} onPress={() => setShowCancelModal(false)}>
+                <Text style={styles.cancelModalDismissText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.cancelModalConfirm, !cancelReason && { opacity: 0.4 }]}
+                onPress={confirmCancel}
+                disabled={!cancelReason}
+              >
+                <Text style={styles.cancelModalConfirmText}>Confirm Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -741,6 +814,150 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#ef4444',
+  },
+  proofsSection: {
+    marginBottom: 16,
+  },
+  proofsSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  proofCard: {
+    flexDirection: 'row',
+    backgroundColor: CARD_DARK,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  proofImage: {
+    width: 80,
+    height: 80,
+  },
+  proofInfo: {
+    flex: 1,
+    padding: 10,
+    justifyContent: 'center',
+  },
+  proofType: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: ACCENT,
+    textTransform: 'capitalize',
+    marginBottom: 2,
+  },
+  proofNotes: {
+    fontSize: 12,
+    color: '#cbd5e1',
+    marginBottom: 2,
+  },
+  proofTime: {
+    fontSize: 11,
+    color: TEXT_DIM,
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 100,
+  },
+  cancelModal: {
+    backgroundColor: CARD_DARK,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  cancelModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  cancelModalSub: {
+    fontSize: 13,
+    color: TEXT_DIM,
+    marginBottom: 16,
+  },
+  cancelFeeWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    gap: 8,
+  },
+  cancelFeeText: {
+    fontSize: 13,
+    color: '#f59e0b',
+    fontWeight: '600',
+  },
+  cancelReasonOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  cancelReasonSelected: {
+    backgroundColor: 'rgba(239,68,68,0.06)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+  },
+  cancelRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#353A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelRadioSelected: {
+    borderColor: '#ef4444',
+  },
+  cancelRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
+  cancelReasonText: {
+    fontSize: 14,
+    color: '#cbd5e1',
+  },
+  cancelModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  cancelModalDismiss: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: BG_DARK,
+    alignItems: 'center',
+  },
+  cancelModalDismissText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#cbd5e1',
+  },
+  cancelModalConfirm: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+  },
+  cancelModalConfirmText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 

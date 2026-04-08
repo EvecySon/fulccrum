@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { showAlert } from '../../utils/alert';
 
 const ACCENT = '#14b8a6';
 const BG_DARK = '#1A1D2E';
@@ -30,7 +31,7 @@ const DELIVERY_SPEEDS = [
 const PackageDetailsScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { packageSize, pickupLocation, dropoffLocation } = (route.params as any) || {};
+  const { packageSize, pickupLocation, dropoffLocation, additionalStops } = (route.params as any) || {};
 
   const [deliverySpeed, setDeliverySpeed] = useState<'express' | 'same_day' | 'scheduled'>('same_day');
   const [packageDescription, setPackageDescription] = useState('');
@@ -40,6 +41,7 @@ const PackageDetailsScreen: React.FC = () => {
   const [dimH, setDimH] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [packagePhoto, setPackagePhoto] = useState<string | null>(null);
+  const [insuranceTier, setInsuranceTier] = useState<'none' | 'basic' | 'standard' | 'premium'>('none');
   const [selectedDateIdx, setSelectedDateIdx] = useState(0);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
@@ -73,11 +75,11 @@ const PackageDetailsScreen: React.FC = () => {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need camera permission to take photos');
+      showAlert('Permission Denied', 'We need camera permission to take photos');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -90,11 +92,11 @@ const PackageDetailsScreen: React.FC = () => {
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need gallery permission to select photos');
+      showAlert('Permission Denied', 'We need gallery permission to select photos');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -106,17 +108,18 @@ const PackageDetailsScreen: React.FC = () => {
 
   const handleContinue = () => {
     if (!packageDescription.trim()) {
-      Alert.alert('Missing Information', 'Please describe what you\'re sending');
+      showAlert('Missing Information', 'Please describe what you\'re sending');
       return;
     }
     if (deliverySpeed === 'scheduled' && selectedHour === null) {
-      Alert.alert('Pick a Time', 'Please select a delivery date and time slot');
+      showAlert('Pick a Time', 'Please select a delivery date and time slot');
       return;
     }
     (navigation as any).navigate('PriceEstimate', {
       packageSize,
       pickupLocation,
       dropoffLocation,
+      additionalStops,
       deliverySpeed,
       scheduledTime: getScheduledTime(),
       packageDescription: packageDescription.trim(),
@@ -124,6 +127,7 @@ const PackageDetailsScreen: React.FC = () => {
       dimensions: getDimensions(),
       specialInstructions: specialInstructions.trim() || undefined,
       packagePhoto,
+      insuranceTier: insuranceTier !== 'none' ? insuranceTier : undefined,
     });
   };
 
@@ -352,12 +356,32 @@ const PackageDetailsScreen: React.FC = () => {
           />
         </View>
 
-        {/* Info */}
-        <View style={styles.infoCard}>
-          <Ionicons name="shield-checkmark" size={18} color={ACCENT} />
-          <Text style={styles.infoText}>
-            All packages insured up to ₦50,000. Contact support for higher value items.
-          </Text>
+        {/* Insurance Tier Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Insurance Coverage</Text>
+          <Text style={styles.sectionSub}>Choose a plan that matches your package value</Text>
+          {[
+            { id: 'none', label: 'Free', desc: 'Up to ₦50,000', price: '₦0', icon: 'shield-outline' },
+            { id: 'basic', label: 'Basic', desc: 'Up to ₦50,000', price: '+₦200', icon: 'shield-half-outline' },
+            { id: 'standard', label: 'Standard', desc: 'Up to ₦200,000', price: '+₦500', icon: 'shield-checkmark-outline' },
+            { id: 'premium', label: 'Premium', desc: 'Up to ₦500,000', price: '+₦1,000', icon: 'shield' },
+          ].map(tier => (
+            <TouchableOpacity
+              key={tier.id}
+              style={[styles.insuranceOption, insuranceTier === tier.id && styles.insuranceOptionSelected]}
+              onPress={() => setInsuranceTier(tier.id as any)}
+            >
+              <Ionicons name={tier.icon as any} size={22} color={insuranceTier === tier.id ? ACCENT : TEXT_DIM} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.insuranceLabel, insuranceTier === tier.id && { color: ACCENT }]}>{tier.label}</Text>
+                <Text style={styles.insuranceDesc}>{tier.desc}</Text>
+              </View>
+              <Text style={[styles.insurancePrice, insuranceTier === tier.id && { color: ACCENT }]}>{tier.price}</Text>
+              <View style={[styles.insuranceRadio, insuranceTier === tier.id && styles.insuranceRadioSelected]}>
+                {insuranceTier === tier.id && <View style={styles.insuranceRadioDot} />}
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={{ height: 100 }} />
@@ -753,6 +777,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  insuranceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_DARK,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  insuranceOptionSelected: {
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(20,184,166,0.06)',
+  },
+  insuranceLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  insuranceDesc: {
+    fontSize: 12,
+    color: TEXT_DIM,
+    marginTop: 1,
+  },
+  insurancePrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT_DIM,
+    marginRight: 10,
+  },
+  insuranceRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#353A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insuranceRadioSelected: {
+    borderColor: ACCENT,
+  },
+  insuranceRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: ACCENT,
   },
 });
 

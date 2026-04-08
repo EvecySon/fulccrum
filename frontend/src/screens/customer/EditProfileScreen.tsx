@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Alert,
   ActivityIndicator,
   Modal,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
 import { usersAPI, uploadAPI, resolveMediaUrl } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { showAlert } from '../../utils/alert';
 
 const DIETARY_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten Free', 'Halal', 'Keto', 'Dairy Free'];
 const ALLERGY_OPTIONS = ['Nuts', 'Shellfish', 'Dairy', 'Eggs', 'Soy', 'Gluten', 'Fish'];
@@ -108,15 +108,15 @@ export default function EditProfileScreen({ navigation }: any) {
         }
       }
     } catch (e: any) {
-      Alert.alert('Upload Failed', e?.message || 'Could not upload avatar');
+      showAlert('Upload Failed', e?.message || 'Could not upload avatar');
     } finally {
       setUploadingAvatar(false);
     }
   };
 
   const handleSave = async () => {
-    if (!firstName.trim()) { Alert.alert('Required', 'First name is required.'); return; }
-    if (!lastName.trim()) { Alert.alert('Required', 'Last name is required.'); return; }
+    if (!firstName.trim()) { showAlert('Required', 'First name is required.'); return; }
+    if (!lastName.trim()) { showAlert('Required', 'Last name is required.'); return; }
     setSaving(true);
     try {
       const updated = await usersAPI.updateProfile({
@@ -129,10 +129,10 @@ export default function EditProfileScreen({ navigation }: any) {
         customAllergies: customAllergies.trim() || undefined,
       });
       if (updated) setUser(updated);
-      Alert.alert('Saved', 'Profile updated successfully.');
+      showAlert('Saved', 'Profile updated successfully.');
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not update profile');
+      showAlert('Error', e?.message || 'Could not update profile');
     } finally {
       setSaving(false);
     }
@@ -146,16 +146,16 @@ export default function EditProfileScreen({ navigation }: any) {
   };
 
   const submitChangePassword = async () => {
-    if (!currentPw) { Alert.alert('Required', 'Enter your current password.'); return; }
-    if (newPw.length < 8) { Alert.alert('Too Short', 'New password must be at least 8 characters.'); return; }
-    if (newPw !== confirmPw) { Alert.alert('Mismatch', 'New passwords do not match.'); return; }
+    if (!currentPw) { showAlert('Required', 'Enter your current password.'); return; }
+    if (newPw.length < 8) { showAlert('Too Short', 'New password must be at least 8 characters.'); return; }
+    if (newPw !== confirmPw) { showAlert('Mismatch', 'New passwords do not match.'); return; }
     setChangingPw(true);
     try {
       await usersAPI.changePassword(currentPw, newPw);
       setShowPasswordModal(false);
-      Alert.alert('Success', 'Your password has been changed.');
+      showAlert('Success', 'Your password has been changed.');
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not change password.');
+      showAlert('Error', e?.message || 'Could not change password.');
     }
     setChangingPw(false);
   };
@@ -224,7 +224,7 @@ export default function EditProfileScreen({ navigation }: any) {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              {user?.email && (
+              {user?.emailVerified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                   <Text style={styles.verifiedText}>Verified</Text>
@@ -244,7 +244,7 @@ export default function EditProfileScreen({ navigation }: any) {
                 placeholderTextColor={colors.textLight}
                 keyboardType="phone-pad"
               />
-              {user?.phone && (
+              {user?.phoneVerified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                   <Text style={styles.verifiedText}>Verified</Text>

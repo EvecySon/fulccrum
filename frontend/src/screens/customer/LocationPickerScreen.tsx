@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { showAlert } from '../../utils/alert';
 
 interface LocationData {
   lat: number;
@@ -30,9 +31,11 @@ const LocationPickerScreen: React.FC = () => {
   
   const mapRef = useRef<MapView>(null);
   
-  const [currentStep, setCurrentStep] = useState<'pickup' | 'dropoff'>('pickup');
+  const [currentStep, setCurrentStep] = useState<'pickup' | 'dropoff' | 'stop'>('pickup');
   const [pickupLocation, setPickupLocation] = useState<LocationData | null>(null);
   const [dropoffLocation, setDropoffLocation] = useState<LocationData | null>(null);
+  const [additionalStops, setAdditionalStops] = useState<LocationData[]>([]);
+  const MAX_STOPS = 4;
   
   const [selectedLocation, setSelectedLocation] = useState({
     latitude: 9.0820,
@@ -54,7 +57,7 @@ const LocationPickerScreen: React.FC = () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert(
+        showAlert(
           'Permission Denied',
           'We need location permission to show your current location'
         );
@@ -88,12 +91,12 @@ const LocationPickerScreen: React.FC = () => {
 
   const handleConfirmLocation = async () => {
     if (!contactName.trim()) {
-      Alert.alert('Missing Information', 'Please enter contact name');
+      showAlert('Missing Information', 'Please enter contact name');
       return;
     }
     
     if (!contactPhone.trim()) {
-      Alert.alert('Missing Information', 'Please enter contact phone number');
+      showAlert('Missing Information', 'Please enter contact phone number');
       return;
     }
 
@@ -113,6 +116,12 @@ const LocationPickerScreen: React.FC = () => {
       setSearchQuery('');
       setContactName('');
       setContactPhone('');
+    } else if (currentStep === 'stop') {
+      setAdditionalStops(prev => [...prev, locationData]);
+      setCurrentStep('dropoff');
+      setSearchQuery('');
+      setContactName('');
+      setContactPhone('');
     } else {
       setDropoffLocation(locationData);
       
@@ -120,12 +129,33 @@ const LocationPickerScreen: React.FC = () => {
         packageSize,
         pickupLocation,
         dropoffLocation: locationData,
+        additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
       });
     }
   };
 
+  const handleAddStop = () => {
+    if (additionalStops.length >= MAX_STOPS) {
+      showAlert('Limit Reached', `You can add up to ${MAX_STOPS} additional stops.`);
+      return;
+    }
+    setCurrentStep('stop');
+    setSearchQuery('');
+    setContactName('');
+    setContactPhone('');
+  };
+
+  const handleRemoveStop = (index: number) => {
+    setAdditionalStops(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleBack = () => {
-    if (currentStep === 'dropoff') {
+    if (currentStep === 'stop') {
+      setCurrentStep('dropoff');
+    } else if (currentStep === 'dropoff') {
+      if (additionalStops.length > 0) {
+        setAdditionalStops([]);
+      }
       setCurrentStep('pickup');
       setDropoffLocation(null);
     } else {
@@ -142,11 +172,13 @@ const LocationPickerScreen: React.FC = () => {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
-            {currentStep === 'pickup' ? 'Pickup Location' : 'Dropoff Location'}
+            {currentStep === 'pickup' ? 'Pickup Location' : currentStep === 'stop' ? `Stop ${additionalStops.length + 1}` : 'Dropoff Location'}
           </Text>
           <Text style={styles.headerSubtitle}>
             {currentStep === 'pickup' 
-              ? 'Where should we pick up the package?' 
+              ? 'Where should we pick up the package?'
+              : currentStep === 'stop'
+              ? 'Add an intermediate delivery stop'
               : 'Where should we deliver the package?'}
           </Text>
         </View>
@@ -219,6 +251,47 @@ const LocationPickerScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Selected Location Preview */}
+          {pickupLocation && currentStep !== 'pickup' && (
+            <View style={styles.locationPreview}>
+              <View style={styles.locationPreviewHeader}>
+                <Ionicons name="checkmark-circle" size={20} color="#14b8a6" />
+                <Text style={styles.locationPreviewTitle}>Pickup Location Set</Text>
+              </View>
+              <Text style={styles.locationPreviewAddress}>{pickupLocation.address}</Text>
+              <Text style={styles.locationPreviewContact}>
+                {pickupLocation.contactName} • {pickupLocation.contactPhone}
+              </Text>
+            </View>
+          )}
+
+          {/* Additional stops preview */}
+          {additionalStops.length > 0 && currentStep !== 'pickup' && (
+            <View style={{ marginBottom: 12 }}>
+              {additionalStops.map((stop, idx) => (
+                <View key={idx} style={[styles.locationPreview, { marginBottom: 8, borderColor: 'rgba(251,191,36,0.3)', backgroundColor: 'rgba(251,191,36,0.06)' }]}>
+                  <View style={styles.locationPreviewHeader}>
+                    <Ionicons name="navigate-circle" size={20} color="#fbbf24" />
+                    <Text style={[styles.locationPreviewTitle, { color: '#fbbf24', flex: 1 }]}>Stop {idx + 1}</Text>
+                    <TouchableOpacity onPress={() => handleRemoveStop(idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Ionicons name="close-circle" size={20} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.locationPreviewAddress}>{stop.address}</Text>
+                  <Text style={styles.locationPreviewContact}>{stop.contactName} • {stop.contactPhone}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add stop button */}
+          {currentStep === 'dropoff' && additionalStops.length < MAX_STOPS && (
+            <TouchableOpacity style={styles.addStopBtn} onPress={handleAddStop}>
+              <Ionicons name="add-circle-outline" size={20} color="#fbbf24" />
+              <Text style={styles.addStopText}>Add a Stop (+₦200/stop)</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Search Address */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Address</Text>
@@ -240,7 +313,7 @@ const LocationPickerScreen: React.FC = () => {
           {/* Contact Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
-              {currentStep === 'pickup' ? 'Sender Name' : 'Receiver Name'} *
+              {currentStep === 'pickup' ? 'Sender Name' : currentStep === 'stop' ? 'Stop Contact Name' : 'Receiver Name'} *
             </Text>
             <TextInput
               style={styles.input}
@@ -254,7 +327,7 @@ const LocationPickerScreen: React.FC = () => {
           {/* Contact Phone */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
-              {currentStep === 'pickup' ? 'Sender Phone' : 'Receiver Phone'} *
+              {currentStep === 'pickup' ? 'Sender Phone' : currentStep === 'stop' ? 'Stop Contact Phone' : 'Receiver Phone'} *
             </Text>
             <TextInput
               style={styles.input}
@@ -265,20 +338,6 @@ const LocationPickerScreen: React.FC = () => {
               placeholderTextColor="#7B8494"
             />
           </View>
-
-          {/* Selected Location Preview */}
-          {pickupLocation && currentStep === 'dropoff' && (
-            <View style={styles.locationPreview}>
-              <View style={styles.locationPreviewHeader}>
-                <Ionicons name="checkmark-circle" size={20} color="#14b8a6" />
-                <Text style={styles.locationPreviewTitle}>Pickup Location Set</Text>
-              </View>
-              <Text style={styles.locationPreviewAddress}>{pickupLocation.address}</Text>
-              <Text style={styles.locationPreviewContact}>
-                {pickupLocation.contactName} • {pickupLocation.contactPhone}
-              </Text>
-            </View>
-          )}
 
           <View style={styles.bottomPadding} />
         </ScrollView>
@@ -294,7 +353,7 @@ const LocationPickerScreen: React.FC = () => {
             disabled={!contactName.trim() || !contactPhone.trim()}
           >
             <Text style={styles.confirmButtonText}>
-              {currentStep === 'pickup' ? 'Continue to Dropoff' : 'Continue'}
+              {currentStep === 'pickup' ? 'Continue to Dropoff' : currentStep === 'stop' ? 'Add This Stop' : 'Continue'}
             </Text>
             <Ionicons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
@@ -532,6 +591,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginRight: 8,
+  },
+  addStopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.3)',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(251,191,36,0.04)',
+    gap: 8,
+  },
+  addStopText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fbbf24',
   },
 });
 
