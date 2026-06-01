@@ -84,14 +84,20 @@ import { initializeFirebase } from './config/firebase.config';
     JwtModule.registerAsync({
       inject: [ConfigService],
       global: true,
-      useFactory: async (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
-        signOptions: {
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '1h') as JwtSignOptions['expiresIn'],
-          issuer: config.get<string>('JWT_ISSUER') ?? 'delivery-platform',
-          audience: config.get<string>('JWT_AUDIENCE') ?? 'delivery-platform-app',
-        } satisfies JwtSignOptions,
-      }),
+      useFactory: async (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret && process.env.NODE_ENV === 'production') {
+          throw new Error('JWT_SECRET environment variable is required in production');
+        }
+        return {
+          secret: secret || 'dev-secret-DO-NOT-USE-IN-PRODUCTION',
+          signOptions: {
+            expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '1h') as JwtSignOptions['expiresIn'],
+            issuer: config.get<string>('JWT_ISSUER') ?? 'delivery-platform',
+            audience: config.get<string>('JWT_AUDIENCE') ?? 'delivery-platform-app',
+          } satisfies JwtSignOptions,
+        };
+      },
     }),
     PrismaModule,
     UsersModule,

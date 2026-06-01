@@ -177,8 +177,10 @@ export class AuthService {
       },
     });
 
-    console.log('[LOGIN] Attempting login for:', dto.email);
-    console.log('[LOGIN] User found:', user ? { id: user.id, email: user.email, phone: user.phone, status: user.status } : 'NOT FOUND');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[LOGIN] Attempting login for:', dto.email);
+      console.log('[LOGIN] User found:', user ? { id: user.id, status: user.status } : 'NOT FOUND');
+    }
 
     if (!user) {
       // Log failed attempt for non-existent user
@@ -210,7 +212,7 @@ export class AuthService {
 
     // Check if account has been deleted
     if (user.status === 'deleted') {
-      console.log('[LOGIN] BLOCKED - Account is deleted');
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] BLOCKED - Account is deleted');
       await this.auditService.log({
         userId: user.id,
         action: 'login',
@@ -286,7 +288,7 @@ export class AuthService {
 
     // Check if email is verified
     if (!user.emailVerified) {
-      console.log('[LOGIN] Account not verified - sending new OTP');
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Account not verified - sending new OTP');
       
       // Generate new OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0');
@@ -319,7 +321,7 @@ export class AuthService {
         );
       }
 
-      console.log('[LOGIN] New OTP sent to unverified account');
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] New OTP sent to unverified account');
 
       // Return special response for unverified account
       return {
@@ -398,8 +400,11 @@ export class AuthService {
       },
     });
 
-    console.log(`[PASSWORD RESET] OTP for ${user.email}: ${otp}`);
-    console.log(`[PASSWORD RESET] Reset token: ${resetToken}`);
+    // OTP and reset token logged only in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[PASSWORD RESET] OTP for ${user.email}: ${otp}`);
+      console.log(`[PASSWORD RESET] Reset token: ${resetToken}`);
+    }
 
     // Queue password reset email (async)
     await this.queueService.sendEmail({
@@ -700,11 +705,24 @@ export class AuthService {
 
   async googleLogin(dto: GoogleLoginDto) {
     try {
+      // Verify Google ID token using Google's OAuth2 token verification endpoint
+      // This validates the token signature, expiry, audience, and issuer
       const response = await axios.get(
         `https://oauth2.googleapis.com/tokeninfo?id_token=${dto.idToken}`
       );
 
-      const { email, name, picture, sub: googleId } = response.data;
+      const { email, name, picture, sub: googleId, aud, iss } = response.data;
+
+      // Verify issuer is Google
+      if (!iss || !['accounts.google.com', 'https://accounts.google.com'].includes(iss)) {
+        throw new UnauthorizedException('Invalid Google token issuer');
+      }
+
+      // Verify audience matches our client ID (if configured)
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      if (googleClientId && aud !== googleClientId) {
+        throw new UnauthorizedException('Google token audience mismatch');
+      }
 
       if (!email) {
         throw new BadRequestException('Email not provided by Google');
@@ -761,16 +779,48 @@ export class AuthService {
 
   async appleLogin(dto: AppleLoginDto) {
     try {
+      // Fetch Apple's public keys for JWT verification
       const response = await axios.get('https://appleid.apple.com/auth/keys');
-      const keys = response.data.keys;
+      const appleKeys = response.data.keys;
 
+      // Decode the token header to find the matching key
       const decodedToken = this.jwt.decode(dto.identityToken, { complete: true }) as any;
       
-      if (!decodedToken) {
+      if (!decodedToken || !decodedToken.header) {
         throw new UnauthorizedException('Invalid Apple token');
       }
 
-      const { email, sub: appleId } = decodedToken.payload;
+      // Find the matching Apple public key by kid
+      const matchingKey = appleKeys.find((key: any) => key.kid === decodedToken.header.kid);
+      if (!matchingKey) {
+        throw new UnauthorizedException('Apple token key not found');
+      }
+
+      // Convert JWK to PEM for verification
+      const crypto = await import('crypto');
+      const publicKey = crypto.createPublicKey({
+        key: matchingKey,
+        format: 'jwk',
+      });
+      const pem = publicKey.export({ type: 'spki', format: 'pem' }) as string;
+
+      // Verify the token signature using Apple's public key
+      let verifiedPayload: any;
+      try {
+        verifiedPayload = await this.jwt.verifyAsync(dto.identityToken, {
+          secret: pem,
+          algorithms: ['RS256'],
+        });
+      } catch (verifyError) {
+        throw new UnauthorizedException('Apple token signature verification failed');
+      }
+
+      // Verify issuer
+      if (verifiedPayload.iss !== 'https://appleid.apple.com') {
+        throw new UnauthorizedException('Invalid Apple token issuer');
+      }
+
+      const { email, sub: appleId } = verifiedPayload;
 
       if (!email) {
         throw new BadRequestException('Email not provided by Apple');
