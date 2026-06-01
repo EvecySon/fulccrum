@@ -64,6 +64,7 @@ import { ServicesModule } from './services/services.module';
 import { GadgetsModule } from './gadgets/gadgets.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { ProviderModule } from './provider/provider.module';
+import { ChatModule } from './chat/chat.module';
 import { initializeFirebase } from './config/firebase.config';
 
 @Module({
@@ -144,6 +145,7 @@ import { initializeFirebase } from './config/firebase.config';
     GadgetsModule,
     ReferralsModule,
     ProviderModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

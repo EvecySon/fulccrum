@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { onChatMessage, sendChatMessage } from '../../services/socketService';
+import { chatAPI } from '../../services/api';
+import { onSocketEvent, emitSocketEvent, connectSocket } from '../../services/socketService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -26,123 +28,180 @@ interface Message {
   type: 'text' | 'image' | 'system';
 }
 
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hi! I just placed my order. Can I add extra sauce?',
-    senderId: 'customer-1',
-    senderName: 'You',
-    timestamp: '2:30 PM',
-    isMe: true,
-    type: 'text',
-  },
-  {
-    id: '2',
-    text: 'Of course! We\'ll add extra sauce to your order. No extra charge 😊',
-    senderId: 'merchant-1',
-    senderName: 'Burger House',
-    senderAvatar: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=100&h=100&fit=crop',
-    timestamp: '2:31 PM',
-    isMe: false,
-    type: 'text',
-  },
-  {
-    id: '3',
-    text: 'Thank you so much! 🙏',
-    senderId: 'customer-1',
-    senderName: 'You',
-    timestamp: '2:31 PM',
-    isMe: true,
-    type: 'text',
-  },
-  {
-    id: '4',
-    text: 'Your order is being prepared now. Should be ready in about 10 minutes.',
-    senderId: 'merchant-1',
-    senderName: 'Burger House',
-    senderAvatar: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=100&h=100&fit=crop',
-    timestamp: '2:33 PM',
-    isMe: false,
-    type: 'text',
-  },
-  {
-    id: 'sys-1',
-    text: 'Mike Johnson (Courier) has been assigned to your order',
-    senderId: 'system',
-    senderName: 'System',
-    timestamp: '2:38 PM',
-    isMe: false,
-    type: 'system',
-  },
-  {
-    id: '5',
-    text: 'Hi! I\'m Mike, your delivery driver. I\'m heading to the restaurant now.',
-    senderId: 'courier-1',
-    senderName: 'Mike Johnson',
-    senderAvatar: 'https://i.pravatar.cc/150?img=12',
-    timestamp: '2:40 PM',
-    isMe: false,
-    type: 'text',
-  },
-  {
-    id: '6',
-    text: 'Great, thanks Mike! I\'m at the front entrance of the building.',
-    senderId: 'customer-1',
-    senderName: 'You',
-    timestamp: '2:41 PM',
-    isMe: true,
-    type: 'text',
-  },
-];
-
 export default function ChatScreen({ navigation, route }: any) {
-  const orderId = route?.params?.orderId || '#3242';
+  const { user } = useAuth();
+  const orderId = route?.params?.orderId;
   const recipientName = route?.params?.recipientName || 'Order Chat';
   const recipientAvatar = route?.params?.recipientAvatar;
   const recipientRole = route?.params?.recipientRole || 'merchant';
 
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const mapApiMessages = useCallback((apiMessages: any[]): Message[] => {
+    return apiMessages.map((m: any) => ({
+      id: m.id,
+      text: m.content,
+      senderId: m.senderId || m.sender?.id,
+      senderName: m.sender ? `${m.sender.firstName} ${m.sender.lastName}` : 'Unknown',
+      senderAvatar: m.sender?.avatarUrl,
+      timestamp: formatTime(m.createdAt),
+      isMe: (m.senderId || m.sender?.id) === user?.id,
+      type: m.type || 'text',
+    }));
+  }, [user?.id]);
+
+  // Load conversation and messages
   useEffect(() => {
-    const unsub = onChatMessage((data) => {
+    const loadChat = async () => {
+      setLoading(true);
+      try {
+        // Get or create conversation for this order
+        const convo = await chatAPI.getConversation(orderId);
+        const convoData = convo?.data || convo;
+        setConversationId(convoData.id);
+
+        // Load messages
+        const msgRes = await chatAPI.getMessages(convoData.id);
+        const msgData = msgRes?.data?.data || msgRes?.data || [];
+        setMessages(mapApiMessages(Array.isArray(msgData) ? msgData : []));
+      } catch (e: any) {
+        // If conversation doesn't exist for this order, try order endpoint
+        try {
+          const convo = await chatAPI.getConversation(orderId);
+          const convoData = convo?.data || convo;
+          setConversationId(convoData.id);
+        } catch {
+          // No conversation yet — will create on first message
+        }
+      }
+      setLoading(false);
+    };
+
+    if (orderId) {
+      loadChat();
+    } else {
+      setLoading(false);
+    }
+  }, [orderId, mapApiMessages]);
+
+  // Connect socket and listen for real-time events
+  useEffect(() => {
+    connectSocket();
+
+    if (!conversationId) return;
+
+    // Join conversation room
+    emitSocketEvent('chat:join', { conversationId });
+
+    // Listen for new messages
+    const unsubMessage = onSocketEvent('chat:message', (data: any) => {
+      if (data.conversationId !== conversationId) return;
+      const msg = data.message;
+      if (msg.senderId === user?.id) return; // Skip own messages (already added optimistically)
+
       const newMsg: Message = {
-        id: Date.now().toString(),
-        text: data.message,
-        senderId: data.senderId,
-        senderName: recipientName,
-        senderAvatar: recipientAvatar,
-        timestamp: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        id: msg.id,
+        text: msg.content,
+        senderId: msg.senderId || msg.sender?.id,
+        senderName: msg.sender ? `${msg.sender.firstName} ${msg.sender.lastName}` : recipientName,
+        senderAvatar: msg.sender?.avatarUrl || recipientAvatar,
+        timestamp: formatTime(msg.createdAt),
         isMe: false,
-        type: 'text',
+        type: msg.type || 'text',
       };
       setMessages((prev) => [...prev, newMsg]);
     });
-    return unsub;
-  }, []);
 
-  const handleSend = () => {
+    // Listen for typing indicators
+    const unsubTyping = onSocketEvent('chat:typing', (data: any) => {
+      if (data.conversationId !== conversationId) return;
+      if (data.userId === user?.id) return;
+      setIsTyping(data.isTyping);
+      setTypingUser(data.isTyping ? recipientName : '');
+    });
+
+    return () => {
+      emitSocketEvent('chat:leave', { conversationId });
+      unsubMessage();
+      unsubTyping();
+    };
+  }, [conversationId, user?.id, recipientName, recipientAvatar]);
+
+  const handleSend = async () => {
     if (!inputText.trim()) return;
+    const text = inputText.trim();
+    setInputText('');
 
+    // Optimistic UI
+    const tempId = `temp-${Date.now()}`;
     const newMsg: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      senderId: 'me',
+      id: tempId,
+      text,
+      senderId: user?.id || 'me',
       senderName: 'You',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
       type: 'text',
     };
-
     setMessages((prev) => [...prev, newMsg]);
-    sendChatMessage(orderId, inputText.trim());
-    setInputText('');
 
-    // Simulate typing indicator
-    setIsTyping(true);
-    setTimeout(() => setIsTyping(false), 2000);
+    try {
+      let currentConvoId = conversationId;
+
+      if (!currentConvoId && orderId) {
+        // Create conversation via API
+        const convo = await chatAPI.getConversation(orderId);
+        const convoData = convo?.data || convo;
+        currentConvoId = convoData.id;
+        setConversationId(convoData.id);
+        emitSocketEvent('chat:join', { conversationId: convoData.id });
+      }
+
+      if (currentConvoId) {
+        const res = await chatAPI.sendMessage(currentConvoId, { text });
+        const sentMsg = res?.data || res;
+        // Replace temp message with server-confirmed message
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, id: sentMsg.id } : m)),
+        );
+      }
+    } catch {
+      // Mark as failed
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, text: `${text} (failed)` } : m)),
+      );
+    }
+
+    // Stop typing indicator for recipients
+    if (conversationId) {
+      emitSocketEvent('chat:typing', { conversationId, isTyping: false });
+    }
+  };
+
+  const handleTextChange = (text: string) => {
+    setInputText(text);
+
+    // Emit typing indicator
+    if (conversationId) {
+      emitSocketEvent('chat:typing', { conversationId, isTyping: true });
+
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(() => {
+        emitSocketEvent('chat:typing', { conversationId, isTyping: false });
+      }, 2000);
+    }
   };
 
   const handleCall = (type: 'voice' | 'video') => {
@@ -207,15 +266,28 @@ export default function ChatScreen({ navigation, route }: any) {
       </View>
 
       {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.teal} />
+          <Text style={{ color: colors.textLight, marginTop: 12 }}>Loading messages...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Ionicons name="chatbubbles-outline" size={48} color={colors.textLight} />
+              <Text style={{ fontSize: 14, color: colors.textLight, marginTop: 12 }}>No messages yet. Say hello!</Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Typing Indicator */}
       {isTyping && (
@@ -225,7 +297,7 @@ export default function ChatScreen({ navigation, route }: any) {
             <View style={[styles.typingDot, { opacity: 0.7 }]} />
             <View style={styles.typingDot} />
           </View>
-          <Text style={styles.typingText}>{recipientName} is typing...</Text>
+          <Text style={styles.typingText}>{typingUser || recipientName} is typing...</Text>
         </View>
       )}
 
@@ -255,7 +327,7 @@ export default function ChatScreen({ navigation, route }: any) {
             placeholder="Type a message..."
             placeholderTextColor={colors.textLight}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleTextChange}
             multiline
             maxLength={500}
           />

@@ -338,6 +338,9 @@ model User {
   ticketsAssigned Ticket[]        @relation("AssignedAgent")
   ticketMessages  TicketMessage[]
 
+  chatMessages              ChatMessage[]
+  conversationParticipants  ConversationParticipant[]
+
   @@map("users")
 }
 
@@ -550,6 +553,7 @@ model Order {
   incidents       Incident[]
   deliveryProofs  DeliveryProof[]
   deliveryRequest DeliveryRequest?
+  conversations   Conversation[]
 
   @@index([customerId])
   @@index([businessId])
@@ -2975,4 +2979,59 @@ model PackageDeliveryRating {
 
   @@index([deliveryId])
   @@map("package_delivery_ratings")
+}
+
+// ─── Live Chat System ────────────────────────────────────────────────────────
+
+model Conversation {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String?  @map("order_id") @db.Uuid
+  type        String   @default("order") @db.VarChar(20) // order, direct, support
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  lastMessage String?  @map("last_message") @db.Text
+  lastMessageAt DateTime? @map("last_message_at")
+
+  participants ConversationParticipant[]
+  messages     ChatMessage[]
+  order        Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  role           String   @db.VarChar(30) // customer, merchant, courier
+  joinedAt       DateTime @default(now()) @map("joined_at")
+  lastReadAt     DateTime? @map("last_read_at")
+  unreadCount    Int      @default(0) @map("unread_count")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+  @@map("conversation_participants")
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
+  content        String   @db.Text
+  type           String   @default("text") @db.VarChar(20) // text, image, system
+  imageUrl       String?  @map("image_url") @db.VarChar(500)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("chat_messages")
 }
